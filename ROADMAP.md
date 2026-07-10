@@ -69,18 +69,23 @@ that table is the interview/viva cheat sheet).
   circuit breaker · retry with backoff · strangler-fig extraction (first seam split)
 
 ## Sprint 5 — Catalog, trust, chat, payments (Weeks 10–11)
-- [ ] **vendor catalog:** vendors + menu_items tables (campus canteens/stores, sectioned menus)
+- [ ] **RBAC:** `role` on users (STUDENT/VENDOR/ADMIN); `require_vendor` guard; student_id/
+  campus-email rules become role-conditional. Vendors are onboarded by admin (no self-signup).
+- [ ] **vendor catalog:** vendors (owner_user_id, open/closed) + menu_items tables; **vendors
+  maintain their own menus** — ownership-checked CRUD, per-item sold-out toggle
+- [ ] **vendor portal UI:** one screen — my menu by section, add/edit/price/stock toggle
 - [ ] **Swiggy-style menu UI:** vendor card grid → menu page with sticky section nav → cart;
   cart snapshots item name+price into `errand_items` (old orders keep the price actually paid)
-- [ ] cache-aside on menus (read-heavy, write-rarely → Redis in front of Postgres)
+- [ ] cache-aside on menus (read-heavy → Redis) **with invalidation on vendor edits** —
+  sold-out must reflect instantly, not after a TTL
 - [ ] ledger_entries / wallets; settlement on delivery incl. `collect_amount` reimbursement
   (runner fronts cash at pickup → repaid + reward; KARMA now, UPI later)
 - [ ] ratings → reputation → feedback into matching
 - [ ] MongoDB chat + notifications feed; chat UI
 - [ ] CQRS-lite: denormalized read model for the runner feed
 - [ ] batching (same store + nearby zone + time window) — first to cut if the sprint slips
-- **Demo #5:** order 2 items off a canteen menu; runner fronts cash at pickup, ledger repays;
-  rating changes matching; live chat.
+- **Demo #5:** canteen owner logs into the portal, marks an item sold out — it greys out on a
+  student's menu instantly; order 2 items; runner fronts cash, ledger repays; live chat.
 - **Patterns:** CQRS/materialized view · ledger (append-only money) · polyglot persistence ·
   cache-aside · snapshot vs reference (price at order time)
 
@@ -121,6 +126,8 @@ that table is the interview/viva cheat sheet).
 | Cache-aside | Redis in front of Postgres reads; vendor menus | 3, 5 |
 | Least-privilege secret disclosure | pickup OTP gated to assigned runner + SECRET_VIEWED audit | 3 |
 | Snapshot vs reference | errand_items copy name+price at order time | 5 |
+| RBAC + ownership auth | role column + require_vendor; vendors edit only their own menu | 5 |
+| Cache invalidation on write | vendor sold-out toggle busts the menu cache immediately | 5 |
 | Async request-reply | WebSocket order tracking | 3 |
 | Pub/sub, load leveling, competing consumers | Kafka backbone | 4 |
 | Transactional outbox | orders + events atomically → Kafka relay | 4 |
@@ -147,6 +154,6 @@ consumer dies mid-message → idempotency + at-least-once; Redis lies → row lo
 | Live tracking | Payment ledger | Full Prometheus/Grafana |
 | Admin suspend/ban | Disputes | Multi-campus UI |
 | Rate limiting | nginx LB demo | CQRS read model |
-| Verified handoff (OTP/order no.) | Vendor menus + cart UI | Menu photos/uploads |
+| Verified handoff (OTP/order no.) | Vendor menus + cart UI (vendor-maintained) | Menu photos/uploads |
 
 **Risk peaks:** Sprints 3 & 4. Keep one catch-up day per sprint for Docker/Kafka/integration gremlins.
