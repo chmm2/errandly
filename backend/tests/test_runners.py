@@ -154,6 +154,33 @@ async def test_load_cap_blocks_hoarding(client, make_user):
     assert (await client.post(f"/errands/{third['id']}/accept", headers=runner)).status_code == 200
 
 
+async def test_detail_exposes_runner_position_to_parties_only(client, make_user):
+    _, requester = await make_user("Requester")
+    _, runner = await make_user("Runner")
+    _, stranger = await make_user("Stranger")
+
+    errand = (await client.post("/errands", json=errand_payload(title="track me"),
+                                headers=requester)).json()
+    eid = errand["id"]
+
+    # No runner yet — no position
+    detail = (await client.get(f"/errands/{eid}", headers=requester)).json()
+    assert detail["runner_lat"] is None
+
+    await client.post(f"/errands/{eid}/accept", headers=runner)
+    resp = await client.post("/runners/me/location", json=MID, headers=runner)
+    assert resp.status_code == 200
+
+    # Requester sees the runner's last position on the detail endpoint
+    detail = (await client.get(f"/errands/{eid}", headers=requester)).json()
+    assert detail["runner_lat"] == pytest.approx(MID["lat"])
+    assert detail["runner_lng"] == pytest.approx(MID["lng"])
+
+    # A bystander doesn't
+    other = (await client.get(f"/errands/{eid}", headers=stranger)).json()
+    assert other["runner_lat"] is None
+
+
 async def test_offer_event_recorded_for_available_runner(client, make_user):
     """Creating an errand offers it to nearby available runners (Redis GEO)."""
     _, requester = await make_user("Requester")

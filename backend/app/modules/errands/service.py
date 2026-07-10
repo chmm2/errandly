@@ -17,6 +17,7 @@ from app.modules.errands.models import (
 )
 from app.modules.errands.schemas import ErrandCreate
 from app.modules.runners import service as runners_service
+from app.modules.runners.models import RunnerProfile
 
 ACCEPT_LOCK_PREFIX = "errand:accept:"
 ACCEPT_LOCK_TTL_SECONDS = 10
@@ -225,6 +226,21 @@ async def get_errand(db: AsyncSession, user: User, errand_id: uuid.UUID) -> Erra
         raise ErrandError("Errand not found.", 404)
     await _attach_secret_flags(db, [errand])
     return errand
+
+
+async def attach_runner_position(db: AsyncSession, user: User, errand: Errand) -> None:
+    """Seed the tracking map: last known runner position, only for the two
+    parties of an active run (live updates then arrive over the WebSocket)."""
+    if (
+        errand.runner_id is None
+        or errand.status not in ("ACCEPTED", "IN_PROGRESS")
+        or user.id not in (errand.requester_id, errand.runner_id)
+    ):
+        return
+    profile = await db.get(RunnerProfile, errand.runner_id)
+    if profile and profile.last_lat is not None:
+        errand.runner_lat = float(profile.last_lat)
+        errand.runner_lng = float(profile.last_lng)
 
 
 async def list_events(db: AsyncSession, user: User, errand_id: uuid.UUID) -> list[ErrandEvent]:

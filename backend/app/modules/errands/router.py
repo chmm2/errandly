@@ -70,7 +70,9 @@ async def detail(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        return await service.get_errand(db, user, errand_id)
+        errand = await service.get_errand(db, user, errand_id)
+        await service.attach_runner_position(db, user, errand)
+        return errand
     except ErrandError as e:
         _raise(e)
 

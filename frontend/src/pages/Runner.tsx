@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import {
@@ -12,7 +12,7 @@ import {
   type HandoffSecret,
   pickupErrand,
 } from "../api/errands";
-import { fetchRunnerProfile, setAvailability } from "../api/runners";
+import { fetchRunnerProfile, setAvailability, updateLocation } from "../api/runners";
 import Navbar from "../components/Navbar";
 import { apiErrorMessage } from "../lib/api";
 import { useSocket } from "../lib/ws";
@@ -111,6 +111,27 @@ export default function Runner() {
     queryFn: fetchRunnerProfile,
   });
   const available = profile?.is_available ?? false;
+
+  // While online, stream position: watchPosition fires on movement, we
+  // forward at most one update per 10s (the server throttles again at 5s —
+  // belt and braces on both ends of the wire).
+  const lastSentRef = useRef(0);
+  useEffect(() => {
+    if (!available || !navigator.geolocation.watchPosition) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const now = Date.now();
+        if (now - lastSentRef.current < 10_000) return;
+        lastSentRef.current = now;
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setGeo(loc);
+        updateLocation(loc.lat, loc.lng).catch(() => {});
+      },
+      () => {},
+      { enableHighAccuracy: true },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [available]);
 
   // Live offers pushed by the matching engine (Redis pub/sub → WS)
   useSocket(

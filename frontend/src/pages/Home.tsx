@@ -73,15 +73,20 @@ function ErrandCard({ errand }: { errand: Errand }) {
 
   return (
     <div className="flex items-center gap-4 rounded-2xl border border-line p-5 transition hover:shadow-md">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-2xl">
-        {CATEGORY_ICONS[errand.category] ?? "✨"}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="truncate font-bold">{errand.title}</div>
-        <div className="mt-0.5 truncate text-sm text-muted">
-          from {errand.pickup_label} · ₹{Number(errand.reward).toFixed(0)} reward
+      <Link
+        to={`/errands/${errand.id}`}
+        className="flex min-w-0 flex-1 items-center gap-4"
+      >
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-2xl">
+          {CATEGORY_ICONS[errand.category] ?? "✨"}
         </div>
-      </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-bold hover:text-brand">{errand.title}</div>
+          <div className="mt-0.5 truncate text-sm text-muted">
+            from {errand.pickup_label} · ₹{Number(errand.reward).toFixed(0)} reward · track →
+          </div>
+        </div>
+      </Link>
       <span className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${status.cls}`}>
         {status.label}
       </span>

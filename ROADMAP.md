@@ -51,6 +51,10 @@ that table is the interview/viva cheat sheet).
 - [ ] browser Geolocation capture; runner dashboard
 - [ ] WebSocket live order status; location updates **throttled to ~1 per 5–10s**
   (backpressure — accuracy users need without update-storm load)
+- [ ] **order tracking page:** Leaflet + OpenStreetMap (no API key), runner position live on
+  the map + status stepper timeline built from errand_events *(UX ref: Enatega rider tracking)*
+- [ ] **saved drop points:** remember recent drops ("Block A Room 402") as one-tap chips on
+  the new-errand form alongside GPS
 - [ ] **verified handoff** for gate/parcel pickups: `fulfillment_type` + `external_ref` +
   `collect_amount` on errands; delivery OTP stored gated — disclosed **only to the assigned
   runner after accept** via a dedicated endpoint, every view logged as a `SECRET_VIEWED` event
@@ -85,7 +89,10 @@ that table is the interview/viva cheat sheet).
   (a slightly old menu beats an error page)
 - [ ] ledger_entries / wallets; settlement on delivery incl. `collect_amount` reimbursement
   (runner fronts cash at pickup → repaid + reward; KARMA now, UPI later)
-- [ ] ratings → reputation → feedback into matching
+- [ ] ratings → reputation → feedback into matching; **post-delivery rating modal at handoff**
+- [ ] **runner earnings summary** ("₹240 this week · 12 deliveries") from the ledger
+- [ ] menu UX details *(ref: Enatega)*: sticky category tabs, sold-out item states,
+  persistent bottom cart bar ("2 items · ₹110 · View cart")
 - [ ] MongoDB chat + notifications feed; chat UI
 - [ ] CQRS-lite: denormalized read model for the runner feed
 - [ ] batching (same store + nearby zone + time window) — first to cut if the sprint slips

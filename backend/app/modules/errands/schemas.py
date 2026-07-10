@@ -55,6 +55,10 @@ class ErrandOut(BaseModel):
     collect_amount: float
     has_handoff_secret: bool = False
     distance_m: float | None = None
+    # Runner's last known position — populated on the detail endpoint only,
+    # for the requester/runner while the run is active (tracking page).
+    runner_lat: float | None = None
+    runner_lng: float | None = None
     status: str
     version: int
     accepted_at: datetime | None

@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import UTC, datetime
 
@@ -67,7 +68,9 @@ async def update_location(
     if profile.is_available:
         await redis.geoadd(geo_key(user.campus_id), (data.lng, data.lat, str(user.id)))
 
-    # Throttle the Postgres write, not the Redis one.
+    # Throttle the Postgres write AND the tracking fan-out, not the Redis
+    # GEO refresh: watchers get ~1 update per interval (backpressure), the
+    # matching index stays as fresh as the heartbeats.
     throttle_key = f"runner:locwrite:{user.id}"
     fresh = await redis.set(throttle_key, "1", nx=True, ex=LOCATION_DB_WRITE_INTERVAL_SECONDS)
     if fresh:
@@ -76,7 +79,23 @@ async def update_location(
         profile.location_updated_at = datetime.now(UTC)
         await db.commit()
         await db.refresh(profile)
+        await _publish_location_to_active_runs(db, redis, user.id, data.lat, data.lng)
     return profile
+
+
+async def _publish_location_to_active_runs(
+    db: AsyncSession, redis: Redis, runner_id: uuid.UUID, lat: float, lng: float
+) -> None:
+    """Anyone tracking one of this runner's active errands sees them move."""
+    errand_ids = await db.scalars(
+        select(Errand.id).where(
+            Errand.runner_id == runner_id, Errand.status.in_(ACTIVE_RUN_STATUSES)
+        )
+    )
+    message = json.dumps({"type": "location", "lat": lat, "lng": lng})
+    for errand_id in errand_ids:
+        # Same channel the status pushes use — one socket per tracked errand.
+        await redis.publish(f"errand:status:{errand_id}", message)
 
 
 async def nearest_available_runners(

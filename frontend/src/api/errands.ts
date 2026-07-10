@@ -36,6 +36,8 @@ export interface Errand {
   collect_amount: number;
   has_handoff_secret: boolean;
   distance_m: number | null;
+  runner_lat: number | null;
+  runner_lng: number | null;
   status: ErrandStatus;
   version: number;
   accepted_at: string | null;
@@ -63,6 +65,14 @@ export interface HandoffSecret {
   otp: string | null;
   external_ref: string | null;
   collect_amount: number;
+}
+
+export interface ErrandEvent {
+  id: string;
+  actor_id: string | null;
+  event_type: string;
+  payload: Record<string, unknown> | null;
+  created_at: string;
 }
 
 export interface ErrandFeed {
