@@ -48,7 +48,8 @@ that table is the interview/viva cheat sheet).
 - [ ] matching engine (Redis GEOSEARCH, score by proximity+load+direction)
 - [ ] offer → accept/timeout → broaden retry loop; load cap
 - [ ] browser Geolocation capture; runner dashboard
-- [ ] WebSocket live order status
+- [ ] WebSocket live order status; location updates **throttled to ~1 per 5–10s**
+  (backpressure — accuracy users need without update-storm load)
 - [ ] **verified handoff** for gate/parcel pickups: `fulfillment_type` + `external_ref` +
   `collect_amount` on errands; delivery OTP stored gated — disclosed **only to the assigned
   runner after accept** via a dedicated endpoint, every view logged as a `SECRET_VIEWED` event
@@ -76,8 +77,11 @@ that table is the interview/viva cheat sheet).
 - [ ] **vendor portal UI:** one screen — my menu by section, add/edit/price/stock toggle
 - [ ] **Swiggy-style menu UI:** vendor card grid → menu page with sticky section nav → cart;
   cart snapshots item name+price into `errand_items` (old orders keep the price actually paid)
+- [ ] **order-time revalidation:** cart is client-side, so POST /errands re-checks every item
+  against the live menu (still available? price changed?) and rejects with a diff the UI shows
 - [ ] cache-aside on menus (read-heavy → Redis) **with invalidation on vendor edits** —
-  sold-out must reflect instantly, not after a TTL
+  sold-out must reflect instantly, not after a TTL; **fallback-to-stale** if Postgres is slow
+  (a slightly old menu beats an error page)
 - [ ] ledger_entries / wallets; settlement on delivery incl. `collect_amount` reimbursement
   (runner fronts cash at pickup → repaid + reward; KARMA now, UPI later)
 - [ ] ratings → reputation → feedback into matching
@@ -128,6 +132,9 @@ that table is the interview/viva cheat sheet).
 | Snapshot vs reference | errand_items copy name+price at order time | 5 |
 | RBAC + ownership auth | role column + require_vendor; vendors edit only their own menu | 5 |
 | Cache invalidation on write | vendor sold-out toggle busts the menu cache immediately | 5 |
+| Throttling / backpressure | WS location updates capped at ~1 per 5–10s | 3 |
+| Graceful degradation (stale fallback) | serve last-known menu from Redis if Postgres is slow | 5 |
+| Order-time revalidation | client cart re-checked against live menu at POST /errands | 5 |
 | Async request-reply | WebSocket order tracking | 3 |
 | Pub/sub, load leveling, competing consumers | Kafka backbone | 4 |
 | Transactional outbox | orders + events atomically → Kafka relay | 4 |
