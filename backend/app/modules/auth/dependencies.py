@@ -37,3 +37,11 @@ async def get_current_user(
     if user.account_status in ("SUSPENDED", "BANNED"):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Account is not permitted.")
     return user
+
+
+async def require_active_user(user: User = Depends(get_current_user)) -> User:
+    if user.account_status != "ACTIVE":
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Account pending verification by an administrator."
+        )
+    return user
