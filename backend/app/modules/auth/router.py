@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.ratelimit import RateLimiter
 from app.core.redis import get_redis
 from app.core.security import decode_token
 from app.modules.auth import service
@@ -20,6 +21,8 @@ from app.modules.auth.schemas import (
 from app.modules.campus.models import Campus
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+login_limiter = RateLimiter(times=10, seconds=60, scope="login")
 
 
 async def _default_campus_id(db: AsyncSession):
@@ -41,7 +44,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(e.status_code, e.message) from e
 
 
-@router.post("/login", response_model=TokenPair)
+@router.post("/login", response_model=TokenPair, dependencies=[Depends(login_limiter)])
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     try:
         return await service.login(db, data.email, data.password)

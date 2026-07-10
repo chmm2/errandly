@@ -1,16 +1,20 @@
 import { type FormEvent, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
+import { type Category, createErrand } from "../api/errands";
 import Navbar from "../components/Navbar";
+import { apiErrorMessage } from "../lib/api";
 
-const CATEGORY_NAMES = [
-  "Food run",
-  "Groceries",
-  "Parcel pickup",
-  "Stationery",
-  "Pharmacy",
-  "Custom errand",
-];
+const CATEGORY_MAP: Record<string, Category> = {
+  "Food run": "FOOD",
+  Groceries: "GROCERY",
+  "Parcel pickup": "PARCEL",
+  Stationery: "STATIONERY",
+  Pharmacy: "PHARMACY",
+  "Custom errand": "CUSTOM",
+};
+
+const CATEGORY_NAMES = Object.keys(CATEGORY_MAP);
 
 type GeoState =
   | { status: "idle" }
@@ -29,6 +33,8 @@ export default function NewErrand() {
   const [reward, setReward] = useState("30");
   const [notes, setNotes] = useState("");
   const [geo, setGeo] = useState<GeoState>({ status: "idle" });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
   function detectLocation() {
@@ -50,9 +56,27 @@ export default function NewErrand() {
     );
   }
 
-  function onSubmit(e: FormEvent) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    setSubmitted(true);
+    if (geo.status !== "ok") return;
+    setError(null);
+    setBusy(true);
+    try {
+      await createErrand({
+        category: CATEGORY_MAP[category] ?? "CUSTOM",
+        title,
+        notes: notes.trim() || undefined,
+        pickup_label: pickup,
+        drop_lat: geo.lat,
+        drop_lng: geo.lng,
+        reward: Number(reward),
+      });
+      setSubmitted(true);
+    } catch (err) {
+      setError(apiErrorMessage(err, "Could not post your errand."));
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (submitted) {
@@ -63,10 +87,10 @@ export default function NewErrand() {
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-3xl">
             🚀
           </div>
-          <h1 className="mt-6 text-3xl font-extrabold">Errand drafted</h1>
+          <h1 className="mt-6 text-3xl font-extrabold">Errand posted!</h1>
           <p className="mt-3 text-muted">
-            The order service goes live in Sprint 2 — your request will then be geo-matched to
-            nearby runners and tracked end-to-end.
+            It's live on the campus feed. You'll see the status change here the moment a runner
+            accepts it.
           </p>
           <Link
             to="/"
@@ -88,6 +112,12 @@ export default function NewErrand() {
         </Link>
         <h1 className="mt-2 text-3xl font-extrabold">Post an errand</h1>
         <p className="mt-1 text-muted">Tell runners what you need and where to bring it.</p>
+
+        {error && (
+          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={onSubmit} className="mt-8 space-y-5">
           <div>
@@ -212,10 +242,14 @@ export default function NewErrand() {
 
           <button
             type="submit"
-            disabled={geo.status !== "ok"}
+            disabled={geo.status !== "ok" || busy}
             className="w-full rounded-xl bg-brand py-3.5 font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {geo.status === "ok" ? "Post errand" : "Detect your location to continue"}
+            {busy
+              ? "Posting…"
+              : geo.status === "ok"
+                ? "Post errand"
+                : "Detect your location to continue"}
           </button>
         </form>
       </div>
