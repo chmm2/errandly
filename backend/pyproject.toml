@@ -1,0 +1,49 @@
+[project]
+name = "errandly-backend"
+version = "0.1.0"
+description = "Errandly — campus peer-to-peer errand & micro-delivery platform"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.34.0",
+    "pydantic==2.10.4",
+    "pydantic-settings==2.7.1",
+    "sqlalchemy[asyncio]==2.0.36",
+    "asyncpg==0.30.0",
+    "alembic==1.14.0",
+    "geoalchemy2==0.16.0",
+    "redis==5.2.1",
+    "pyjwt==2.10.1",
+    "argon2-cffi==23.1.0",
+    "email-validator==2.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.4",
+    "pytest-asyncio==0.25.0",
+    "httpx==0.28.1",
+    "ruff==0.8.4",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# B008: FastAPI uses `Depends()` / `Security()` in argument defaults by design.
+ignore = ["B008"]
+
+[tool.ruff.lint.per-file-ignores]
+# Migrations are generated boilerplate; wide `server_default` columns are fine.
+"alembic/versions/*.py" = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+# Share one event loop across the session so the module-level async engine's
+# pooled connections aren't orphaned when a per-test loop is torn down.
+asyncio_default_fixture_loop_scope = "session"
