@@ -16,6 +16,12 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-3 text-sm">
+          <Link
+            to="/runner"
+            className="rounded-lg bg-brand-soft px-3 py-1.5 font-bold text-brand-dark transition hover:bg-brand hover:text-white"
+          >
+            Runner mode
+          </Link>
           <span className="hidden items-center gap-1 font-medium text-muted sm:flex">
             <svg className="h-4 w-4 text-brand" fill="currentColor" viewBox="0 0 20 20">
               <path

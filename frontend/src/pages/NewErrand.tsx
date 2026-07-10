@@ -33,9 +33,14 @@ export default function NewErrand() {
   const [reward, setReward] = useState("30");
   const [notes, setNotes] = useState("");
   const [geo, setGeo] = useState<GeoState>({ status: "idle" });
+  const [externalRef, setExternalRef] = useState("");
+  const [otp, setOtp] = useState("");
+  const [collectAmount, setCollectAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+
+  const isPickupMode = category === "Custom errand" || category === "Parcel pickup";
 
   function detectLocation() {
     if (!navigator.geolocation) {
@@ -70,6 +75,9 @@ export default function NewErrand() {
         drop_lat: geo.lat,
         drop_lng: geo.lng,
         reward: Number(reward),
+        external_ref: isPickupMode && externalRef.trim() ? externalRef.trim() : undefined,
+        otp: isPickupMode && otp.trim() ? otp.trim() : undefined,
+        collect_amount: isPickupMode && collectAmount ? Number(collectAmount) : undefined,
       });
       setSubmitted(true);
     } catch (err) {
@@ -206,6 +214,62 @@ export default function NewErrand() {
               )}
             </div>
           </div>
+
+          {isPickupMode && (
+            <div className="space-y-4 rounded-2xl border-2 border-dashed border-brand/40 bg-brand-soft/50 p-4">
+              <div className="text-sm font-bold text-brand-dark">
+                🔐 Pickup verification{" "}
+                <span className="font-normal text-muted">
+                  — only the runner who accepts can see these, every view is logged
+                </span>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <label htmlFor="externalRef" className="mb-1.5 block text-sm font-semibold">
+                    Order / tracking no.
+                  </label>
+                  <input
+                    id="externalRef"
+                    value={externalRef}
+                    onChange={(e) => setExternalRef(e.target.value)}
+                    placeholder="e.g. SWGY-123456"
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="otp" className="mb-1.5 block text-sm font-semibold">
+                    Delivery OTP
+                  </label>
+                  <input
+                    id="otp"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    placeholder="e.g. 4471"
+                    maxLength={12}
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="collectAmount" className="mb-1.5 block text-sm font-semibold">
+                    Cash at pickup (₹)
+                  </label>
+                  <input
+                    id="collectAmount"
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={collectAmount}
+                    onChange={(e) => setCollectAmount(e.target.value)}
+                    placeholder="0"
+                    className={inputCls}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted">
+                Don't put the OTP in notes — notes are visible to everyone on the feed.
+              </p>
+            </div>
+          )}
 
           <div>
             <label htmlFor="reward" className="mb-1.5 block text-sm font-semibold">
