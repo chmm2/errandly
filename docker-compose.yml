@@ -6,7 +6,9 @@ services:
       POSTGRES_PASSWORD: errandly
       POSTGRES_DB: errandly
     ports:
-      - "5432:5432"
+      # 5433 on the host: many devs have a native Postgres already squatting
+      # on 5432, and connecting a GUI to the wrong server fails confusingly.
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
