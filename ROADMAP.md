@@ -49,7 +49,11 @@ that table is the interview/viva cheat sheet).
 - [ ] offer → accept/timeout → broaden retry loop; load cap
 - [ ] browser Geolocation capture; runner dashboard
 - [ ] WebSocket live order status
-- **Demo #3:** order → nearest runner live push → accept → live tracking.
+- [ ] **verified handoff** for gate/parcel pickups: `fulfillment_type` + `external_ref` +
+  `collect_amount` on errands; delivery OTP stored gated — disclosed **only to the assigned
+  runner after accept** via a dedicated endpoint, every view logged as a `SECRET_VIEWED` event
+- **Demo #3:** order → nearest runner live push → accept → runner unlocks the pickup OTP
+  (requester sees who viewed it) → live tracking.
 - **Patterns:** CAP in practice (Postgres = consistent truth, Redis GEO = eventually-consistent
   derived index) · cache-aside · async request-reply (WebSockets) · scheduler/timeout jobs
 
@@ -64,14 +68,21 @@ that table is the interview/viva cheat sheet).
 - **Patterns:** pub/sub · queue-based load leveling · competing consumers · transactional outbox ·
   circuit breaker · retry with backoff · strangler-fig extraction (first seam split)
 
-## Sprint 5 — Batching, trust, chat, payments (Weeks 10–11)
-- [ ] batching (same store + nearby zone + time window) + delivery sequence
-- [ ] ledger_entries / wallets; settlement on delivery (KARMA now, UPI later)
+## Sprint 5 — Catalog, trust, chat, payments (Weeks 10–11)
+- [ ] **vendor catalog:** vendors + menu_items tables (campus canteens/stores, sectioned menus)
+- [ ] **Swiggy-style menu UI:** vendor card grid → menu page with sticky section nav → cart;
+  cart snapshots item name+price into `errand_items` (old orders keep the price actually paid)
+- [ ] cache-aside on menus (read-heavy, write-rarely → Redis in front of Postgres)
+- [ ] ledger_entries / wallets; settlement on delivery incl. `collect_amount` reimbursement
+  (runner fronts cash at pickup → repaid + reward; KARMA now, UPI later)
 - [ ] ratings → reputation → feedback into matching
 - [ ] MongoDB chat + notifications feed; chat UI
 - [ ] CQRS-lite: denormalized read model for the runner feed
-- **Demo #5:** batched delivery; rating changes matching; live chat.
-- **Patterns:** CQRS/materialized view · ledger (append-only money) · polyglot persistence
+- [ ] batching (same store + nearby zone + time window) — first to cut if the sprint slips
+- **Demo #5:** order 2 items off a canteen menu; runner fronts cash at pickup, ledger repays;
+  rating changes matching; live chat.
+- **Patterns:** CQRS/materialized view · ledger (append-only money) · polyglot persistence ·
+  cache-aside · snapshot vs reference (price at order time)
 
 ## Sprint 6 — Admin, security, observability, scale-out (Weeks 12–13)
 - [ ] disputes workflow; admin suspend/ban → Redis blacklist
@@ -107,7 +118,9 @@ that table is the interview/viva cheat sheet).
 | Pessimistic vs optimistic locking | `SELECT FOR UPDATE` vs `version` column | 2 |
 | Rate limiting / throttling | Redis window on login + create | 2 |
 | CAP / eventual consistency | Postgres truth vs Redis GEO derived index | 3 |
-| Cache-aside | Redis in front of Postgres reads | 3 |
+| Cache-aside | Redis in front of Postgres reads; vendor menus | 3, 5 |
+| Least-privilege secret disclosure | pickup OTP gated to assigned runner + SECRET_VIEWED audit | 3 |
+| Snapshot vs reference | errand_items copy name+price at order time | 5 |
 | Async request-reply | WebSocket order tracking | 3 |
 | Pub/sub, load leveling, competing consumers | Kafka backbone | 4 |
 | Transactional outbox | orders + events atomically → Kafka relay | 4 |
@@ -134,5 +147,6 @@ consumer dies mid-message → idempotency + at-least-once; Redis lies → row lo
 | Live tracking | Payment ledger | Full Prometheus/Grafana |
 | Admin suspend/ban | Disputes | Multi-campus UI |
 | Rate limiting | nginx LB demo | CQRS read model |
+| Verified handoff (OTP/order no.) | Vendor menus + cart UI | Menu photos/uploads |
 
 **Risk peaks:** Sprints 3 & 4. Keep one catch-up day per sprint for Docker/Kafka/integration gremlins.
