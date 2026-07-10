@@ -30,20 +30,21 @@ that table is the interview/viva cheat sheet).
 - **Patterns:** idempotent operations (jti, single-use refresh rotation) · retry-storm avoidance
   (single-flight client token refresh) · stateless services (JWT ⇒ horizontally scalable API)
 
-## Sprint 2 — Order core, lifecycle & contention (Weeks 4–5) ◀ current
-- [ ] errands / errand_events tables + migration (PostGIS points, GIST index)
-- [ ] state machine with guarded transitions (OPEN→ACCEPTED→IN_PROGRESS→DELIVERED→COMPLETED / CANCELLED)
-- [ ] **accept-race handling:** Redis `SET NX` lock (fast fail) + Postgres `SELECT FOR UPDATE` (correctness)
-- [ ] optimistic locking (`version` column); cancel-before-pickup rules
-- [ ] event-sourced audit trail (`errand_events` append-only)
-- [ ] **rate limiting:** Redis fixed-window limiter on login + errand creation (429 + Retry-After)
-- [ ] requester order flow UI (create with geolocation, feed, status, history) + login redesign
-- [ ] integration tests for every transition (incl. illegal ones) + concurrent-accept race test
-- **Demo #2:** two runners race to accept one errand — exactly one wins; full lifecycle with audit trail.
+## Sprint 2 — Order core, lifecycle & contention (Weeks 4–5) ✅
+- [x] errands / errand_events tables + migration (PostGIS points, GIST index)
+- [x] state machine with guarded transitions (OPEN→ACCEPTED→IN_PROGRESS→DELIVERED→COMPLETED / CANCELLED)
+- [x] **accept-race handling:** Redis `SET NX` lock (fast fail) + Postgres `SELECT FOR UPDATE` (correctness)
+- [x] optimistic locking (`version` column); cancel-before-pickup rules
+- [x] event-sourced audit trail (`errand_events` append-only)
+- [x] **rate limiting:** Redis fixed-window limiter on login + errand creation (429 + Retry-After)
+- [x] requester order flow UI (create with geolocation, feed, status, history) + login redesign
+- [x] integration tests for every transition (incl. illegal ones) + concurrent-accept race test
+- **Demo #2:** two runners race to accept one errand — exactly one wins; full lifecycle with audit
+  trail. ✔ demoed live (3 racers: one 200, two 409; audit trail CREATED→…→COMPLETED)
 - **Patterns:** distributed lock (+ TTL) · pessimistic vs optimistic locking · event sourcing ·
   state machine · rate limiting/throttling · idempotency
 
-## Sprint 3 — Geo, matching & live tracking (Weeks 6–7)  ⚠ risk peak
+## Sprint 3 — Geo, matching & live tracking (Weeks 6–7)  ⚠ risk peak ◀ current
 - [ ] runner_profiles / runner_status; availability toggle
 - [ ] matching engine (Redis GEOSEARCH, score by proximity+load+direction)
 - [ ] offer → accept/timeout → broaden retry loop; load cap
