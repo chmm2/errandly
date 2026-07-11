@@ -16,6 +16,7 @@ from app.modules.errands.schemas import (
     ErrandEventOut,
     ErrandFeed,
     ErrandOut,
+    HandoffSecretOut,
     MyErrands,
 )
 from app.modules.errands.service import ErrandError
@@ -35,18 +36,21 @@ async def create_errand(
     data: ErrandCreate,
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
 ):
-    return await service.create_errand(db, user, data)
+    return await service.create_errand(db, redis, user, data)
 
 
 @router.get("", response_model=ErrandFeed)
 async def feed(
     limit: int = Query(default=20, ge=1, le=50),
     offset: int = Query(default=0, ge=0),
+    lat: float | None = Query(default=None, ge=-90, le=90),
+    lng: float | None = Query(default=None, ge=-180, le=180),
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    items, total = await service.list_feed(db, user, limit, offset)
+    items, total = await service.list_feed(db, user, limit, offset, lat=lat, lng=lng)
     return ErrandFeed(items=items, limit=limit, offset=offset, total=total)
 
 
@@ -66,7 +70,9 @@ async def detail(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        return await service.get_errand(db, user, errand_id)
+        errand = await service.get_errand(db, user, errand_id)
+        await service.attach_runner_position(db, user, errand)
+        return errand
     except ErrandError as e:
         _raise(e)
 
@@ -101,9 +107,10 @@ async def pickup(
     errand_id: uuid.UUID,
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
 ):
     try:
-        return await service.pickup_errand(db, user, errand_id)
+        return await service.pickup_errand(db, redis, user, errand_id)
     except ErrandError as e:
         _raise(e)
 
@@ -113,9 +120,10 @@ async def deliver(
     errand_id: uuid.UUID,
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
 ):
     try:
-        return await service.deliver_errand(db, user, errand_id)
+        return await service.deliver_errand(db, redis, user, errand_id)
     except ErrandError as e:
         _raise(e)
 
@@ -125,9 +133,10 @@ async def complete(
     errand_id: uuid.UUID,
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
 ):
     try:
-        return await service.complete_errand(db, user, errand_id)
+        return await service.complete_errand(db, redis, user, errand_id)
     except ErrandError as e:
         _raise(e)
 
@@ -138,8 +147,24 @@ async def cancel(
     body: CancelRequest | None = None,
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
 ):
     try:
-        return await service.cancel_errand(db, user, errand_id, body.reason if body else None)
+        return await service.cancel_errand(
+            db, redis, user, errand_id, body.reason if body else None
+        )
+    except ErrandError as e:
+        _raise(e)
+
+
+@router.get("/{errand_id}/handoff-secret", response_model=HandoffSecretOut)
+async def handoff_secret(
+    errand_id: uuid.UUID,
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Assigned runner only, active run only; every read is audited (SECRET_VIEWED)."""
+    try:
+        return await service.get_handoff_secret(db, user, errand_id)
     except ErrandError as e:
         _raise(e)

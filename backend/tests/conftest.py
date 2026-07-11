@@ -19,12 +19,13 @@ async def client():
 
 
 @pytest.fixture(autouse=True)
-async def flush_rate_limits():
-    """All test requests share one client IP, so clear rate-limit windows
-    between tests to keep them independent."""
-    keys = await redis_client.keys("rl:*")
-    if keys:
-        await redis_client.delete(*keys)
+async def flush_redis_state():
+    """All test requests share one client IP and one Redis, so clear
+    rate-limit windows and geo/throttle state between tests."""
+    for pattern in ("rl:*", "runners:geo:*", "runner:locwrite:*"):
+        keys = await redis_client.keys(pattern)
+        if keys:
+            await redis_client.delete(*keys)
     yield
 
 

@@ -25,6 +25,28 @@ type GeoState =
 const inputCls =
   "w-full rounded-xl border border-line px-4 py-3 outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20";
 
+// Saved drop points — you always deliver to the same 2-3 places on campus.
+const SAVED_DROPS_KEY = "errandly-saved-drops";
+
+interface SavedDrop {
+  label: string;
+  lat: number;
+  lng: number;
+}
+
+function loadSavedDrops(): SavedDrop[] {
+  try {
+    return JSON.parse(localStorage.getItem(SAVED_DROPS_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveDrop(drop: SavedDrop) {
+  const drops = [drop, ...loadSavedDrops().filter((d) => d.label !== drop.label)].slice(0, 4);
+  localStorage.setItem(SAVED_DROPS_KEY, JSON.stringify(drops));
+}
+
 export default function NewErrand() {
   const preset = (useLocation().state as { category?: string })?.category;
   const [category, setCategory] = useState(preset ?? "Food run");
@@ -33,9 +55,16 @@ export default function NewErrand() {
   const [reward, setReward] = useState("30");
   const [notes, setNotes] = useState("");
   const [geo, setGeo] = useState<GeoState>({ status: "idle" });
+  const [dropLabel, setDropLabel] = useState("");
+  const [savedDrops] = useState<SavedDrop[]>(loadSavedDrops);
+  const [externalRef, setExternalRef] = useState("");
+  const [otp, setOtp] = useState("");
+  const [collectAmount, setCollectAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+
+  const isPickupMode = category === "Custom errand" || category === "Parcel pickup";
 
   function detectLocation() {
     if (!navigator.geolocation) {
@@ -69,8 +98,15 @@ export default function NewErrand() {
         pickup_label: pickup,
         drop_lat: geo.lat,
         drop_lng: geo.lng,
+        drop_label: dropLabel.trim() || undefined,
         reward: Number(reward),
+        external_ref: isPickupMode && externalRef.trim() ? externalRef.trim() : undefined,
+        otp: isPickupMode && otp.trim() ? otp.trim() : undefined,
+        collect_amount: isPickupMode && collectAmount ? Number(collectAmount) : undefined,
       });
+      if (dropLabel.trim()) {
+        saveDrop({ label: dropLabel.trim(), lat: geo.lat, lng: geo.lng });
+      }
       setSubmitted(true);
     } catch (err) {
       setError(apiErrorMessage(err, "Could not post your errand."));
@@ -170,6 +206,27 @@ export default function NewErrand() {
 
           <div>
             <label className="mb-1.5 block text-sm font-semibold">Deliver to</label>
+            {savedDrops.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-2">
+                {savedDrops.map((d) => (
+                  <button
+                    key={d.label}
+                    type="button"
+                    onClick={() => {
+                      setGeo({ status: "ok", lat: d.lat, lng: d.lng, accuracy: 0 });
+                      setDropLabel(d.label);
+                    }}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                      dropLabel === d.label && geo.status === "ok"
+                        ? "border-brand bg-brand text-white"
+                        : "border-line text-muted hover:border-brand hover:text-brand"
+                    }`}
+                  >
+                    📌 {d.label}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="rounded-xl border border-line p-4">
               {geo.status === "ok" ? (
                 <div className="flex items-center justify-between">
@@ -205,7 +262,70 @@ export default function NewErrand() {
                 </div>
               )}
             </div>
+            <input
+              value={dropLabel}
+              onChange={(e) => setDropLabel(e.target.value)}
+              placeholder="Label this spot, e.g. Block A Room 402 (saved for next time)"
+              maxLength={200}
+              className={`${inputCls} mt-2 text-sm`}
+            />
           </div>
+
+          {isPickupMode && (
+            <div className="space-y-4 rounded-2xl border-2 border-dashed border-brand/40 bg-brand-soft/50 p-4">
+              <div className="text-sm font-bold text-brand-dark">
+                🔐 Pickup verification{" "}
+                <span className="font-normal text-muted">
+                  — only the runner who accepts can see these, every view is logged
+                </span>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <label htmlFor="externalRef" className="mb-1.5 block text-sm font-semibold">
+                    Order / tracking no.
+                  </label>
+                  <input
+                    id="externalRef"
+                    value={externalRef}
+                    onChange={(e) => setExternalRef(e.target.value)}
+                    placeholder="e.g. SWGY-123456"
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="otp" className="mb-1.5 block text-sm font-semibold">
+                    Delivery OTP
+                  </label>
+                  <input
+                    id="otp"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    placeholder="e.g. 4471"
+                    maxLength={12}
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="collectAmount" className="mb-1.5 block text-sm font-semibold">
+                    Cash at pickup (₹)
+                  </label>
+                  <input
+                    id="collectAmount"
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={collectAmount}
+                    onChange={(e) => setCollectAmount(e.target.value)}
+                    placeholder="0"
+                    className={inputCls}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted">
+                Don't put the OTP in notes — notes are visible to everyone on the feed.
+              </p>
+            </div>
+          )}
 
           <div>
             <label htmlFor="reward" className="mb-1.5 block text-sm font-semibold">

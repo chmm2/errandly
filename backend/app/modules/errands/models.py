@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     Numeric,
     String,
     Text,
@@ -22,6 +23,19 @@ from app.core.mixins import TimestampMixin
 
 CATEGORIES = ("FOOD", "GROCERY", "PARCEL", "STATIONERY", "PHARMACY", "CUSTOM")
 STATUSES = ("OPEN", "ACCEPTED", "IN_PROGRESS", "DELIVERED", "COMPLETED", "CANCELLED", "EXPIRED")
+
+# How the errand is fulfilled — derived from category at creation.
+# CATALOG: buy/collect from an in-campus vendor. GATE_PICKUP: collect an
+# external order at the Main Gate. PARCEL_POINT: campus parcel collection point.
+FULFILLMENT_TYPES = ("CATALOG", "GATE_PICKUP", "PARCEL_POINT")
+CATEGORY_FULFILLMENT = {
+    "FOOD": "CATALOG",
+    "GROCERY": "CATALOG",
+    "STATIONERY": "CATALOG",
+    "PHARMACY": "CATALOG",
+    "CUSTOM": "GATE_PICKUP",
+    "PARCEL": "PARCEL_POINT",
+}
 
 
 class Errand(Base, TimestampMixin):
@@ -40,6 +54,11 @@ class Errand(Base, TimestampMixin):
             name="ck_errands_status",
         ),
         CheckConstraint("reward >= 0", name="ck_errands_reward"),
+        CheckConstraint(
+            "fulfillment_type IN ('CATALOG','GATE_PICKUP','PARCEL_POINT')",
+            name="ck_errands_fulfillment_type",
+        ),
+        CheckConstraint("collect_amount >= 0", name="ck_errands_collect_amount"),
         Index("ix_errands_campus_status", "campus_id", "status"),
     )
 
@@ -71,6 +90,17 @@ class Errand(Base, TimestampMixin):
     drop_label: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
     reward: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    fulfillment_type: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default="CATALOG"
+    )
+    # External order/tracking number for gate & parcel pickups — shown only
+    # to the requester and the assigned runner, never in the public feed.
+    external_ref: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Cash the runner pays/hands over at pickup; reimbursed via the ledger
+    # (Sprint 5) on top of the reward.
+    collect_amount: Mapped[float] = mapped_column(
+        Numeric(12, 2), nullable=False, server_default="0"
+    )
     status: Mapped[str] = mapped_column(String(16), nullable=False, server_default="OPEN")
     version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
 
@@ -79,6 +109,26 @@ class Errand(Base, TimestampMixin):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ErrandHandoffSecret(Base):
+    """Delivery OTP for gate/parcel pickups, encrypted at rest.
+
+    Never serialized with the errand. Disclosed only to the assigned runner
+    after accept, via a dedicated endpoint that writes a SECRET_VIEWED event.
+    """
+
+    __tablename__ = "errand_handoff_secrets"
+
+    errand_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("errands.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    otp_ciphertext: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=False
+    )
 
 
 class ErrandEvent(Base):

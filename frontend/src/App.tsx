@@ -5,6 +5,8 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import NewErrand from "./pages/NewErrand";
 import Register from "./pages/Register";
+import Runner from "./pages/Runner";
+import Track from "./pages/Track";
 
 export default function App() {
   return (
@@ -14,6 +16,8 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<Home />} />
         <Route path="/errands/new" element={<NewErrand />} />
+        <Route path="/errands/:id" element={<Track />} />
+        <Route path="/runner" element={<Runner />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
