@@ -17,6 +17,8 @@ export type ErrandStatus =
   | "CANCELLED"
   | "EXPIRED";
 
+export type FulfillmentType = "CATALOG" | "GATE_PICKUP" | "PARCEL_POINT";
+
 export interface Errand {
   id: string;
   campus_id: string;
@@ -30,6 +32,12 @@ export interface Errand {
   drop_lng: number;
   drop_label: string | null;
   reward: number;
+  fulfillment_type: FulfillmentType;
+  collect_amount: number;
+  has_handoff_secret: boolean;
+  distance_m: number | null;
+  runner_lat: number | null;
+  runner_lng: number | null;
   status: ErrandStatus;
   version: number;
   accepted_at: string | null;
@@ -48,6 +56,23 @@ export interface ErrandCreate {
   drop_lng: number;
   drop_label?: string;
   reward: number;
+  external_ref?: string;
+  otp?: string;
+  collect_amount?: number;
+}
+
+export interface HandoffSecret {
+  otp: string | null;
+  external_ref: string | null;
+  collect_amount: number;
+}
+
+export interface ErrandEvent {
+  id: string;
+  actor_id: string | null;
+  event_type: string;
+  payload: Record<string, unknown> | null;
+  created_at: string;
 }
 
 export interface ErrandFeed {
@@ -66,8 +91,14 @@ export async function createErrand(data: ErrandCreate): Promise<Errand> {
   return (await api.post<Errand>("/errands", data)).data;
 }
 
-export async function fetchFeed(limit = 20, offset = 0): Promise<ErrandFeed> {
-  return (await api.get<ErrandFeed>("/errands", { params: { limit, offset } })).data;
+export async function fetchFeed(
+  limit = 20,
+  offset = 0,
+  near?: { lat: number; lng: number },
+): Promise<ErrandFeed> {
+  return (
+    await api.get<ErrandFeed>("/errands", { params: { limit, offset, ...near } })
+  ).data;
 }
 
 export async function fetchMyErrands(): Promise<MyErrands> {
@@ -76,4 +107,24 @@ export async function fetchMyErrands(): Promise<MyErrands> {
 
 export async function cancelErrand(id: string, reason?: string): Promise<Errand> {
   return (await api.post<Errand>(`/errands/${id}/cancel`, reason ? { reason } : {})).data;
+}
+
+export async function acceptErrand(id: string): Promise<Errand> {
+  return (await api.post<Errand>(`/errands/${id}/accept`)).data;
+}
+
+export async function pickupErrand(id: string): Promise<Errand> {
+  return (await api.post<Errand>(`/errands/${id}/pickup`)).data;
+}
+
+export async function deliverErrand(id: string): Promise<Errand> {
+  return (await api.post<Errand>(`/errands/${id}/deliver`)).data;
+}
+
+export async function completeErrand(id: string): Promise<Errand> {
+  return (await api.post<Errand>(`/errands/${id}/complete`)).data;
+}
+
+export async function fetchHandoffSecret(id: string): Promise<HandoffSecret> {
+  return (await api.get<HandoffSecret>(`/errands/${id}/handoff-secret`)).data;
 }

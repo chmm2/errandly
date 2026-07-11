@@ -30,26 +30,31 @@ that table is the interview/viva cheat sheet).
 - **Patterns:** idempotent operations (jti, single-use refresh rotation) · retry-storm avoidance
   (single-flight client token refresh) · stateless services (JWT ⇒ horizontally scalable API)
 
-## Sprint 2 — Order core, lifecycle & contention (Weeks 4–5) ◀ current
-- [ ] errands / errand_events tables + migration (PostGIS points, GIST index)
-- [ ] state machine with guarded transitions (OPEN→ACCEPTED→IN_PROGRESS→DELIVERED→COMPLETED / CANCELLED)
-- [ ] **accept-race handling:** Redis `SET NX` lock (fast fail) + Postgres `SELECT FOR UPDATE` (correctness)
-- [ ] optimistic locking (`version` column); cancel-before-pickup rules
-- [ ] event-sourced audit trail (`errand_events` append-only)
-- [ ] **rate limiting:** Redis fixed-window limiter on login + errand creation (429 + Retry-After)
-- [ ] requester order flow UI (create with geolocation, feed, status, history) + login redesign
-- [ ] integration tests for every transition (incl. illegal ones) + concurrent-accept race test
-- **Demo #2:** two runners race to accept one errand — exactly one wins; full lifecycle with audit trail.
+## Sprint 2 — Order core, lifecycle & contention (Weeks 4–5) ✅
+- [x] errands / errand_events tables + migration (PostGIS points, GIST index)
+- [x] state machine with guarded transitions (OPEN→ACCEPTED→IN_PROGRESS→DELIVERED→COMPLETED / CANCELLED)
+- [x] **accept-race handling:** Redis `SET NX` lock (fast fail) + Postgres `SELECT FOR UPDATE` (correctness)
+- [x] optimistic locking (`version` column); cancel-before-pickup rules
+- [x] event-sourced audit trail (`errand_events` append-only)
+- [x] **rate limiting:** Redis fixed-window limiter on login + errand creation (429 + Retry-After)
+- [x] requester order flow UI (create with geolocation, feed, status, history) + login redesign
+- [x] integration tests for every transition (incl. illegal ones) + concurrent-accept race test
+- **Demo #2:** two runners race to accept one errand — exactly one wins; full lifecycle with audit
+  trail. ✔ demoed live (3 racers: one 200, two 409; audit trail CREATED→…→COMPLETED)
 - **Patterns:** distributed lock (+ TTL) · pessimistic vs optimistic locking · event sourcing ·
   state machine · rate limiting/throttling · idempotency
 
-## Sprint 3 — Geo, matching & live tracking (Weeks 6–7)  ⚠ risk peak
+## Sprint 3 — Geo, matching & live tracking (Weeks 6–7)  ⚠ risk peak ◀ current
 - [ ] runner_profiles / runner_status; availability toggle
 - [ ] matching engine (Redis GEOSEARCH, score by proximity+load+direction)
 - [ ] offer → accept/timeout → broaden retry loop; load cap
 - [ ] browser Geolocation capture; runner dashboard
 - [ ] WebSocket live order status; location updates **throttled to ~1 per 5–10s**
   (backpressure — accuracy users need without update-storm load)
+- [ ] **order tracking page:** Leaflet + OpenStreetMap (no API key), runner position live on
+  the map + status stepper timeline built from errand_events *(UX ref: Enatega rider tracking)*
+- [ ] **saved drop points:** remember recent drops ("Block A Room 402") as one-tap chips on
+  the new-errand form alongside GPS
 - [ ] **verified handoff** for gate/parcel pickups: `fulfillment_type` + `external_ref` +
   `collect_amount` on errands; delivery OTP stored gated — disclosed **only to the assigned
   runner after accept** via a dedicated endpoint, every view logged as a `SECRET_VIEWED` event
@@ -84,7 +89,10 @@ that table is the interview/viva cheat sheet).
   (a slightly old menu beats an error page)
 - [ ] ledger_entries / wallets; settlement on delivery incl. `collect_amount` reimbursement
   (runner fronts cash at pickup → repaid + reward; KARMA now, UPI later)
-- [ ] ratings → reputation → feedback into matching
+- [ ] ratings → reputation → feedback into matching; **post-delivery rating modal at handoff**
+- [ ] **runner earnings summary** ("₹240 this week · 12 deliveries") from the ledger
+- [ ] menu UX details *(ref: Enatega)*: sticky category tabs, sold-out item states,
+  persistent bottom cart bar ("2 items · ₹110 · View cart")
 - [ ] MongoDB chat + notifications feed; chat UI
 - [ ] CQRS-lite: denormalized read model for the runner feed
 - [ ] batching (same store + nearby zone + time window) — first to cut if the sprint slips

@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
 
 import { fetchMe } from "../api/auth";
 import { cancelErrand, type Errand, type ErrandStatus, fetchMyErrands } from "../api/errands";
 import Navbar from "../components/Navbar";
+import { useSocket } from "../lib/ws";
 import { useAuth } from "../stores/auth";
 
 const STATUS_STYLES: Record<ErrandStatus, { label: string; cls: string }> = {
@@ -49,6 +50,8 @@ const STEPS = [
   },
 ];
 
+const LIVE_STATUSES: ErrandStatus[] = ["OPEN", "ACCEPTED", "IN_PROGRESS", "DELIVERED"];
+
 function ErrandCard({ errand }: { errand: Errand }) {
   const queryClient = useQueryClient();
   const cancel = useMutation({
@@ -58,17 +61,32 @@ function ErrandCard({ errand }: { errand: Errand }) {
   const status = STATUS_STYLES[errand.status];
   const cancellable = errand.status === "OPEN" || errand.status === "ACCEPTED";
 
+  // Live status: the backend publishes every transition to this errand's
+  // channel; refetch the moment one arrives (polling stays as fallback).
+  useSocket(
+    LIVE_STATUSES.includes(errand.status) ? `/ws/errands/${errand.id}` : null,
+    useCallback(
+      () => queryClient.invalidateQueries({ queryKey: ["my-errands"] }),
+      [queryClient],
+    ),
+  );
+
   return (
     <div className="flex items-center gap-4 rounded-2xl border border-line p-5 transition hover:shadow-md">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-2xl">
-        {CATEGORY_ICONS[errand.category] ?? "✨"}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="truncate font-bold">{errand.title}</div>
-        <div className="mt-0.5 truncate text-sm text-muted">
-          from {errand.pickup_label} · ₹{Number(errand.reward).toFixed(0)} reward
+      <Link
+        to={`/errands/${errand.id}`}
+        className="flex min-w-0 flex-1 items-center gap-4"
+      >
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-2xl">
+          {CATEGORY_ICONS[errand.category] ?? "✨"}
         </div>
-      </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-bold hover:text-brand">{errand.title}</div>
+          <div className="mt-0.5 truncate text-sm text-muted">
+            from {errand.pickup_label} · ₹{Number(errand.reward).toFixed(0)} reward · track →
+          </div>
+        </div>
+      </Link>
       <span className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${status.cls}`}>
         {status.label}
       </span>
