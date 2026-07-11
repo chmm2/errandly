@@ -15,6 +15,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 from app.core.redis import redis_client
 from app.core.security import decode_token
 from app.modules.errands.service import OFFER_CHANNEL_PREFIX, STATUS_CHANNEL_PREFIX
+from app.modules.notifications.service import NOTIFY_CHANNEL_PREFIX
 
 router = APIRouter()
 
@@ -61,6 +62,27 @@ async def errand_status_socket(websocket: WebSocket, errand_id: uuid.UUID, token
     )
     try:
         while True:  # drain client frames so disconnects surface
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        forward.cancel()
+
+
+@router.websocket("/ws/notifications")
+async def notifications_socket(websocket: WebSocket, token: str = ""):
+    """Live notification pushes (written by the Kafka notification consumer,
+    fanned out through Redis — same replica-safe shape as the others)."""
+    user_id = _user_id_from_token(token)
+    if user_id is None:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+    await websocket.accept()
+    forward = asyncio.create_task(
+        _forward_channel(websocket, f"{NOTIFY_CHANNEL_PREFIX}{user_id}")
+    )
+    try:
+        while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
         pass

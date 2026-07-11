@@ -44,31 +44,33 @@ that table is the interview/viva cheat sheet).
 - **Patterns:** distributed lock (+ TTL) · pessimistic vs optimistic locking · event sourcing ·
   state machine · rate limiting/throttling · idempotency
 
-## Sprint 3 — Geo, matching & live tracking (Weeks 6–7)  ⚠ risk peak ◀ current
-- [ ] runner_profiles / runner_status; availability toggle
-- [ ] matching engine (Redis GEOSEARCH, score by proximity+load+direction)
-- [ ] offer → accept/timeout → broaden retry loop; load cap
-- [ ] browser Geolocation capture; runner dashboard
-- [ ] WebSocket live order status; location updates **throttled to ~1 per 5–10s**
-  (backpressure — accuracy users need without update-storm load)
-- [ ] **order tracking page:** Leaflet + OpenStreetMap (no API key), runner position live on
+## Sprint 3 — Geo, matching & live tracking (Weeks 6–7) ✅
+- [x] runner_profiles / runner_status; availability toggle
+- [x] matching engine (Redis GEOSEARCH, nearest-5 fanout; load via cap — direction scoring deferred)
+- [x] load cap on accept *(offer timeout → broaden retry loop moved to Sprint 4 — it's a
+  scheduler job, and Sprint 4 owns the worker process)*
+- [x] browser Geolocation capture; runner dashboard
+- [x] WebSocket live order status; location updates **throttled** (client ≤1/10s, server ≤1/5s)
+- [x] **order tracking page:** Leaflet + OpenStreetMap (no API key), runner position live on
   the map + status stepper timeline built from errand_events *(UX ref: Enatega rider tracking)*
-- [ ] **saved drop points:** remember recent drops ("Block A Room 402") as one-tap chips on
-  the new-errand form alongside GPS
-- [ ] **verified handoff** for gate/parcel pickups: `fulfillment_type` + `external_ref` +
-  `collect_amount` on errands; delivery OTP stored gated — disclosed **only to the assigned
-  runner after accept** via a dedicated endpoint, every view logged as a `SECRET_VIEWED` event
+- [x] **saved drop points:** recent drops ("Block A Room 402") as one-tap chips on the form
+- [x] **verified handoff:** `fulfillment_type` + `external_ref` + `collect_amount`; OTP
+  encrypted at rest, disclosed only to the assigned runner post-accept, reads audited
 - **Demo #3:** order → nearest runner live push → accept → runner unlocks the pickup OTP
-  (requester sees who viewed it) → live tracking.
+  (requester sees who viewed it) → live tracking. ✔ verified in browser (marker moved live)
 - **Patterns:** CAP in practice (Postgres = consistent truth, Redis GEO = eventually-consistent
   derived index) · cache-aside · async request-reply (WebSockets) · scheduler/timeout jobs
 
-## Sprint 4 — Kafka backbone & timetable (Weeks 8–9)  ⚠ risk peak
+## Sprint 4 — Kafka backbone & timetable (Weeks 8–9)  ⚠ risk peak ◀ current
 - [ ] **transactional outbox:** ORDER_* events written atomically with orders, relayed to Kafka
-- [ ] extract Notification + Analytics as idempotent, competing consumers
-- [ ] circuit breaker + retry-with-backoff around consumer side effects
-- [ ] timetable_slots (overlap-exclusion) + enforcer job (auto-block runners)
-- [ ] timetable UI, notifications panel, basic analytics
+  by a worker polling with `FOR UPDATE SKIP LOCKED`
+- [ ] extract Notification + Analytics as idempotent, competing consumers (processed_events
+  dedupe: at-least-once delivery + idempotency = effectively-once)
+- [ ] circuit breaker + retry-with-backoff around producer/consumer side effects
+- [ ] timetable_slots (Postgres EXCLUDE overlap constraint) + enforcer (auto-block runners:
+  can't go online in class; matching skips in-class runners; job sweeps the GEO index)
+- [ ] offer timeout → broaden retry loop (carried from Sprint 3; scheduler job in the worker)
+- [ ] timetable UI, live notifications bell (WS), basic analytics
 - **Demo #4:** one event fans out to 2 services; kill a consumer mid-stream, restart, no dupes;
   runner auto-blocks during class.
 - **Patterns:** pub/sub · queue-based load leveling · competing consumers · transactional outbox ·

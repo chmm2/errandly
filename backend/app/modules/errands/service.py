@@ -16,8 +16,10 @@ from app.modules.errands.models import (
     ErrandHandoffSecret,
 )
 from app.modules.errands.schemas import ErrandCreate
+from app.modules.outbox import service as outbox
 from app.modules.runners import service as runners_service
 from app.modules.runners.models import RunnerProfile
+from app.modules.timetable import service as timetable
 
 ACCEPT_LOCK_PREFIX = "errand:accept:"
 ACCEPT_LOCK_TTL_SECONDS = 10
@@ -44,6 +46,38 @@ class ErrandError(Exception):
         super().__init__(message)
         self.message = message
         self.status_code = status_code
+
+
+# audit event type → outbox/Kafka event type
+ORDER_EVENTS = {
+    "CREATED": "ORDER_CREATED",
+    "ACCEPTED": "ORDER_ACCEPTED",
+    "PICKED_UP": "ORDER_PICKED_UP",
+    "DELIVERED": "ORDER_DELIVERED",
+    "COMPLETED": "ORDER_COMPLETED",
+    "CANCELLED": "ORDER_CANCELLED",
+}
+
+
+def _emit_order_event(db: AsyncSession, errand: Errand, event_type: str) -> None:
+    """Stage the domain event in the transactional outbox — same transaction
+    as the state change, so the event cannot be lost or phantom."""
+    outbox.emit(
+        db,
+        "errand",
+        errand.id,
+        ORDER_EVENTS[event_type],
+        {
+            "errand_id": str(errand.id),
+            "campus_id": str(errand.campus_id),
+            "requester_id": str(errand.requester_id),
+            "runner_id": str(errand.runner_id) if errand.runner_id else None,
+            "status": errand.status,
+            "title": errand.title,
+            "category": errand.category,
+            "reward": float(errand.reward),
+        },
+    )
 
 
 def _record(db: AsyncSession, errand: Errand, actor: User | None, event_type: str,
@@ -82,7 +116,7 @@ async def publish_status(redis: Redis, errand: Errand) -> None:
     )
 
 
-async def _offer_to_nearby_runners(redis: Redis, errand: Errand) -> int:
+async def _offer_to_nearby_runners(db: AsyncSession, redis: Redis, errand: Errand) -> int:
     """Push an offer to the nearest available runners (Redis GEO + pub/sub).
 
     Uses the drop point as the anchor — 'a runner already heading that way'.
@@ -97,6 +131,10 @@ async def _offer_to_nearby_runners(redis: Redis, errand: Errand) -> int:
         limit=OFFER_FANOUT,
         exclude=errand.requester_id,
     )
+    # Timetable enforcement at the matching seam: never offer to someone
+    # sitting in class, even if the enforcer hasn't swept them out yet.
+    in_class = await timetable.in_class_user_ids(db, [rid for rid, _ in nearby])
+    nearby = [(rid, dist) for rid, dist in nearby if rid not in in_class]
     payload = {
         "type": "offer",
         "errand_id": str(errand.id),
@@ -145,10 +183,11 @@ async def create_errand(db: AsyncSession, redis: Redis, user: User, data: Errand
     if data.otp:
         db.add(ErrandHandoffSecret(errand_id=errand.id, otp_ciphertext=encrypt_str(data.otp)))
     _record(db, errand, user, "CREATED", {"category": data.category, "reward": data.reward})
+    _emit_order_event(db, errand, "CREATED")
     await db.commit()
     await db.refresh(errand)
 
-    offered = await _offer_to_nearby_runners(redis, errand)
+    offered = await _offer_to_nearby_runners(db, redis, errand)
     if offered:
         _record(db, errand, None, "OFFERED", {"runners": offered})
         await db.commit()
@@ -313,6 +352,7 @@ async def accept_errand(
         errand.runner_id = user.id
         errand.accepted_at = datetime.now(UTC)
         _record(db, errand, user, "ACCEPTED")
+        _emit_order_event(db, errand, "ACCEPTED")
         await db.commit()
         await db.refresh(errand)
         await publish_status(redis, errand)
@@ -340,6 +380,7 @@ async def _runner_step(
     if to_status == "DELIVERED":
         errand.delivered_at = datetime.now(UTC)
     _record(db, errand, user, event_type)
+    _emit_order_event(db, errand, event_type)
     await db.commit()
     await db.refresh(errand)
     await publish_status(redis, errand)
@@ -371,6 +412,7 @@ async def complete_errand(
     _transition(errand, "COMPLETED")
     errand.completed_at = datetime.now(UTC)
     _record(db, errand, user, "COMPLETED")
+    _emit_order_event(db, errand, "COMPLETED")
     await db.commit()
     await db.refresh(errand)
     await publish_status(redis, errand)
@@ -390,6 +432,7 @@ async def cancel_errand(
     _transition(errand, "CANCELLED")
     errand.cancelled_at = datetime.now(UTC)
     _record(db, errand, user, "CANCELLED", {"reason": reason} if reason else None)
+    _emit_order_event(db, errand, "CANCELLED")
     await db.commit()
     await db.refresh(errand)
     await publish_status(redis, errand)
