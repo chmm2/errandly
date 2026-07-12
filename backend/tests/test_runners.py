@@ -49,25 +49,33 @@ async def test_feed_sorted_by_distance(client, make_user):
     _, requester = await make_user("Requester")
     _, runner = await make_user("Runner")
 
-    near = (await client.post("/errands", json=errand_payload(**NEAR, title="near errand"),
+    # Random anchor away from every other test's coords (and from previous
+    # runs' leftovers in the dev DB), so these three errands are
+    # unambiguously the closest in the whole feed.
+    import random
+
+    base_lat = 12.7 + random.random() * 0.1
+    base_lng = 78.9 + random.random() * 0.1
+    anchor = {"lat": base_lat, "lng": base_lng}
+    coords_near = {"lat": base_lat + 0.0001, "lng": base_lng + 0.0001}
+    coords_mid = {"lat": base_lat + 0.004, "lng": base_lng + 0.004}
+    coords_far = {"lat": base_lat + 0.012, "lng": base_lng + 0.012}
+
+    near = (await client.post("/errands", json=errand_payload(**coords_near, title="near errand"),
                               headers=requester)).json()
-    far = (await client.post("/errands", json=errand_payload(**FAR, title="far errand"),
+    far = (await client.post("/errands", json=errand_payload(**coords_far, title="far errand"),
                              headers=requester)).json()
-    mid = (await client.post("/errands", json=errand_payload(**MID, title="mid errand"),
+    mid = (await client.post("/errands", json=errand_payload(**coords_mid, title="mid errand"),
                              headers=requester)).json()
 
     resp = await client.get(
-        "/errands", params={"lat": NEAR["lat"], "lng": NEAR["lng"], "limit": 50},
-        headers=runner,
+        "/errands", params={**anchor, "limit": 50}, headers=runner
     )
     assert resp.status_code == 200, resp.text
     items = resp.json()["items"]
-    ids = [e["id"] for e in items]
-    assert ids.index(near["id"]) < ids.index(mid["id"]) < ids.index(far["id"])
-    # distance annotated and monotonic for our three
-    by_id = {e["id"]: e for e in items}
-    assert by_id[near["id"]]["distance_m"] < by_id[mid["id"]]["distance_m"]
-    assert by_id[mid["id"]]["distance_m"] < by_id[far["id"]]["distance_m"]
+    assert [e["id"] for e in items[:3]] == [near["id"], mid["id"], far["id"]]
+    # distance annotated and monotonic
+    assert items[0]["distance_m"] < items[1]["distance_m"] < items[2]["distance_m"]
 
 
 async def test_handoff_secret_gating_and_audit(client, make_user):

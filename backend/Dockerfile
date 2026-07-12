@@ -11,8 +11,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Dev image: include test/lint tooling so `docker compose exec backend pytest`
+# always works after a rebuild. A production image would install plain `.`.
 COPY pyproject.toml ./
-RUN pip install --upgrade pip && pip install -e .
+RUN pip install --upgrade pip && pip install -e ".[dev]"
 
 COPY . .
 

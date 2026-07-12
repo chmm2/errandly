@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,6 +8,7 @@ from app.modules.auth.dependencies import require_active_user
 from app.modules.auth.models import User
 from app.modules.runners import service
 from app.modules.runners.schemas import AvailabilityUpdate, LocationUpdate, RunnerProfileOut
+from app.modules.timetable import service as timetable
 
 router = APIRouter(prefix="/runners", tags=["runners"])
 
@@ -35,6 +36,15 @@ async def set_availability(
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
+    # Timetable enforcement: you can't go online while you're in class.
+    if data.is_available:
+        slot = await timetable.current_slot(db, user.id)
+        if slot is not None:
+            end = f"{slot.end_minute // 60:02d}:{slot.end_minute % 60:02d}"
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"You have {slot.label} until {end} — runner mode unlocks after class.",
+            )
     profile = await service.set_availability(db, redis, user, data)
     return await _out(db, profile, user.id)
 
