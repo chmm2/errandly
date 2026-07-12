@@ -12,6 +12,7 @@ import {
   type HandoffSecret,
   pickupErrand,
 } from "../api/errands";
+import { fetchEarnings } from "../api/ledger";
 import { fetchRunnerProfile, setAvailability, updateLocation } from "../api/runners";
 import Navbar from "../components/Navbar";
 import { apiErrorMessage } from "../lib/api";
@@ -110,6 +111,7 @@ export default function Runner() {
     queryKey: ["runner-profile"],
     queryFn: fetchRunnerProfile,
   });
+  const { data: earnings } = useQuery({ queryKey: ["earnings"], queryFn: fetchEarnings });
   const available = profile?.is_available ?? false;
 
   // While online, stream position: watchPosition fires on movement, we
@@ -237,6 +239,18 @@ export default function Runner() {
               <p className="mt-3 text-sm font-semibold text-white/90">
                 Active runs: {profile.active_load} / {profile.max_load}
               </p>
+            )}
+            {earnings && (
+              <div className="mt-4 inline-flex gap-6 rounded-2xl bg-white/10 px-5 py-3 backdrop-blur-sm">
+                <div>
+                  <div className="text-xl font-extrabold">₹{earnings.week_total.toFixed(0)}</div>
+                  <div className="text-xs text-white/80">this week · {earnings.week_runs} runs</div>
+                </div>
+                <div>
+                  <div className="text-xl font-extrabold">₹{earnings.balance.toFixed(0)}</div>
+                  <div className="text-xs text-white/80">wallet balance</div>
+                </div>
+              </div>
             )}
           </div>
           <button

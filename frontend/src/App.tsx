@@ -5,9 +5,12 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import NewErrand from "./pages/NewErrand";
 import Register from "./pages/Register";
+import Menu from "./pages/Menu";
 import Runner from "./pages/Runner";
+import Shops from "./pages/Shops";
 import Timetable from "./pages/Timetable";
 import Track from "./pages/Track";
+import VendorPortal from "./pages/VendorPortal";
 
 export default function App() {
   return (
@@ -20,6 +23,9 @@ export default function App() {
         <Route path="/errands/:id" element={<Track />} />
         <Route path="/runner" element={<Runner />} />
         <Route path="/timetable" element={<Timetable />} />
+        <Route path="/shops" element={<Shops />} />
+        <Route path="/shops/:id" element={<Menu />} />
+        <Route path="/vendor" element={<VendorPortal />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
