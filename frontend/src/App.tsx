@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import NewErrand from "./pages/NewErrand";
 import Register from "./pages/Register";
 import Runner from "./pages/Runner";
+import Timetable from "./pages/Timetable";
 import Track from "./pages/Track";
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/errands/new" element={<NewErrand />} />
         <Route path="/errands/:id" element={<Track />} />
         <Route path="/runner" element={<Runner />} />
+        <Route path="/timetable" element={<Timetable />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

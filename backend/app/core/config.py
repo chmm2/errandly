@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://redis:6379/0"
 
+    # Kafka
+    kafka_bootstrap: str = "kafka:19092"
+    kafka_orders_topic: str = "errandly.orders"
+
     # Auth / JWT
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"

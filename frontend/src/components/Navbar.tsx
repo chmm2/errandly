@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../stores/auth";
+import NotificationBell from "./NotificationBell";
 
 export default function Navbar() {
   const user = useAuth((s) => s.user);
@@ -22,6 +23,14 @@ export default function Navbar() {
           >
             Runner mode
           </Link>
+          <Link
+            to="/timetable"
+            title="My timetable"
+            className="hidden rounded-lg px-2 py-1.5 text-xl transition hover:bg-brand-soft sm:block"
+          >
+            🗓️
+          </Link>
+          <NotificationBell />
           <span className="hidden items-center gap-1 font-medium text-muted sm:flex">
             <svg className="h-4 w-4 text-brand" fill="currentColor" viewBox="0 0 20 20">
               <path
