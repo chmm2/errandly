@@ -30,8 +30,9 @@ class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    student_id: str
+    student_id: str | None
     email: EmailStr
     display_name: str
+    role: str = "STUDENT"
     account_status: str
     reputation_score: float
