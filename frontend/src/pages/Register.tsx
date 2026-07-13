@@ -1,9 +1,10 @@
 import { type FormEvent, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
-import { register } from "../api/auth";
+import { fetchMe, register, resendOtp, verifyEmail } from "../api/auth";
 import AuthLayout from "../components/AuthLayout";
 import { apiErrorMessage } from "../lib/api";
+import { useAuth } from "../stores/auth";
 
 const inputCls =
   "w-full rounded-xl border border-line px-4 py-3 outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20";
@@ -18,20 +19,31 @@ export default function Register() {
   });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+
+  // Two-step: fill the form, then verify the emailed code.
+  const [stage, setStage] = useState<"form" | "verify">("form");
+  const [code, setCode] = useState("");
+  const [devOtp, setDevOtp] = useState<string | null>(null);
+  const [resent, setResent] = useState(false);
+
+  const setTokens = useAuth((s) => s.setTokens);
+  const setUser = useAuth((s) => s.setUser);
+  const navigate = useNavigate();
 
   function set(field: keyof typeof form) {
     return (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((f) => ({ ...f, [field]: e.target.value }));
   }
 
-  async function onSubmit(e: FormEvent) {
+  async function onRegister(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setBusy(true);
     try {
-      await register({ ...form, phone: form.phone || undefined });
-      setSubmitted(true);
+      const { devOtp } = await register({ ...form, phone: form.phone || undefined });
+      setDevOtp(devOtp);
+      if (devOtp) setCode(devOtp); // dev mode: prefill so testing is one click
+      setStage("verify");
     } catch (err) {
       setError(apiErrorMessage(err, "Registration failed."));
     } finally {
@@ -39,26 +51,88 @@ export default function Register() {
     }
   }
 
-  if (submitted) {
+  async function onVerify(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      const tokens = await verifyEmail(form.email, code.trim());
+      setTokens(tokens.access_token, tokens.refresh_token);
+      setUser(await fetchMe());
+      navigate("/", { replace: true });
+    } catch (err) {
+      setError(apiErrorMessage(err, "Verification failed."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onResend() {
+    setError(null);
+    setResent(false);
+    try {
+      const otp = await resendOtp(form.email);
+      setDevOtp(otp);
+      if (otp) setCode(otp);
+      setResent(true);
+    } catch (err) {
+      setError(apiErrorMessage(err, "Could not resend the code."));
+    }
+  }
+
+  if (stage === "verify") {
     return (
       <AuthLayout>
         <div className="text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-3xl">
-            ⏳
+            📧
           </div>
-          <h2 className="mt-6 text-3xl font-extrabold">You're almost in</h2>
+          <h2 className="mt-6 text-3xl font-extrabold">Check your email</h2>
           <p className="mt-3 text-muted">
-            Your account was created and is <strong>pending verification</strong>. An administrator
-            confirms you're a registered student before you can start posting or running errands —
-            that's what keeps Errandly student-only.
+            We sent a 6-digit code to <strong>{form.email}</strong>. Enter it below to activate your
+            account — this is how we keep Errandly student-only.
           </p>
-          <Link
-            to="/login"
-            className="mt-8 inline-block rounded-xl bg-brand px-8 py-3.5 font-bold text-white transition hover:bg-brand-dark"
-          >
-            Back to login
-          </Link>
         </div>
+
+        {devOtp && (
+          <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-center text-sm text-amber-800">
+            Dev mode (no email configured): your code is{" "}
+            <span className="font-mono font-bold">{devOtp}</span>
+          </div>
+        )}
+        {error && (
+          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={onVerify} className="mt-6 space-y-4">
+          <input
+            inputMode="numeric"
+            autoFocus
+            required
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="6-digit code"
+            maxLength={8}
+            className={`${inputCls} text-center text-2xl font-bold tracking-[0.4em]`}
+          />
+          <button
+            type="submit"
+            disabled={busy || code.trim().length < 4}
+            className="w-full rounded-xl bg-brand py-3.5 font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
+          >
+            {busy ? "Verifying…" : "Verify & continue"}
+          </button>
+        </form>
+
+        <p className="mt-6 text-center text-sm text-muted">
+          Didn't get it?{" "}
+          <button onClick={onResend} className="font-semibold text-brand hover:underline">
+            Resend code
+          </button>
+          {resent && <span className="ml-2 text-green-600">Sent ✓</span>}
+        </p>
       </AuthLayout>
     );
   }
@@ -66,7 +140,7 @@ export default function Register() {
   return (
     <AuthLayout>
       <h2 className="text-3xl font-extrabold">Create your account</h2>
-      <p className="mt-2 text-muted">Students only — verified against your university registry.</p>
+      <p className="mt-2 text-muted">Students only — verified via your university email.</p>
 
       {error && (
         <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -74,7 +148,7 @@ export default function Register() {
         </div>
       )}
 
-      <form onSubmit={onSubmit} className="mt-8 space-y-4">
+      <form onSubmit={onRegister} className="mt-8 space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="display_name" className="mb-1.5 block text-sm font-semibold">

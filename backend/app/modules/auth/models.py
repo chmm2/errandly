@@ -61,6 +61,9 @@ class User(Base, TimestampMixin):
         Numeric(4, 2), nullable=False, server_default="5.00"
     )
     rating_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    email_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     credentials: Mapped["AuthCredential"] = relationship(
@@ -84,6 +87,24 @@ class AuthCredential(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="credentials")
+
+
+class EmailOtp(Base):
+    """One active email-verification OTP per user (the row is replaced when a
+    new code is requested). The code is stored hashed, expires, and locks out
+    after too many wrong attempts."""
+
+    __tablename__ = "email_otps"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    code_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=False
+    )
 
 
 class RefreshToken(Base):

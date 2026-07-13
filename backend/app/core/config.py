@@ -24,9 +24,28 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
 
+    # Email / OTP verification
+    # Leave smtp_host blank to run in dev mode: the OTP is logged (and surfaced
+    # via an X-Dev-OTP header) instead of emailed. Fill these in backend/.env
+    # to send for real — the password never leaves your .env.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "Errandly <no-reply@errandly.app>"
+    smtp_starttls: bool = True
+    otp_ttl_minutes: int = 10
+    otp_max_attempts: int = 5
+    # Self-registration is restricted to this email domain (student-only).
+    student_email_domain: str = "vitstudent.ac.in"
+
     # App
     environment: str = "development"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
+
+    @property
+    def smtp_configured(self) -> bool:
+        return bool(self.smtp_host)
 
     @property
     def cors_origins_list(self) -> list[str]:
