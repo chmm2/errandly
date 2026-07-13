@@ -45,3 +45,21 @@ async def require_active_user(user: User = Depends(get_current_user)) -> User:
             status.HTTP_403_FORBIDDEN, "Account pending verification by an administrator."
         )
     return user
+
+
+def require_role(*roles: str):
+    """RBAC guard factory: role gets you through the door; endpoints still
+    check OWNERSHIP of the specific record (role alone is never enough)."""
+
+    async def guard(user: User = Depends(require_active_user)) -> User:
+        if user.role not in roles:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, f"Requires role: {' or '.join(roles)}."
+            )
+        return user
+
+    return guard
+
+
+require_vendor = require_role("VENDOR")
+require_admin = require_role("ADMIN")

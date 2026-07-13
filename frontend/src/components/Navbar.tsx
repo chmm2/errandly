@@ -17,19 +17,37 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-3 text-sm">
-          <Link
-            to="/runner"
-            className="rounded-lg bg-brand-soft px-3 py-1.5 font-bold text-brand-dark transition hover:bg-brand hover:text-white"
-          >
-            Runner mode
-          </Link>
-          <Link
-            to="/timetable"
-            title="My timetable"
-            className="hidden rounded-lg px-2 py-1.5 text-xl transition hover:bg-brand-soft sm:block"
-          >
-            🗓️
-          </Link>
+          {user?.role === "VENDOR" ? (
+            <Link
+              to="/vendor"
+              className="rounded-lg bg-brand-soft px-3 py-1.5 font-bold text-brand-dark transition hover:bg-brand hover:text-white"
+            >
+              My store
+            </Link>
+          ) : (
+            <>
+              <Link
+                to="/shops"
+                className="hidden rounded-lg px-2 py-1.5 text-xl transition hover:bg-brand-soft sm:block"
+                title="Campus stores"
+              >
+                🏪
+              </Link>
+              <Link
+                to="/runner"
+                className="rounded-lg bg-brand-soft px-3 py-1.5 font-bold text-brand-dark transition hover:bg-brand hover:text-white"
+              >
+                Runner mode
+              </Link>
+              <Link
+                to="/timetable"
+                title="My timetable"
+                className="hidden rounded-lg px-2 py-1.5 text-xl transition hover:bg-brand-soft sm:block"
+              >
+                🗓️
+              </Link>
+            </>
+          )}
           <NotificationBell />
           <span className="hidden items-center gap-1 font-medium text-muted sm:flex">
             <svg className="h-4 w-4 text-brand" fill="currentColor" viewBox="0 0 20 20">
@@ -46,7 +64,9 @@ export default function Navbar() {
             <div className="hidden flex-col items-end sm:flex">
               <span className="font-semibold">{user.display_name}</span>
               <span className="text-xs text-muted">
-                ★ {Number(user.reputation_score).toFixed(1)} · {user.student_id}
+                {user.role === "VENDOR"
+                  ? "Store owner"
+                  : `★ ${Number(user.reputation_score).toFixed(1)} · ${user.student_id ?? ""}`}
               </span>
             </div>
           )}

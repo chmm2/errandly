@@ -73,9 +73,11 @@ async def test_feed_sorted_by_distance(client, make_user):
     )
     assert resp.status_code == 200, resp.text
     items = resp.json()["items"]
-    assert [e["id"] for e in items[:3]] == [near["id"], mid["id"], far["id"]]
-    # distance annotated and monotonic
-    assert items[0]["distance_m"] < items[1]["distance_m"] < items[2]["distance_m"]
+    # Assert the relative order + distances of OUR three (the shared dev DB
+    # accumulates other OPEN errands; absolute positions aren't stable).
+    ours = [e for e in items if e["id"] in {near["id"], mid["id"], far["id"]}]
+    assert [e["id"] for e in ours] == [near["id"], mid["id"], far["id"]]
+    assert ours[0]["distance_m"] < ours[1]["distance_m"] < ours[2]["distance_m"]
 
 
 async def test_handoff_secret_gating_and_audit(client, make_user):

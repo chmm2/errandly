@@ -61,22 +61,25 @@ that table is the interview/viva cheat sheet).
 - **Patterns:** CAP in practice (Postgres = consistent truth, Redis GEO = eventually-consistent
   derived index) · cache-aside · async request-reply (WebSockets) · scheduler/timeout jobs
 
-## Sprint 4 — Kafka backbone & timetable (Weeks 8–9)  ⚠ risk peak ◀ current
-- [ ] **transactional outbox:** ORDER_* events written atomically with orders, relayed to Kafka
+## Sprint 4 — Kafka backbone & timetable (Weeks 8–9) ✅
+- [x] **transactional outbox:** ORDER_* events written atomically with orders, relayed to Kafka
   by a worker polling with `FOR UPDATE SKIP LOCKED`
-- [ ] extract Notification + Analytics as idempotent, competing consumers (processed_events
+- [x] extract Notification + Analytics as idempotent, competing consumers (processed_events
   dedupe: at-least-once delivery + idempotency = effectively-once)
-- [ ] circuit breaker + retry-with-backoff around producer/consumer side effects
-- [ ] timetable_slots (Postgres EXCLUDE overlap constraint) + enforcer (auto-block runners:
+- [x] circuit breaker + retry-with-backoff around producer/consumer side effects
+- [x] timetable_slots (Postgres EXCLUDE overlap constraint) + enforcer (auto-block runners:
   can't go online in class; matching skips in-class runners; job sweeps the GEO index)
-- [ ] offer timeout → broaden retry loop (carried from Sprint 3; scheduler job in the worker)
-- [ ] timetable UI, live notifications bell (WS), basic analytics
+- [x] offer timeout → broaden retry loop (scheduler job in the worker)
+- [x] timetable UI, live notifications bell (WS), basic analytics (read model + summary API;
+  UI surface lands with the Sprint 6 admin dashboard)
+- ✔ demoed: bell lit live through outbox→Kafka→consumer→WS; enforcer auto-blocked an online
+  runner when class started
 - **Demo #4:** one event fans out to 2 services; kill a consumer mid-stream, restart, no dupes;
   runner auto-blocks during class.
 - **Patterns:** pub/sub · queue-based load leveling · competing consumers · transactional outbox ·
   circuit breaker · retry with backoff · strangler-fig extraction (first seam split)
 
-## Sprint 5 — Catalog, trust, chat, payments (Weeks 10–11)
+## Sprint 5 — Catalog, trust, chat, payments (Weeks 10–11) ◀ current
 - [ ] **RBAC:** `role` on users (STUDENT/VENDOR/ADMIN); `require_vendor` guard; student_id/
   campus-email rules become role-conditional. Vendors are onboarded by admin (no self-signup).
 - [ ] **vendor catalog:** vendors (owner_user_id, open/closed) + menu_items tables; **vendors

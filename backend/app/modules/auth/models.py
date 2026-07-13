@@ -18,10 +18,13 @@ from app.core.database import Base
 from app.core.mixins import TimestampMixin
 
 ACCOUNT_STATUSES = ("PENDING", "ACTIVE", "SUSPENDED", "BANNED")
+ROLES = ("STUDENT", "VENDOR", "ADMIN")
 
 
 class User(Base, TimestampMixin):
-    """A verified student. Student ID is the immutable identity anchor."""
+    """A platform account. STUDENT is the default (requester/runner);
+    VENDOR operates a campus store (admin-onboarded, no student_id);
+    ADMIN runs the place. student_id is required iff role = STUDENT."""
 
     __tablename__ = "users"
     __table_args__ = (
@@ -34,6 +37,10 @@ class User(Base, TimestampMixin):
         CheckConstraint(
             "reputation_score >= 0 AND reputation_score <= 5", name="ck_users_reputation"
         ),
+        CheckConstraint("role IN ('STUDENT','VENDOR','ADMIN')", name="ck_users_role"),
+        CheckConstraint(
+            "role <> 'STUDENT' OR student_id IS NOT NULL", name="ck_users_student_id_required"
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -42,8 +49,9 @@ class User(Base, TimestampMixin):
     campus_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("campuses.id"), nullable=False
     )
-    student_id: Mapped[str] = mapped_column(String(50), nullable=False)
+    student_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     email: Mapped[str] = mapped_column(CITEXT, nullable=False)
+    role: Mapped[str] = mapped_column(String(16), nullable=False, server_default="STUDENT")
     display_name: Mapped[str] = mapped_column(String(120), nullable=False)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     account_status: Mapped[str] = mapped_column(

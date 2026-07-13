@@ -38,6 +38,9 @@ export interface Errand {
   distance_m: number | null;
   runner_lat: number | null;
   runner_lng: number | null;
+  vendor_id: string | null;
+  items: OrderLine[];
+  items_total: number;
   status: ErrandStatus;
   version: number;
   accepted_at: string | null;
@@ -47,8 +50,18 @@ export interface Errand {
   created_at: string;
 }
 
+export interface OrderLine {
+  id: string;
+  menu_item_id: string | null;
+  name_snapshot: string;
+  unit_price_snapshot: number;
+  quantity: number;
+}
+
 export interface ErrandCreate {
   category: Category;
+  vendor_id?: string;
+  items?: { menu_item_id: string; quantity: number }[];
   title: string;
   notes?: string;
   pickup_label: string;
@@ -127,4 +140,8 @@ export async function completeErrand(id: string): Promise<Errand> {
 
 export async function fetchHandoffSecret(id: string): Promise<HandoffSecret> {
   return (await api.get<HandoffSecret>(`/errands/${id}/handoff-secret`)).data;
+}
+
+export async function rateErrand(id: string, stars: number, comment?: string): Promise<void> {
+  await api.post(`/errands/${id}/rate`, { stars, comment });
 }

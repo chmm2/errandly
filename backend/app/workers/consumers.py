@@ -30,6 +30,7 @@ from app.core.redis import redis_client
 from app.core.resilience import retry_with_backoff
 from app.modules.analytics.models import DailyStat
 from app.modules.errands.models import Errand, ErrandEvent
+from app.modules.ledger.models import LedgerEntry
 from app.modules.notifications import service as notifications
 from app.modules.outbox.models import ProcessedEvent
 from app.modules.runners import service as runners_service
@@ -117,11 +118,54 @@ async def handle_analytics(db: AsyncSession, event: dict) -> None:
     await db.execute(stmt)
 
 
+# ------------------------------------------------------------------ settlement
+
+async def handle_settlement(db: AsyncSession, event: dict) -> None:
+    """Money moves ONLY here, only on ORDER_COMPLETED, and only once — the
+    processed_events gate makes a Kafka redelivery pay nobody twice."""
+    if event["event_type"] != "ORDER_COMPLETED":
+        return
+    payload = event["payload"]
+    if not payload.get("runner_id"):
+        return
+    runner_id = uuid.UUID(payload["runner_id"])
+    errand_id = uuid.UUID(payload["errand_id"])
+    db.add(
+        LedgerEntry(
+            user_id=runner_id, errand_id=errand_id,
+            entry_type="REWARD", amount=payload["reward"],
+        )
+    )
+    if payload.get("collect_amount", 0) > 0:
+        db.add(
+            LedgerEntry(
+                user_id=runner_id, errand_id=errand_id,
+                entry_type="REIMBURSEMENT", amount=payload["collect_amount"],
+            )
+        )
+    await notifications.create_and_push(
+        db,
+        redis_client,
+        runner_id,
+        "SETTLEMENT",
+        "Paid out 💰",
+        f"₹{payload['reward']:.0f} reward"
+        + (
+            f" + ₹{payload['collect_amount']:.0f} reimbursed"
+            if payload.get("collect_amount", 0) > 0
+            else ""
+        )
+        + f" for {payload['title']}.",
+        {"errand_id": payload["errand_id"]},
+    )
+
+
 # ------------------------------------------------------------------- consumers
 
 HANDLERS = {
     "notification-service": handle_notification,
     "analytics-service": handle_analytics,
+    "settlement-service": handle_settlement,
 }
 
 
@@ -270,6 +314,7 @@ async def main() -> None:
     await asyncio.gather(
         run_consumer("notification-service"),
         run_consumer("analytics-service"),
+        run_consumer("settlement-service"),
         scheduler(),
     )
 
