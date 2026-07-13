@@ -41,6 +41,7 @@ ALLOWED_TRANSITIONS = {
     ("DELIVERED", "COMPLETED"),
     ("OPEN", "CANCELLED"),
     ("ACCEPTED", "CANCELLED"),
+    ("OPEN", "EXPIRED"),  # nobody accepted within the window (worker sweep)
 }
 
 
@@ -364,6 +365,33 @@ async def attach_runner_position(db: AsyncSession, user: User, errand: Errand) -
     if profile and profile.last_lat is not None:
         errand.runner_lat = float(profile.last_lat)
         errand.runner_lng = float(profile.last_lng)
+
+
+async def attach_runner_summary(db: AsyncSession, user: User, errand: Errand) -> None:
+    """Show the requester who's running it — name, rating, and (only during
+    an active run) a phone number to call. Parties only; phone is withheld
+    once the errand is finished."""
+    if errand.runner_id is None or user.id not in (errand.requester_id, errand.runner_id):
+        return
+    runner = await db.get(User, errand.runner_id)
+    if runner is None:
+        return
+    active = errand.status in ("ACCEPTED", "IN_PROGRESS", "DELIVERED")
+    errand.runner = {
+        "id": runner.id,
+        "display_name": runner.display_name,
+        "reputation_score": float(runner.reputation_score),
+        "rating_count": runner.rating_count,
+        "phone": runner.phone if active else None,
+    }
+
+
+def expire_errand(db: AsyncSession, errand: Errand) -> None:
+    """OPEN → EXPIRED: nobody accepted within the window. Internal only —
+    no Kafka/ledger involvement (no money or downstream fan-out for a
+    non-event). Caller commits and publishes the status."""
+    _transition(errand, "EXPIRED")
+    _record(db, errand, None, "EXPIRED")
 
 
 async def list_events(db: AsyncSession, user: User, errand_id: uuid.UUID) -> list[ErrandEvent]:

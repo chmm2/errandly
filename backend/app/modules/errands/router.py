@@ -76,6 +76,7 @@ async def detail(
     try:
         errand = await service.get_errand(db, user, errand_id)
         await service.attach_runner_position(db, user, errand)
+        await service.attach_runner_summary(db, user, errand)
         return errand
     except ErrandError as e:
         _raise(e)

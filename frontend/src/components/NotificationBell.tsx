@@ -11,6 +11,8 @@ const TYPE_ICONS: Record<string, string> = {
   ORDER_COMPLETED: "✅",
   ORDER_CANCELLED: "🚫",
   TIMETABLE_BLOCK: "📚",
+  ERRAND_EXPIRED: "😔",
+  SETTLEMENT: "💰",
 };
 
 function timeAgo(iso: string): string {

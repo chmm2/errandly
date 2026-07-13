@@ -53,6 +53,18 @@ class RateRequest(BaseModel):
     comment: str | None = Field(default=None, max_length=500)
 
 
+class RunnerSummary(BaseModel):
+    """Who's running the errand — shown to the two parties on the tracking
+    page. Phone is revealed only during an active run so the requester can
+    call the runner; it goes null again once the errand is done."""
+
+    id: uuid.UUID
+    display_name: str
+    reputation_score: float
+    rating_count: int
+    phone: str | None = None
+
+
 class ErrandOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -76,6 +88,7 @@ class ErrandOut(BaseModel):
     # for the requester/runner while the run is active (tracking page).
     runner_lat: float | None = None
     runner_lng: float | None = None
+    runner: RunnerSummary | None = None
     vendor_id: uuid.UUID | None = None
     items: list["ErrandItemOut"] = []
     items_total: float = 0
