@@ -205,6 +205,17 @@ async def _validate_order_items(
     ]
 
 
+async def _attach_rated(db: AsyncSession, errands: list[Errand]) -> None:
+    """Set .rated so the UI knows whether to offer 'rate your runner'."""
+    ids = [e.id for e in errands]
+    if not ids:
+        return
+    rows = await db.scalars(select(Rating.errand_id).where(Rating.errand_id.in_(ids)))
+    rated = set(rows)
+    for e in errands:
+        e.rated = e.id in rated
+
+
 async def _attach_items(db: AsyncSession, errands: list[Errand]) -> None:
     """Populate .items / .items_total for serialization."""
     ids = [e.id for e in errands]
@@ -326,6 +337,7 @@ async def list_mine(db: AsyncSession, user: User) -> tuple[list[Errand], list[Er
     )
     await _attach_secret_flags(db, requested + running)
     await _attach_items(db, requested + running)
+    await _attach_rated(db, requested + running)
     return requested, running
 
 
@@ -335,6 +347,7 @@ async def get_errand(db: AsyncSession, user: User, errand_id: uuid.UUID) -> Erra
         raise ErrandError("Errand not found.", 404)
     await _attach_secret_flags(db, [errand])
     await _attach_items(db, [errand])
+    await _attach_rated(db, [errand])
     return errand
 
 

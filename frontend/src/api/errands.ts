@@ -41,6 +41,7 @@ export interface Errand {
   vendor_id: string | null;
   items: OrderLine[];
   items_total: number;
+  rated: boolean;
   status: ErrandStatus;
   version: number;
   accepted_at: string | null;

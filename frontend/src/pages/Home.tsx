@@ -165,6 +165,14 @@ function ErrandCard({
           Confirm ✓
         </button>
       )}
+      {errand.status === "COMPLETED" && !errand.rated && (
+        <button
+          onClick={() => onConfirmed(errand.id)}
+          className="shrink-0 rounded-xl border border-brand px-4 py-2 text-sm font-bold text-brand transition hover:bg-brand-soft"
+        >
+          Rate ★
+        </button>
+      )}
       {cancellable && (
         <button
           onClick={() => cancel.mutate()}
@@ -183,6 +191,7 @@ export default function Home() {
   const setUser = useAuth((s) => s.setUser);
   const [ratingFor, setRatingFor] = useState<string | null>(null);
 
+  const queryClient = useQueryClient();
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: fetchMe });
   useEffect(() => {
     if (me) setUser(me);
@@ -221,13 +230,12 @@ export default function Home() {
             >
               Post an errand →
             </Link>
-            <button
-              disabled
-              title="Runner mode ships in Sprint 3 — with timetable-aware availability"
-              className="cursor-not-allowed rounded-xl border-2 border-white/60 px-6 py-3.5 font-bold text-white/80"
+            <Link
+              to="/runner"
+              className="rounded-xl border-2 border-white px-6 py-3.5 font-bold text-white transition hover:-translate-y-0.5 hover:bg-white hover:text-brand"
             >
-              Become a runner · soon
-            </button>
+              Become a runner 🛵
+            </Link>
           </div>
         </div>
       </section>
@@ -303,7 +311,13 @@ export default function Home() {
       </section>
 
       {ratingFor && (
-        <RatingModal errandId={ratingFor} onDone={() => setRatingFor(null)} />
+        <RatingModal
+          errandId={ratingFor}
+          onDone={() => {
+            setRatingFor(null);
+            queryClient.invalidateQueries({ queryKey: ["my-errands"] });
+          }}
+        />
       )}
 
       <footer className="border-t border-line py-8 text-center text-sm text-muted">

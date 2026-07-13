@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import L from "leaflet";
-import { useCallback, useMemo, useState } from "react";
-import { MapContainer, Marker, TileLayer } from "react-leaflet";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
 import { Link, useParams } from "react-router-dom";
 
 import type { Errand, ErrandEvent, ErrandStatus } from "../api/errands";
@@ -34,6 +34,17 @@ const STEPS: { key: string; label: string; icon: string }[] = [
 ];
 
 const LIVE: ErrandStatus[] = ["OPEN", "ACCEPTED", "IN_PROGRESS", "DELIVERED"];
+
+/** Gently pan the map to keep the moving runner in view. */
+function FollowRunner({ position }: { position: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (position && !map.getBounds().pad(-0.2).contains(position)) {
+      map.panTo(position, { animate: true });
+    }
+  }, [position, map]);
+  return null;
+}
 
 async function fetchErrand(id: string): Promise<Errand> {
   return (await api.get<Errand>(`/errands/${id}`)).data;
@@ -140,6 +151,7 @@ export default function Track() {
             />
             <Marker position={drop} icon={dropIcon} />
             {runner && <Marker position={runner} icon={runnerIcon} />}
+            <FollowRunner position={runner} />
           </MapContainer>
           <div className="flex items-center justify-between bg-white px-4 py-2.5 text-xs text-muted">
             <span>📍 drop point{runner ? " · 🛵 your runner (live)" : ""}</span>

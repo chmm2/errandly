@@ -79,6 +79,7 @@ class ErrandOut(BaseModel):
     vendor_id: uuid.UUID | None = None
     items: list["ErrandItemOut"] = []
     items_total: float = 0
+    rated: bool = False
     status: str
     version: int
     accepted_at: datetime | None

@@ -239,6 +239,16 @@ export default function Menu() {
                 ✕ close
               </button>
             </div>
+            <div className="flex flex-wrap gap-2">
+              {cartLines.map(([itemId, qty]) => (
+                <span
+                  key={itemId}
+                  className="rounded-full bg-brand-soft px-3 py-1 text-xs font-semibold text-brand-dark"
+                >
+                  {qty}× {byId.get(itemId)?.name} · ₹{((byId.get(itemId)?.price ?? 0) * qty).toFixed(0)}
+                </span>
+              ))}
+            </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-xl border border-line p-3 text-sm">
                 {geo.status === "ok" ? (

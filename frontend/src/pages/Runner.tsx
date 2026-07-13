@@ -177,7 +177,12 @@ export default function Runner() {
       setOffers((prev) => prev.filter((o) => o.errand_id !== errand.id));
       refresh();
     },
-    onError: (err) => setError(apiErrorMessage(err, "Could not accept.")),
+    onError: (err, errandId) => {
+      // Lost the race (someone else accepted) or hit the load cap — either
+      // way this offer is dead; drop the card instead of leaving a trap.
+      setOffers((prev) => prev.filter((o) => o.errand_id !== errandId));
+      setError(apiErrorMessage(err, "Could not accept."));
+    },
     onSettled: refresh,
   });
   const pickup = useMutation({ mutationFn: pickupErrand, onSettled: refresh });
