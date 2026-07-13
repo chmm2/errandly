@@ -3,9 +3,10 @@ import { persist } from "zustand/middleware";
 
 export interface User {
   id: string;
-  student_id: string;
+  student_id: string | null;
   email: string;
   display_name: string;
+  role: "STUDENT" | "VENDOR" | "ADMIN";
   account_status: "PENDING" | "ACTIVE" | "SUSPENDED" | "BANNED";
   reputation_score: number;
 }

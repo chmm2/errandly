@@ -9,8 +9,16 @@ Category = Literal["FOOD", "GROCERY", "PARCEL", "STATIONERY", "PHARMACY", "CUSTO
 CATALOG_CATEGORIES = {"FOOD", "GROCERY", "STATIONERY", "PHARMACY"}
 
 
+class OrderItemIn(BaseModel):
+    menu_item_id: uuid.UUID
+    quantity: int = Field(ge=1, le=20)
+
+
 class ErrandCreate(BaseModel):
     category: Category
+    # Catalog orders: which store + what items (server revalidates + reprices)
+    vendor_id: uuid.UUID | None = None
+    items: list[OrderItemIn] = Field(default_factory=list, max_length=20)
     title: str = Field(min_length=3, max_length=200)
     notes: str | None = Field(default=None, max_length=2000)
     pickup_label: str = Field(min_length=2, max_length=200)
@@ -29,11 +37,20 @@ class ErrandCreate(BaseModel):
             raise ValueError(
                 "Order number / OTP only apply to Custom (gate) and Parcel pickups."
             )
+        if self.items and self.category not in CATALOG_CATEGORIES:
+            raise ValueError("Menu items only apply to store orders.")
+        if self.items and self.vendor_id is None:
+            raise ValueError("Menu items need a vendor_id.")
         return self
 
 
 class CancelRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=500)
+
+
+class RateRequest(BaseModel):
+    stars: int = Field(ge=1, le=5)
+    comment: str | None = Field(default=None, max_length=500)
 
 
 class ErrandOut(BaseModel):
@@ -59,6 +76,9 @@ class ErrandOut(BaseModel):
     # for the requester/runner while the run is active (tracking page).
     runner_lat: float | None = None
     runner_lng: float | None = None
+    vendor_id: uuid.UUID | None = None
+    items: list["ErrandItemOut"] = []
+    items_total: float = 0
     status: str
     version: int
     accepted_at: datetime | None
@@ -78,6 +98,16 @@ class ErrandFeed(BaseModel):
 class MyErrands(BaseModel):
     requested: list[ErrandOut]
     running: list[ErrandOut]
+
+
+class ErrandItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    menu_item_id: uuid.UUID | None
+    name_snapshot: str
+    unit_price_snapshot: float
+    quantity: int
 
 
 class HandoffSecretOut(BaseModel):

@@ -14,12 +14,15 @@ from app.modules.errands.models import (
     Errand,
     ErrandEvent,
     ErrandHandoffSecret,
+    ErrandItem,
+    Rating,
 )
 from app.modules.errands.schemas import ErrandCreate
 from app.modules.outbox import service as outbox
 from app.modules.runners import service as runners_service
 from app.modules.runners.models import RunnerProfile
 from app.modules.timetable import service as timetable
+from app.modules.vendors.models import MenuItem, Vendor
 
 ACCEPT_LOCK_PREFIX = "errand:accept:"
 ACCEPT_LOCK_TTL_SECONDS = 10
@@ -76,6 +79,7 @@ def _emit_order_event(db: AsyncSession, errand: Errand, event_type: str) -> None
             "title": errand.title,
             "category": errand.category,
             "reward": float(errand.reward),
+            "collect_amount": float(errand.collect_amount or 0),
         },
     )
 
@@ -161,7 +165,67 @@ async def _attach_secret_flags(db: AsyncSession, errands: list[Errand]) -> None:
         e.has_handoff_secret = e.id in with_secret
 
 
+async def _validate_order_items(
+    db: AsyncSession, user: User, data: ErrandCreate
+) -> list[ErrandItem]:
+    """Order-time revalidation: the cart lives in the client, so every line
+    is re-checked against the LIVE menu and repriced server-side. The client
+    never sets prices — snapshots come from the database."""
+    vendor = await db.get(Vendor, data.vendor_id)
+    if vendor is None or vendor.campus_id != user.campus_id:
+        raise ErrandError("Store not found.", 404)
+    if not vendor.is_open:
+        raise ErrandError(f"{vendor.name} is closed right now.", 409)
+
+    wanted = [line.menu_item_id for line in data.items]
+    menu = {
+        m.id: m
+        for m in await db.scalars(
+            select(MenuItem).where(MenuItem.vendor_id == vendor.id, MenuItem.id.in_(wanted))
+        )
+    }
+    problems = []
+    for line in data.items:
+        item = menu.get(line.menu_item_id)
+        if item is None:
+            problems.append("an item is no longer on the menu")
+        elif not item.is_available:
+            problems.append(f"{item.name} is sold out")
+    if problems:
+        raise ErrandError("Your cart changed: " + "; ".join(problems) + ".", 409)
+
+    return [
+        ErrandItem(
+            menu_item_id=line.menu_item_id,
+            name_snapshot=menu[line.menu_item_id].name,
+            unit_price_snapshot=menu[line.menu_item_id].price,
+            quantity=line.quantity,
+        )
+        for line in data.items
+    ]
+
+
+async def _attach_items(db: AsyncSession, errands: list[Errand]) -> None:
+    """Populate .items / .items_total for serialization."""
+    ids = [e.id for e in errands]
+    for e in errands:
+        e.items, e.items_total = [], 0.0
+    if not ids:
+        return
+    rows = await db.scalars(select(ErrandItem).where(ErrandItem.errand_id.in_(ids)))
+    by_errand: dict = {}
+    for item in rows:
+        by_errand.setdefault(item.errand_id, []).append(item)
+    for e in errands:
+        e.items = by_errand.get(e.id, [])
+        e.items_total = float(
+            sum(i.unit_price_snapshot * i.quantity for i in e.items)
+        )
+
+
 async def create_errand(db: AsyncSession, redis: Redis, user: User, data: ErrandCreate) -> Errand:
+    order_items = await _validate_order_items(db, user, data) if data.items else []
+
     errand = Errand(
         campus_id=user.campus_id,
         requester_id=user.id,
@@ -177,9 +241,13 @@ async def create_errand(db: AsyncSession, redis: Redis, user: User, data: Errand
         fulfillment_type=CATEGORY_FULFILLMENT[data.category],
         external_ref=data.external_ref,
         collect_amount=data.collect_amount,
+        vendor_id=data.vendor_id if order_items else None,
     )
     db.add(errand)
-    await db.flush()  # assign id before writing the event / secret
+    await db.flush()  # assign id before writing the event / secret / items
+    for item in order_items:
+        item.errand_id = errand.id
+        db.add(item)
     if data.otp:
         db.add(ErrandHandoffSecret(errand_id=errand.id, otp_ciphertext=encrypt_str(data.otp)))
     _record(db, errand, user, "CREATED", {"category": data.category, "reward": data.reward})
@@ -193,6 +261,7 @@ async def create_errand(db: AsyncSession, redis: Redis, user: User, data: Errand
         await db.commit()
 
     errand.has_handoff_secret = data.otp is not None
+    await _attach_items(db, [errand])
     return errand
 
 
@@ -256,6 +325,7 @@ async def list_mine(db: AsyncSession, user: User) -> tuple[list[Errand], list[Er
         )
     )
     await _attach_secret_flags(db, requested + running)
+    await _attach_items(db, requested + running)
     return requested, running
 
 
@@ -264,6 +334,7 @@ async def get_errand(db: AsyncSession, user: User, errand_id: uuid.UUID) -> Erra
     if errand is None or errand.deleted_at is not None or errand.campus_id != user.campus_id:
         raise ErrandError("Errand not found.", 404)
     await _attach_secret_flags(db, [errand])
+    await _attach_items(db, [errand])
     return errand
 
 
@@ -418,6 +489,41 @@ async def complete_errand(
     await publish_status(redis, errand)
     await _attach_secret_flags(db, [errand])
     return errand
+
+
+async def rate_errand(
+    db: AsyncSession, user: User, errand_id: uuid.UUID, stars: int, comment: str | None
+) -> None:
+    """Requester rates the runner after completion. Reputation is updated
+    under a row lock (running average, so two ratings can't race)."""
+    errand = await db.scalar(select(Errand).where(Errand.id == errand_id).with_for_update())
+    if errand is None or errand.deleted_at is not None or errand.campus_id != user.campus_id:
+        raise ErrandError("Errand not found.", 404)
+    if errand.requester_id != user.id:
+        raise ErrandError("Only the requester can rate this errand.", 403)
+    if errand.status != "COMPLETED":
+        raise ErrandError("You can rate once the errand is completed.", 409)
+    existing = await db.get(Rating, errand_id)
+    if existing is not None:
+        raise ErrandError("You already rated this errand.", 409)
+
+    db.add(
+        Rating(
+            errand_id=errand_id,
+            rater_id=user.id,
+            ratee_id=errand.runner_id,
+            stars=stars,
+            comment=comment,
+        )
+    )
+    runner = await db.scalar(
+        select(User).where(User.id == errand.runner_id).with_for_update()
+    )
+    total = float(runner.reputation_score) * runner.rating_count + stars
+    runner.rating_count += 1
+    runner.reputation_score = round(total / runner.rating_count, 2)
+    _record(db, errand, user, "RATED", {"stars": stars})
+    await db.commit()
 
 
 async def cancel_errand(

@@ -1,9 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { fetchMe } from "../api/auth";
-import { cancelErrand, type Errand, type ErrandStatus, fetchMyErrands } from "../api/errands";
+import {
+  cancelErrand,
+  completeErrand,
+  type Errand,
+  type ErrandStatus,
+  fetchMyErrands,
+  rateErrand,
+} from "../api/errands";
 import Navbar from "../components/Navbar";
 import { useSocket } from "../lib/ws";
 import { useAuth } from "../stores/auth";
@@ -52,11 +59,70 @@ const STEPS = [
 
 const LIVE_STATUSES: ErrandStatus[] = ["OPEN", "ACCEPTED", "IN_PROGRESS", "DELIVERED"];
 
-function ErrandCard({ errand }: { errand: Errand }) {
+function RatingModal({ errandId, onDone }: { errandId: string; onDone: () => void }) {
+  const [stars, setStars] = useState(0);
+  const [busy, setBusy] = useState(false);
+
+  async function submit() {
+    setBusy(true);
+    try {
+      await rateErrand(errandId, stars);
+    } finally {
+      onDone();
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl">
+        <div className="text-4xl">🎉</div>
+        <h3 className="mt-2 text-xl font-extrabold">Delivered! Rate your runner</h3>
+        <div className="mt-4 flex justify-center gap-1 text-4xl">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button key={n} onClick={() => setStars(n)} aria-label={`${n} stars`}>
+              {n <= stars ? "★" : "☆"}
+            </button>
+          ))}
+        </div>
+        <div className="mt-5 flex gap-3">
+          <button
+            onClick={onDone}
+            className="flex-1 rounded-xl border border-line py-2.5 font-semibold text-muted"
+          >
+            Skip
+          </button>
+          <button
+            onClick={submit}
+            disabled={stars === 0 || busy}
+            className="flex-1 rounded-xl bg-brand py-2.5 font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
+          >
+            Submit
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ErrandCard({
+  errand,
+  onConfirmed,
+}: {
+  errand: Errand;
+  onConfirmed: (errandId: string) => void;
+}) {
   const queryClient = useQueryClient();
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["my-errands"] });
   const cancel = useMutation({
     mutationFn: () => cancelErrand(errand.id),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["my-errands"] }),
+    onSettled: refresh,
+  });
+  const confirm = useMutation({
+    mutationFn: () => completeErrand(errand.id),
+    // Rating modal lives on the PAGE: confirming moves this card from the
+    // active list to History, which unmounts it (and any state it held).
+    onSuccess: () => onConfirmed(errand.id),
+    onSettled: refresh,
   });
   const status = STATUS_STYLES[errand.status];
   const cancellable = errand.status === "OPEN" || errand.status === "ACCEPTED";
@@ -90,6 +156,15 @@ function ErrandCard({ errand }: { errand: Errand }) {
       <span className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${status.cls}`}>
         {status.label}
       </span>
+      {errand.status === "DELIVERED" && (
+        <button
+          onClick={() => confirm.mutate()}
+          disabled={confirm.isPending}
+          className="shrink-0 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+        >
+          Confirm ✓
+        </button>
+      )}
       {cancellable && (
         <button
           onClick={() => cancel.mutate()}
@@ -106,6 +181,7 @@ function ErrandCard({ errand }: { errand: Errand }) {
 export default function Home() {
   const user = useAuth((s) => s.user);
   const setUser = useAuth((s) => s.setUser);
+  const [ratingFor, setRatingFor] = useState<string | null>(null);
 
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: fetchMe });
   useEffect(() => {
@@ -163,7 +239,9 @@ export default function Home() {
           {CATEGORIES.map((c) => (
             <Link
               key={c.name}
-              to="/errands/new"
+              to={
+                ["Parcel pickup", "Custom errand"].includes(c.name) ? "/errands/new" : "/shops"
+              }
               state={{ category: c.name }}
               className="group rounded-2xl border border-line p-5 transition hover:-translate-y-1 hover:border-brand hover:shadow-lg"
             >
@@ -207,7 +285,7 @@ export default function Home() {
         ) : (
           <div className="mt-6 space-y-3">
             {active.map((e) => (
-              <ErrandCard key={e.id} errand={e} />
+              <ErrandCard key={e.id} errand={e} onConfirmed={setRatingFor} />
             ))}
           </div>
         )}
@@ -217,12 +295,16 @@ export default function Home() {
             <h2 className="mt-12 text-2xl font-extrabold">History</h2>
             <div className="mt-6 space-y-3">
               {past.map((e) => (
-                <ErrandCard key={e.id} errand={e} />
+                <ErrandCard key={e.id} errand={e} onConfirmed={setRatingFor} />
               ))}
             </div>
           </>
         )}
       </section>
+
+      {ratingFor && (
+        <RatingModal errandId={ratingFor} onDone={() => setRatingFor(null)} />
+      )}
 
       <footer className="border-t border-line py-8 text-center text-sm text-muted">
         errandly · built by students, for students · VIT Vellore

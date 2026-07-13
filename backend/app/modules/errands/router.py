@@ -18,6 +18,7 @@ from app.modules.errands.schemas import (
     ErrandOut,
     HandoffSecretOut,
     MyErrands,
+    RateRequest,
 )
 from app.modules.errands.service import ErrandError
 
@@ -38,7 +39,10 @@ async def create_errand(
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
-    return await service.create_errand(db, redis, user, data)
+    try:
+        return await service.create_errand(db, redis, user, data)
+    except ErrandError as e:
+        _raise(e)
 
 
 @router.get("", response_model=ErrandFeed)
@@ -153,6 +157,20 @@ async def cancel(
         return await service.cancel_errand(
             db, redis, user, errand_id, body.reason if body else None
         )
+    except ErrandError as e:
+        _raise(e)
+
+
+@router.post("/{errand_id}/rate", status_code=status.HTTP_204_NO_CONTENT)
+async def rate(
+    errand_id: uuid.UUID,
+    body: RateRequest,
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Requester rates the runner post-completion; updates reputation."""
+    try:
+        await service.rate_errand(db, user, errand_id, body.stars, body.comment)
     except ErrandError as e:
         _raise(e)
 

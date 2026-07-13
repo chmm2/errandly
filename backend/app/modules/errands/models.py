@@ -11,6 +11,7 @@ from sqlalchemy import (
     Integer,
     LargeBinary,
     Numeric,
+    SmallInteger,
     String,
     Text,
     text,
@@ -89,6 +90,10 @@ class Errand(Base, TimestampMixin):
     drop_lng: Mapped[float] = mapped_column(Numeric(9, 6), nullable=False)
     drop_label: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
+    # Catalog orders: which store the runner buys from.
+    vendor_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("vendors.id"), nullable=True
+    )
     reward: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     fulfillment_type: Mapped[str] = mapped_column(
         String(16), nullable=False, server_default="CATALOG"
@@ -111,6 +116,30 @@ class Errand(Base, TimestampMixin):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class ErrandItem(Base):
+    """One order line of a catalog errand. Name and unit price are SNAPSHOTS
+    taken at order time — menu edits and deletions never rewrite history
+    (snapshot vs reference; menu_item_id is a weak link kept for analytics)."""
+
+    __tablename__ = "errand_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    errand_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("errands.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    menu_item_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("menu_items.id", ondelete="SET NULL"), nullable=True
+    )
+    name_snapshot: Mapped[str] = mapped_column(String(120), nullable=False)
+    unit_price_snapshot: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
 class ErrandHandoffSecret(Base):
     """Delivery OTP for gate/parcel pickups, encrypted at rest.
 
@@ -126,6 +155,29 @@ class ErrandHandoffSecret(Base):
         primary_key=True,
     )
     otp_ciphertext: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=False
+    )
+
+
+class Rating(Base):
+    """One rating per completed errand (PK = errand_id enforces it).
+    Feeds users.reputation_score, which matching reads."""
+
+    __tablename__ = "ratings"
+    __table_args__ = (CheckConstraint("stars BETWEEN 1 AND 5", name="ck_ratings_stars"),)
+
+    errand_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("errands.id", ondelete="CASCADE"), primary_key=True
+    )
+    rater_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    ratee_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+    )
+    stars: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    comment: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )
