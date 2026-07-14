@@ -27,4 +27,5 @@ Thumbs.db
 # Docker volumes / data
 pgdata/
 data/
+!frontend/src/data/
 .claude/settings.local.json
