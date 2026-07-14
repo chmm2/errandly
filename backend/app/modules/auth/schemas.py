@@ -45,3 +45,9 @@ class UserOut(BaseModel):
     role: str = "STUDENT"
     account_status: str
     reputation_score: float
+    photo_url: str | None = None
+
+
+class PhotoUpdate(BaseModel):
+    # A small avatar as a data URL (client resizes to ~128px first).
+    photo_url: str | None = Field(default=None, max_length=300_000)

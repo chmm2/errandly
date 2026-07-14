@@ -9,6 +9,7 @@ export interface User {
   role: "STUDENT" | "VENDOR" | "ADMIN";
   account_status: "PENDING" | "ACTIVE" | "SUSPENDED" | "BANNED";
   reputation_score: number;
+  photo_url: string | null;
 }
 
 interface AuthState {

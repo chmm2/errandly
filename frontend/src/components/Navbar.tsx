@@ -120,9 +120,17 @@ export default function Navbar() {
               </span>
             </div>
           )}
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft font-bold text-brand">
-            {(user?.display_name ?? "?").charAt(0).toUpperCase()}
-          </div>
+          {user?.photo_url ? (
+            <img
+              src={user.photo_url}
+              alt={user.display_name}
+              className="h-9 w-9 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft font-bold text-brand">
+              {(user?.display_name ?? "?").charAt(0).toUpperCase()}
+            </div>
+          )}
           <button
             onClick={() => {
               logout();

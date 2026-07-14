@@ -66,6 +66,30 @@ async def test_runner_summary_gated_to_parties_and_active_run(client, make_user)
     assert done["runner"]["phone"] is None
 
 
+async def test_runner_card_shows_photo_and_delivery_count(client, make_user):
+    _, requester = await make_user("Requester")
+    runner_id, runner = await make_user("Runner")
+
+    # runner sets a profile photo
+    photo = "data:image/png;base64,iVBORw0KGgoAAAANS"
+    resp = await client.put("/auth/me/photo", json={"photo_url": photo}, headers=runner)
+    assert resp.status_code == 200
+    assert resp.json()["photo_url"] == photo
+
+    # complete one delivery so the count is > 0
+    e1 = (await client.post("/errands", json=errand_payload(), headers=requester)).json()
+    for step in ("accept", "pickup", "deliver"):
+        await client.post(f"/errands/{e1['id']}/{step}", headers=runner)
+    await client.post(f"/errands/{e1['id']}/complete", headers=requester)
+
+    # a second, active errand: the requester sees the runner's photo + tally
+    e2 = (await client.post("/errands", json=errand_payload(), headers=requester)).json()
+    await client.post(f"/errands/{e2['id']}/accept", headers=runner)
+    card = (await client.get(f"/errands/{e2['id']}", headers=requester)).json()["runner"]
+    assert card["photo_url"] == photo
+    assert card["trips_completed"] == 1
+
+
 # ----------------------------------------------------- 10-minute expiry sweep
 
 async def test_stale_open_errand_expires_and_notifies(client, make_user):

@@ -377,11 +377,18 @@ async def attach_runner_summary(db: AsyncSession, user: User, errand: Errand) ->
     if runner is None:
         return
     active = errand.status in ("ACCEPTED", "IN_PROGRESS", "DELIVERED")
+    trips = await db.scalar(
+        select(func.count())
+        .select_from(Errand)
+        .where(Errand.runner_id == runner.id, Errand.status == "COMPLETED")
+    )
     errand.runner = {
         "id": runner.id,
         "display_name": runner.display_name,
         "reputation_score": float(runner.reputation_score),
         "rating_count": runner.rating_count,
+        "trips_completed": trips or 0,
+        "photo_url": runner.photo_url,
         "phone": runner.phone if active else None,
     }
 

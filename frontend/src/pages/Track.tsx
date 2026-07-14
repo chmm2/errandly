@@ -133,14 +133,23 @@ function ExpiredCard() {
   );
 }
 
-/** Runner profile card: name, rating, and a tap-to-call button. */
+/** Runner profile card, Swiggy-style: photo, name, rating, delivery count,
+ * and a tap-to-call button. */
 function RunnerCard({ runner }: { runner: RunnerSummary }) {
   const initial = runner.display_name.charAt(0).toUpperCase();
   return (
     <div className="mt-6 flex items-center gap-4 rounded-2xl border border-line p-5">
-      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xl font-extrabold text-brand">
-        {initial}
-      </div>
+      {runner.photo_url ? (
+        <img
+          src={runner.photo_url}
+          alt={runner.display_name}
+          className="h-14 w-14 shrink-0 rounded-full object-cover"
+        />
+      ) : (
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xl font-extrabold text-brand">
+          {initial}
+        </div>
+      )}
       <div className="min-w-0 flex-1">
         <div className="text-xs font-semibold uppercase tracking-wide text-muted">
           Your runner
@@ -148,9 +157,8 @@ function RunnerCard({ runner }: { runner: RunnerSummary }) {
         <div className="truncate text-lg font-bold">{runner.display_name}</div>
         <div className="text-sm text-muted">
           ★ {Number(runner.reputation_score).toFixed(1)}
-          {runner.rating_count > 0 && (
-            <span className="text-muted"> · {runner.rating_count} ratings</span>
-          )}
+          {runner.rating_count > 0 && <span> · {runner.rating_count} ratings</span>}
+          <span> · {runner.trips_completed} deliveries</span>
         </div>
       </div>
       {runner.phone ? (

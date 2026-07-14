@@ -13,6 +13,7 @@ from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.models import User
 from app.modules.auth.schemas import (
     LoginRequest,
+    PhotoUpdate,
     RefreshRequest,
     RegisterRequest,
     ResendOtpRequest,
@@ -114,4 +115,18 @@ async def refresh(
 
 @router.get("/me", response_model=UserOut)
 async def me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+@router.put("/me/photo", response_model=UserOut)
+async def set_photo(
+    data: PhotoUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set (or clear) your profile photo — a small avatar the requester sees
+    on the tracking screen while you're running their errand."""
+    current_user.photo_url = data.photo_url
+    await db.commit()
+    await db.refresh(current_user)
     return current_user

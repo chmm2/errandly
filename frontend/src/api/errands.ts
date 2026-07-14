@@ -24,6 +24,8 @@ export interface RunnerSummary {
   display_name: string;
   reputation_score: number;
   rating_count: number;
+  trips_completed: number;
+  photo_url: string | null;
   phone: string | null;
 }
 

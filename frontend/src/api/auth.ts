@@ -43,3 +43,8 @@ export async function fetchMe(): Promise<User> {
   const { data } = await api.get<User>("/auth/me");
   return data;
 }
+
+export async function setPhoto(photo_url: string | null): Promise<User> {
+  const { data } = await api.put<User>("/auth/me/photo", { photo_url });
+  return data;
+}

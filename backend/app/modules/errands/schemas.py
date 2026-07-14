@@ -62,6 +62,8 @@ class RunnerSummary(BaseModel):
     display_name: str
     reputation_score: float
     rating_count: int
+    trips_completed: int = 0
+    photo_url: str | None = None
     phone: str | None = None
 
 
