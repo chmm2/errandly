@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import ProtectedRoute from "./components/ProtectedRoute";
+import Campus from "./pages/Campus";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import NewErrand from "./pages/NewErrand";
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/errands/:id" element={<Track />} />
         <Route path="/runner" element={<Runner />} />
         <Route path="/timetable" element={<Timetable />} />
+        <Route path="/campus" element={<Campus />} />
         <Route path="/shops" element={<Shops />} />
         <Route path="/shops/:id" element={<Menu />} />
         <Route path="/vendor" element={<VendorPortal />} />

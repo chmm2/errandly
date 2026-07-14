@@ -236,6 +236,12 @@ export default function Home() {
             >
               Become a runner 🛵
             </Link>
+            <Link
+              to="/campus"
+              className="rounded-xl border-2 border-white/60 px-6 py-3.5 font-bold text-white/90 transition hover:-translate-y-0.5 hover:border-white"
+            >
+              🗺️ Campus map
+            </Link>
           </div>
         </div>
       </section>

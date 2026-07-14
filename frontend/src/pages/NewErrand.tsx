@@ -2,6 +2,7 @@ import { type FormEvent, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 import { type Category, createErrand } from "../api/errands";
+import CampusDropPicker from "../components/CampusDropPicker";
 import Navbar from "../components/Navbar";
 import { apiErrorMessage } from "../lib/api";
 
@@ -56,6 +57,7 @@ export default function NewErrand() {
   const [notes, setNotes] = useState("");
   const [geo, setGeo] = useState<GeoState>({ status: "idle" });
   const [dropLabel, setDropLabel] = useState("");
+  const [showMap, setShowMap] = useState(false);
   const [savedDrops] = useState<SavedDrop[]>(loadSavedDrops);
   const [externalRef, setExternalRef] = useState("");
   const [otp, setOtp] = useState("");
@@ -262,6 +264,26 @@ export default function NewErrand() {
                 </div>
               )}
             </div>
+
+            <button
+              type="button"
+              onClick={() => setShowMap((v) => !v)}
+              className="mt-2 text-sm font-semibold text-brand hover:underline"
+            >
+              {showMap ? "Hide campus map" : "🗺️ Or pick a spot on the campus map"}
+            </button>
+            {showMap && (
+              <div className="mt-2">
+                <CampusDropPicker
+                  onConfirm={(s) => {
+                    setGeo({ status: "ok", lat: s.lat, lng: s.lng, accuracy: 0 });
+                    setDropLabel(s.label);
+                    setShowMap(false);
+                  }}
+                />
+              </div>
+            )}
+
             <input
               value={dropLabel}
               onChange={(e) => setDropLabel(e.target.value)}
