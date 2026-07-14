@@ -1,7 +1,62 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
+import { fetchMyErrands } from "../api/errands";
 import { useAuth } from "../stores/auth";
 import NotificationBell from "./NotificationBell";
+
+// You're locked into a role while it has work in flight.
+const ACTIVE_REQUESTED = ["OPEN", "ACCEPTED", "IN_PROGRESS", "DELIVERED"];
+const ACTIVE_RUNNING = ["ACCEPTED", "IN_PROGRESS", "DELIVERED"];
+
+function ModeToggle() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const onRunner = location.pathname.startsWith("/runner");
+
+  const { data: mine } = useQuery({ queryKey: ["my-errands"], queryFn: fetchMyErrands });
+  const activeRequested = (mine?.requested ?? []).some((e) =>
+    ACTIVE_REQUESTED.includes(e.status),
+  );
+  const activeRunning = (mine?.running ?? []).some((e) => ACTIVE_RUNNING.includes(e.status));
+  // A live errand (as requester or runner) commits you to that side until it's done.
+  const locked = activeRequested || activeRunning;
+  const lockHint = locked
+    ? "Finish your active errand before switching roles"
+    : undefined;
+
+  function go(runner: boolean) {
+    if (locked || runner === onRunner) return;
+    navigate(runner ? "/runner" : "/");
+  }
+
+  const seg = (label: string, isActive: boolean, target: boolean) =>
+    isActive ? (
+      <span className="rounded-full bg-brand px-3 py-1.5 text-white">{label}</span>
+    ) : (
+      <button
+        onClick={() => go(target)}
+        disabled={locked}
+        title={lockHint}
+        className={`rounded-full px-3 py-1.5 transition ${
+          locked ? "cursor-not-allowed text-muted/50" : "text-brand-dark hover:text-brand"
+        }`}
+      >
+        {label}
+      </button>
+    );
+
+  return (
+    <div
+      className="flex items-center rounded-full bg-brand-soft p-0.5 text-sm font-bold"
+      title={lockHint}
+    >
+      {seg("🧑 Order", !onRunner, false)}
+      {seg("🛵 Run", onRunner, true)}
+      {locked && <span className="px-1.5 text-xs">🔒</span>}
+    </div>
+  );
+}
 
 export default function Navbar() {
   const user = useAuth((s) => s.user);
@@ -33,12 +88,7 @@ export default function Navbar() {
               >
                 🏪
               </Link>
-              <Link
-                to="/runner"
-                className="rounded-lg bg-brand-soft px-3 py-1.5 font-bold text-brand-dark transition hover:bg-brand hover:text-white"
-              >
-                Runner mode
-              </Link>
+              <ModeToggle />
               <Link
                 to="/timetable"
                 title="My timetable"
