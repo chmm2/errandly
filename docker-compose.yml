@@ -27,6 +27,20 @@ services:
       timeout: 3s
       retries: 10
 
+  # MongoDB — chat/messages (polyglot persistence: flexible, write-heavy
+  # per-conversation docs that don't fit the relational core).
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   # Single-node Kafka (KRaft — no ZooKeeper). Containers talk to kafka:19092,
   # tools on the host laptop talk to localhost:9092.
   kafka:
@@ -65,6 +79,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      mongo:
+        condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   # Outbox relay: polls unpublished outbox rows, publishes to Kafka.
@@ -100,3 +116,4 @@ services:
 
 volumes:
   pgdata:
+  mongodata:

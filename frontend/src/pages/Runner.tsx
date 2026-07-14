@@ -417,6 +417,12 @@ export default function Runner() {
                     </div>
                   </div>
                   {e.has_handoff_secret && <HandoffPanel errandId={e.id} />}
+                  <Link
+                    to={`/errands/${e.id}`}
+                    className="mt-3 inline-block text-sm font-semibold text-brand hover:underline"
+                  >
+                    💬 Chat &amp; live view →
+                  </Link>
                 </div>
               ))}
             </div>

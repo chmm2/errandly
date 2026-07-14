@@ -5,9 +5,11 @@ import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
 import { Link, useParams } from "react-router-dom";
 
 import type { Errand, ErrandEvent, ErrandStatus, RunnerSummary } from "../api/errands";
+import ChatPanel from "../components/ChatPanel";
 import Navbar from "../components/Navbar";
 import { api } from "../lib/api";
 import { useSocket } from "../lib/ws";
+import { useAuth } from "../stores/auth";
 
 import "leaflet/dist/leaflet.css";
 
@@ -178,6 +180,7 @@ function RunnerCard({ runner }: { runner: RunnerSummary }) {
 export default function Track() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const myId = useAuth((s) => s.user?.id);
   const [runnerPos, setRunnerPos] = useState<[number, number] | null>(null);
 
   const { data: errand } = useQuery({
@@ -260,8 +263,14 @@ export default function Track() {
         {finding && <FindingRunner createdAt={errand.created_at} />}
         {expired && <ExpiredCard />}
 
-        {/* Runner profile card (name, rating, call) */}
-        {errand.runner && !expired && !cancelled && <RunnerCard runner={errand.runner} />}
+        {/* Runner profile card (name, rating, call) — hidden when the viewer
+            IS the runner (no "your runner" card for yourself) */}
+        {errand.runner && errand.runner.id !== myId && !expired && !cancelled && (
+          <RunnerCard runner={errand.runner} />
+        )}
+
+        {/* Chat opens once a runner is assigned, for both parties */}
+        {errand.runner_id && !expired && !cancelled && <ChatPanel errandId={errand.id} />}
 
         {/* Live map */}
         {showMap && (

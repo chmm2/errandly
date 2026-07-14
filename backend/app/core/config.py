@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     kafka_bootstrap: str = "kafka:19092"
     kafka_orders_topic: str = "errandly.orders"
 
+    # MongoDB (chat)
+    mongo_url: str = "mongodb://mongo:27017"
+    mongo_db: str = "errandly"
+
     # Auth / JWT
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"
