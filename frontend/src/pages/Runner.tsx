@@ -12,6 +12,7 @@ import {
   type HandoffSecret,
   pickupErrand,
 } from "../api/errands";
+import { setPhoto } from "../api/auth";
 import { fetchEarnings } from "../api/ledger";
 import { fetchRunnerProfile, setAvailability, updateLocation } from "../api/runners";
 import Navbar from "../components/Navbar";
@@ -20,6 +21,26 @@ import { useSocket } from "../lib/ws";
 import { useAuth } from "../stores/auth";
 
 type Geo = { lat: number; lng: number };
+
+/** Center-crop + shrink an image file to a small square data URL, so avatars
+ * stay tiny (a few KB) — no object storage needed. */
+function resizeImage(file: File, size = 128): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("no canvas"));
+      const min = Math.min(img.width, img.height);
+      ctx.drawImage(img, (img.width - min) / 2, (img.height - min) / 2, min, min, 0, 0, size, size);
+      URL.revokeObjectURL(img.src);
+      resolve(canvas.toDataURL("image/jpeg", 0.8));
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
 
 interface Offer {
   errand_id: string;
@@ -101,7 +122,19 @@ function HandoffPanel({ errandId }: { errandId: string }) {
 
 export default function Runner() {
   const user = useAuth((s) => s.user);
+  const setUser = useAuth((s) => s.setUser);
   const queryClient = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setUser(await setPhoto(await resizeImage(file)));
+    } catch {
+      /* ignore bad image */
+    }
+  }
   const [geo, setGeo] = useState<Geo | null>(null);
   const [toggleBusy, setToggleBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -177,7 +210,12 @@ export default function Runner() {
       setOffers((prev) => prev.filter((o) => o.errand_id !== errand.id));
       refresh();
     },
-    onError: (err) => setError(apiErrorMessage(err, "Could not accept.")),
+    onError: (err, errandId) => {
+      // Lost the race (someone else accepted) or hit the load cap — either
+      // way this offer is dead; drop the card instead of leaving a trap.
+      setOffers((prev) => prev.filter((o) => o.errand_id !== errandId));
+      setError(apiErrorMessage(err, "Could not accept."));
+    },
     onSettled: refresh,
   });
   const pickup = useMutation({ mutationFn: pickupErrand, onSettled: refresh });
@@ -227,6 +265,34 @@ export default function Runner() {
       >
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-6 px-4 py-10">
           <div>
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              title="Change your photo"
+              className="mb-3 flex items-center gap-3"
+            >
+              {user?.photo_url ? (
+                <img
+                  src={user.photo_url}
+                  alt="You"
+                  className="h-12 w-12 rounded-full object-cover ring-2 ring-white/60"
+                />
+              ) : (
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-lg font-extrabold">
+                  {(user?.display_name ?? "?").charAt(0).toUpperCase()}
+                </span>
+              )}
+              <span className="text-xs font-semibold text-white/80 underline">
+                {user?.photo_url ? "Change photo" : "📷 Add a photo"}
+              </span>
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onPhoto}
+            />
             <h1 className="text-3xl font-extrabold sm:text-4xl">
               {available ? "You're online 🟢" : "Runner mode"}
             </h1>
@@ -351,6 +417,12 @@ export default function Runner() {
                     </div>
                   </div>
                   {e.has_handoff_secret && <HandoffPanel errandId={e.id} />}
+                  <Link
+                    to={`/errands/${e.id}`}
+                    className="mt-3 inline-block text-sm font-semibold text-brand hover:underline"
+                  >
+                    💬 Chat &amp; live view →
+                  </Link>
                 </div>
               ))}
             </div>

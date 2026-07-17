@@ -2,11 +2,12 @@ import uuid
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.auth.models import User
+from app.modules.timetable import vit_slots
 from app.modules.timetable.models import TimetableSlot
 
 # Single campus for now; multi-campus reads campuses.timezone instead.
@@ -53,6 +54,41 @@ async def create_slot(db: AsyncSession, user: User, data) -> TimetableSlot:
         raise TimetableError("This slot overlaps one you already have.", 409) from e
     await db.refresh(slot)
     return slot
+
+
+async def set_vit_slots(
+    db: AsyncSession, user: User, codes: list[str]
+) -> tuple[list[TimetableSlot], list[str]]:
+    """Replace the user's whole timetable from a set of VIT slot codes.
+
+    Replace-all (not append) because a student submits their complete
+    timetable — re-submitting simply overwrites. Returns (slots, unknown_codes).
+    """
+    blocks, unknown = vit_slots.resolve(codes)
+    if not blocks:
+        raise TimetableError(
+            "No valid VIT slots recognised. Paste codes like A1, TB2, L11.", 400
+        )
+    await db.execute(delete(TimetableSlot).where(TimetableSlot.user_id == user.id))
+    for day, start, end, label in blocks:
+        db.add(
+            TimetableSlot(
+                user_id=user.id,
+                day_of_week=day,
+                start_minute=start,
+                end_minute=end,
+                label=label,
+            )
+        )
+    try:
+        await db.commit()
+    except IntegrityError as e:
+        await db.rollback()
+        # Two chosen slots claim the same time — a real timetable never does.
+        raise TimetableError(
+            "Those slots overlap each other — double-check what you pasted.", 409
+        ) from e
+    return await list_slots(db, user.id), unknown
 
 
 async def delete_slot(db: AsyncSession, user: User, slot_id: uuid.UUID) -> None:

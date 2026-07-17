@@ -40,6 +40,11 @@ npm run dev
 
 Opens on **http://localhost:5173** — that's the URL to open in your browser, not :8000.
 
+> **Port clash?** If localhost:5173 shows a *different* app, another project on your machine
+> owns that port — Vite will then start Errandly on the next free port. **Read the terminal
+> output** for the actual URL (e.g. `Local: http://localhost:5174/`), or run
+> `npx vite --port 5180` to pick one explicitly. Same idea as our Postgres living on 5433.
+
 ## After pulling new code (`git pull`)
 
 | What changed | What to run |

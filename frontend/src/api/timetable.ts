@@ -19,3 +19,13 @@ export async function createSlot(slot: Omit<TimetableSlot, "id">): Promise<Timet
 export async function deleteSlot(id: string): Promise<void> {
   await api.delete(`/timetable/${id}`);
 }
+
+export interface VitSlotsResult {
+  slots: TimetableSlot[];
+  unknown: string[];
+}
+
+/** Replace the whole timetable from VIT slot codes (A1, TB2, L11 …). */
+export async function setVitSlots(codes: string[]): Promise<VitSlotsResult> {
+  return (await api.put<VitSlotsResult>("/timetable/vit", { codes })).data;
+}

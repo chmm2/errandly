@@ -19,6 +19,16 @@ export type ErrandStatus =
 
 export type FulfillmentType = "CATALOG" | "GATE_PICKUP" | "PARCEL_POINT";
 
+export interface RunnerSummary {
+  id: string;
+  display_name: string;
+  reputation_score: number;
+  rating_count: number;
+  trips_completed: number;
+  photo_url: string | null;
+  phone: string | null;
+}
+
 export interface Errand {
   id: string;
   campus_id: string;
@@ -38,9 +48,11 @@ export interface Errand {
   distance_m: number | null;
   runner_lat: number | null;
   runner_lng: number | null;
+  runner: RunnerSummary | null;
   vendor_id: string | null;
   items: OrderLine[];
   items_total: number;
+  rated: boolean;
   status: ErrandStatus;
   version: number;
   accepted_at: string | null;

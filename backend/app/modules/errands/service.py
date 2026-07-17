@@ -41,6 +41,7 @@ ALLOWED_TRANSITIONS = {
     ("DELIVERED", "COMPLETED"),
     ("OPEN", "CANCELLED"),
     ("ACCEPTED", "CANCELLED"),
+    ("OPEN", "EXPIRED"),  # nobody accepted within the window (worker sweep)
 }
 
 
@@ -205,6 +206,17 @@ async def _validate_order_items(
     ]
 
 
+async def _attach_rated(db: AsyncSession, errands: list[Errand]) -> None:
+    """Set .rated so the UI knows whether to offer 'rate your runner'."""
+    ids = [e.id for e in errands]
+    if not ids:
+        return
+    rows = await db.scalars(select(Rating.errand_id).where(Rating.errand_id.in_(ids)))
+    rated = set(rows)
+    for e in errands:
+        e.rated = e.id in rated
+
+
 async def _attach_items(db: AsyncSession, errands: list[Errand]) -> None:
     """Populate .items / .items_total for serialization."""
     ids = [e.id for e in errands]
@@ -326,6 +338,7 @@ async def list_mine(db: AsyncSession, user: User) -> tuple[list[Errand], list[Er
     )
     await _attach_secret_flags(db, requested + running)
     await _attach_items(db, requested + running)
+    await _attach_rated(db, requested + running)
     return requested, running
 
 
@@ -335,6 +348,7 @@ async def get_errand(db: AsyncSession, user: User, errand_id: uuid.UUID) -> Erra
         raise ErrandError("Errand not found.", 404)
     await _attach_secret_flags(db, [errand])
     await _attach_items(db, [errand])
+    await _attach_rated(db, [errand])
     return errand
 
 
@@ -351,6 +365,40 @@ async def attach_runner_position(db: AsyncSession, user: User, errand: Errand) -
     if profile and profile.last_lat is not None:
         errand.runner_lat = float(profile.last_lat)
         errand.runner_lng = float(profile.last_lng)
+
+
+async def attach_runner_summary(db: AsyncSession, user: User, errand: Errand) -> None:
+    """Show the requester who's running it — name, rating, and (only during
+    an active run) a phone number to call. Parties only; phone is withheld
+    once the errand is finished."""
+    if errand.runner_id is None or user.id not in (errand.requester_id, errand.runner_id):
+        return
+    runner = await db.get(User, errand.runner_id)
+    if runner is None:
+        return
+    active = errand.status in ("ACCEPTED", "IN_PROGRESS", "DELIVERED")
+    trips = await db.scalar(
+        select(func.count())
+        .select_from(Errand)
+        .where(Errand.runner_id == runner.id, Errand.status == "COMPLETED")
+    )
+    errand.runner = {
+        "id": runner.id,
+        "display_name": runner.display_name,
+        "reputation_score": float(runner.reputation_score),
+        "rating_count": runner.rating_count,
+        "trips_completed": trips or 0,
+        "photo_url": runner.photo_url,
+        "phone": runner.phone if active else None,
+    }
+
+
+def expire_errand(db: AsyncSession, errand: Errand) -> None:
+    """OPEN → EXPIRED: nobody accepted within the window. Internal only —
+    no Kafka/ledger involvement (no money or downstream fan-out for a
+    non-event). Caller commits and publishes the status."""
+    _transition(errand, "EXPIRED")
+    _record(db, errand, None, "EXPIRED")
 
 
 async def list_events(db: AsyncSession, user: User, errand_id: uuid.UUID) -> list[ErrandEvent]:

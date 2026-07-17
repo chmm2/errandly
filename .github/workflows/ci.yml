@@ -45,11 +45,19 @@ jobs:
         options: >-
           --health-cmd "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092"
           --health-interval 10s --health-timeout 10s --health-retries 12
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval \"db.adminCommand('ping')\""
+          --health-interval 10s --health-timeout 5s --health-retries 10
 
     env:
       DATABASE_URL: postgresql+asyncpg://errandly:errandly@localhost:5432/errandly
       REDIS_URL: redis://localhost:6379/0
       KAFKA_BOOTSTRAP: localhost:9092
+      MONGO_URL: mongodb://localhost:27017
       JWT_SECRET: ci-test-secret-not-for-production
 
     defaults:

@@ -16,7 +16,7 @@ import asyncio
 import json
 import logging
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from aiokafka import AIOKafkaConsumer
 from sqlalchemy import select
@@ -204,6 +204,7 @@ ENFORCER_INTERVAL = 30
 BROADEN_AFTER_SECONDS = 60
 BROADEN_RADIUS_M = 8000
 BROADEN_FANOUT = 10
+EXPIRE_AFTER_SECONDS = 600  # 10 min with no runner → give up and apologise
 
 
 async def enforce_timetable() -> None:
@@ -296,6 +297,40 @@ async def broaden_stale_offers() -> None:
         await db.commit()
 
 
+async def expire_stale_open_errands() -> None:
+    """Nobody accepted within EXPIRE_AFTER_SECONDS → OPEN goes to EXPIRED and
+    the requester is told. Row is locked so this never races an accept that
+    lands in the same instant (SKIP LOCKED = don't fight an in-flight accept)."""
+    from app.modules.errands import service as errands_service  # avoid import cycle
+
+    async with SessionLocal() as db:
+        cutoff = datetime.now(UTC) - timedelta(seconds=EXPIRE_AFTER_SECONDS)
+        stale = list(
+            await db.scalars(
+                select(Errand)
+                .where(
+                    Errand.status == "OPEN",
+                    Errand.deleted_at.is_(None),
+                    Errand.created_at < cutoff,
+                )
+                .with_for_update(skip_locked=True)
+            )
+        )
+        for errand in stale:
+            errands_service.expire_errand(db, errand)
+            await notifications.create_and_push(
+                db, redis_client, errand.requester_id,
+                "ERRAND_EXPIRED", "No runner found 😔",
+                f"Nobody picked up “{errand.title}” in time. "
+                "You can post it again, maybe with a higher reward.",
+                {"errand_id": str(errand.id)},
+            )
+            logger.info("expired errand %s (no runner in %ds)", errand.id, EXPIRE_AFTER_SECONDS)
+        await db.commit()
+        for errand in stale:
+            await errands_service.publish_status(redis_client, errand)
+
+
 async def scheduler() -> None:
     logger.info("scheduler up (interval %ss)", ENFORCER_INTERVAL)
     while True:
@@ -307,6 +342,10 @@ async def scheduler() -> None:
             await broaden_stale_offers()
         except Exception:
             logger.exception("offer broadening sweep failed")
+        try:
+            await expire_stale_open_errands()
+        except Exception:
+            logger.exception("errand expiry sweep failed")
         await asyncio.sleep(ENFORCER_INTERVAL)
 
 

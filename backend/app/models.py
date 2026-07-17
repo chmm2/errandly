@@ -5,7 +5,7 @@ Add new module models to this file as the project grows.
 
 from app.core.database import Base
 from app.modules.analytics.models import DailyStat
-from app.modules.auth.models import AuthCredential, RefreshToken, User
+from app.modules.auth.models import AuthCredential, EmailOtp, RefreshToken, User
 from app.modules.campus.models import Campus
 from app.modules.errands.models import (
     Errand,
@@ -26,6 +26,7 @@ __all__ = [
     "Campus",
     "User",
     "AuthCredential",
+    "EmailOtp",
     "RefreshToken",
     "Errand",
     "ErrandEvent",
