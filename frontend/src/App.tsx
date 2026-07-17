@@ -5,6 +5,7 @@ import Campus from "./pages/Campus";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import NewErrand from "./pages/NewErrand";
+import Profile from "./pages/Profile";
 import Register from "./pages/Register";
 import Menu from "./pages/Menu";
 import Runner from "./pages/Runner";
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/errands/new" element={<NewErrand />} />
         <Route path="/errands/:id" element={<Track />} />
         <Route path="/runner" element={<Runner />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/timetable" element={<Timetable />} />
         <Route path="/campus" element={<Campus />} />
         <Route path="/shops" element={<Shops />} />

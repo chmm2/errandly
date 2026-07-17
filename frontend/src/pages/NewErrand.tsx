@@ -6,16 +6,18 @@ import CampusDropPicker from "../components/CampusDropPicker";
 import Navbar from "../components/Navbar";
 import { apiErrorMessage } from "../lib/api";
 
-const CATEGORY_MAP: Record<string, Category> = {
-  "Food run": "FOOD",
-  Groceries: "GROCERY",
-  "Parcel pickup": "PARCEL",
-  Stationery: "STATIONERY",
-  Pharmacy: "PHARMACY",
-  "Custom errand": "CUSTOM",
-};
+// The three "shopping list" sub-types share one flow but keep their own
+// backend category so history/analytics stay meaningful.
+const SHOPPING_TYPES: { label: string; category: Category; buyFrom: string }[] = [
+  { label: "Groceries", category: "GROCERY", buyFrom: "e.g. Campus store, Poorvika" },
+  { label: "Stationery", category: "STATIONERY", buyFrom: "e.g. Xerox shop, stationery store" },
+  { label: "Pharmacy", category: "PHARMACY", buyFrom: "e.g. Health centre, medical store" },
+];
 
-const CATEGORY_NAMES = Object.keys(CATEGORY_MAP);
+type Flow = "shopping" | "parcel" | "gate";
+
+const inputCls =
+  "w-full rounded-xl border border-line px-4 py-3 outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20";
 
 type GeoState =
   | { status: "idle" }
@@ -23,8 +25,11 @@ type GeoState =
   | { status: "ok"; lat: number; lng: number; accuracy: number }
   | { status: "error"; message: string };
 
-const inputCls =
-  "w-full rounded-xl border border-line px-4 py-3 outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20";
+interface ShopItem {
+  name: string;
+  qty: number;
+  note: string;
+}
 
 // Saved drop points — you always deliver to the same 2-3 places on campus.
 const SAVED_DROPS_KEY = "errandly-saved-drops";
@@ -48,25 +53,57 @@ function saveDrop(drop: SavedDrop) {
   localStorage.setItem(SAVED_DROPS_KEY, JSON.stringify(drops));
 }
 
+function initialFlow(state: { mode?: string; category?: string } | null): Flow {
+  if (state?.category === "Parcel pickup") return "parcel";
+  if (state?.category === "Main gate") return "gate";
+  return "shopping";
+}
+
 export default function NewErrand() {
-  const preset = (useLocation().state as { category?: string })?.category;
-  const [category, setCategory] = useState(preset ?? "Food run");
+  const preset = useLocation().state as { mode?: string; category?: string } | null;
+  const [flow, setFlow] = useState<Flow>(() => initialFlow(preset));
+
+  // Shopping-list state
+  const [shopType, setShopType] = useState(0); // index into SHOPPING_TYPES
+  const [items, setItems] = useState<ShopItem[]>([{ name: "", qty: 1, note: "" }]);
+  const [buyFrom, setBuyFrom] = useState("");
+
+  // Pickup (parcel / main gate) state
   const [title, setTitle] = useState("");
-  const [pickup, setPickup] = useState("");
+  const [pickup, setPickup] = useState(preset?.category === "Main gate" ? "Main Gate" : "");
+  const [externalRef, setExternalRef] = useState("");
+  const [otp, setOtp] = useState("");
+  const [collectAmount, setCollectAmount] = useState("");
+
+  // Shared
   const [reward, setReward] = useState("30");
   const [notes, setNotes] = useState("");
   const [geo, setGeo] = useState<GeoState>({ status: "idle" });
   const [dropLabel, setDropLabel] = useState("");
   const [showMap, setShowMap] = useState(false);
   const [savedDrops] = useState<SavedDrop[]>(loadSavedDrops);
-  const [externalRef, setExternalRef] = useState("");
-  const [otp, setOtp] = useState("");
-  const [collectAmount, setCollectAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
-  const isPickupMode = category === "Custom errand" || category === "Parcel pickup";
+  const isPickup = flow === "parcel" || flow === "gate";
+
+  function switchFlow(next: Flow) {
+    setFlow(next);
+    setError(null);
+    if (next === "gate" && !pickup) setPickup("Main Gate");
+    if (next === "parcel" && pickup === "Main Gate") setPickup("");
+  }
+
+  function setItem(i: number, patch: Partial<ShopItem>) {
+    setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
+  }
+  function addItem() {
+    setItems((prev) => [...prev, { name: "", qty: 1, note: "" }]);
+  }
+  function removeItem(i: number) {
+    setItems((prev) => (prev.length === 1 ? prev : prev.filter((_, idx) => idx !== i)));
+  }
 
   function detectLocation() {
     if (!navigator.geolocation) {
@@ -87,26 +124,60 @@ export default function NewErrand() {
     );
   }
 
+  function buildPayload() {
+    const shared = {
+      pickup_label: isPickup ? pickup : buyFrom,
+      drop_lat: geo.status === "ok" ? geo.lat : 0,
+      drop_lng: geo.status === "ok" ? geo.lng : 0,
+      drop_label: dropLabel.trim() || undefined,
+      reward: Number(reward),
+    };
+
+    if (flow === "shopping") {
+      const type = SHOPPING_TYPES[shopType];
+      const valid = items.filter((it) => it.name.trim());
+      const summary = valid
+        .map((it) => `${it.qty}× ${it.name.trim()}`)
+        .join(", ");
+      const detail = valid
+        .map((it) => `${it.qty}× ${it.name.trim()}${it.note.trim() ? ` — ${it.note.trim()}` : ""}`)
+        .join("\n");
+      return {
+        ...shared,
+        category: type.category,
+        title: `${type.label}: ${summary}`.slice(0, 200),
+        notes:
+          [detail, notes.trim()].filter(Boolean).join("\n\n").slice(0, 2000) || undefined,
+      };
+    }
+
+    // parcel / main gate
+    return {
+      ...shared,
+      category: (flow === "parcel" ? "PARCEL" : "CUSTOM") as Category,
+      title: title.trim(),
+      notes: notes.trim() || undefined,
+      external_ref: externalRef.trim() || undefined,
+      otp: otp.trim() || undefined,
+      collect_amount: collectAmount ? Number(collectAmount) : undefined,
+    };
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (geo.status !== "ok") return;
     setError(null);
+    if (geo.status !== "ok") {
+      setError("Set your drop location to continue.");
+      return;
+    }
+    if (flow === "shopping" && !items.some((it) => it.name.trim())) {
+      setError("Add at least one item to your list.");
+      return;
+    }
     setBusy(true);
     try {
-      await createErrand({
-        category: CATEGORY_MAP[category] ?? "CUSTOM",
-        title,
-        notes: notes.trim() || undefined,
-        pickup_label: pickup,
-        drop_lat: geo.lat,
-        drop_lng: geo.lng,
-        drop_label: dropLabel.trim() || undefined,
-        reward: Number(reward),
-        external_ref: isPickupMode && externalRef.trim() ? externalRef.trim() : undefined,
-        otp: isPickupMode && otp.trim() ? otp.trim() : undefined,
-        collect_amount: isPickupMode && collectAmount ? Number(collectAmount) : undefined,
-      });
-      if (dropLabel.trim()) {
+      await createErrand(buildPayload());
+      if (dropLabel.trim() && geo.status === "ok") {
         saveDrop({ label: dropLabel.trim(), lat: geo.lat, lng: geo.lng });
       }
       setSubmitted(true);
@@ -141,6 +212,12 @@ export default function NewErrand() {
     );
   }
 
+  const FLOW_TABS: { key: Flow; icon: string; label: string }[] = [
+    { key: "shopping", icon: "🛒", label: "Shopping list" },
+    { key: "parcel", icon: "📦", label: "Parcel pickup" },
+    { key: "gate", icon: "🛺", label: "Main gate" },
+  ];
+
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
@@ -149,7 +226,32 @@ export default function NewErrand() {
           ← Back
         </Link>
         <h1 className="mt-2 text-3xl font-extrabold">Post an errand</h1>
-        <p className="mt-1 text-muted">Tell runners what you need and where to bring it.</p>
+        <p className="mt-1 text-muted">
+          Tell runners what you need and where to bring it. For food, browse the{" "}
+          <Link to="/shops" state={{ category: "FOOD" }} className="font-semibold text-brand hover:underline">
+            canteens
+          </Link>
+          .
+        </p>
+
+        {/* Flow picker */}
+        <div className="mt-6 grid grid-cols-3 gap-2">
+          {FLOW_TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => switchFlow(t.key)}
+              className={`rounded-2xl border p-3 text-center transition ${
+                flow === t.key
+                  ? "border-brand bg-brand-soft"
+                  : "border-line hover:border-brand"
+              }`}
+            >
+              <div className="text-2xl">{t.icon}</div>
+              <div className="mt-1 text-sm font-bold">{t.label}</div>
+            </button>
+          ))}
+        </div>
 
         {error && (
           <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -158,54 +260,141 @@ export default function NewErrand() {
         )}
 
         <form onSubmit={onSubmit} className="mt-8 space-y-5">
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold">Category</label>
-            <div className="flex flex-wrap gap-2">
-              {CATEGORY_NAMES.map((c) => (
+          {flow === "shopping" ? (
+            <>
+              {/* Sub-type */}
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold">What are you buying?</label>
+                <div className="flex flex-wrap gap-2">
+                  {SHOPPING_TYPES.map((t, i) => (
+                    <button
+                      key={t.label}
+                      type="button"
+                      onClick={() => setShopType(i)}
+                      className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                        shopType === i
+                          ? "border-brand bg-brand text-white"
+                          : "border-line text-muted hover:border-brand hover:text-brand"
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Item list */}
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold">Your list</label>
+                <div className="space-y-3">
+                  {items.map((it, i) => (
+                    <div key={i} className="rounded-2xl border border-line p-3">
+                      <div className="flex items-center gap-2">
+                        <input
+                          value={it.name}
+                          onChange={(e) => setItem(i, { name: e.target.value })}
+                          placeholder={`Item ${i + 1} — e.g. Milk, A4 sheets, Crocin`}
+                          className={`${inputCls} flex-1`}
+                        />
+                        <div className="flex shrink-0 items-center gap-2 rounded-xl border border-line px-2 py-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setItem(i, { qty: Math.max(1, it.qty - 1) })}
+                            className="text-lg font-bold text-brand"
+                            aria-label="Decrease quantity"
+                          >
+                            −
+                          </button>
+                          <span className="w-5 text-center font-bold">{it.qty}</span>
+                          <button
+                            type="button"
+                            onClick={() => setItem(i, { qty: Math.min(99, it.qty + 1) })}
+                            className="text-lg font-bold text-brand"
+                            aria-label="Increase quantity"
+                          >
+                            +
+                          </button>
+                        </div>
+                        {items.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeItem(i)}
+                            className="shrink-0 px-1 text-lg text-muted transition hover:text-red-600"
+                            aria-label="Remove item"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        value={it.note}
+                        onChange={(e) => setItem(i, { note: e.target.value })}
+                        placeholder="Extra detail (brand, size, flavour…) — optional"
+                        className={`${inputCls} mt-2 text-sm`}
+                      />
+                    </div>
+                  ))}
+                </div>
                 <button
-                  key={c}
                   type="button"
-                  onClick={() => setCategory(c)}
-                  className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                    category === c
-                      ? "border-brand bg-brand text-white"
-                      : "border-line text-muted hover:border-brand hover:text-brand"
-                  }`}
+                  onClick={addItem}
+                  className="mt-3 rounded-xl border-2 border-dashed border-brand/50 px-4 py-2.5 text-sm font-bold text-brand transition hover:bg-brand-soft"
                 >
-                  {c}
+                  + Add item
                 </button>
-              ))}
-            </div>
-          </div>
+              </div>
 
-          <div>
-            <label htmlFor="title" className="mb-1.5 block text-sm font-semibold">
-              What do you need?
-            </label>
-            <input
-              id="title"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. 2x veg rolls from the night canteen"
-              className={inputCls}
-            />
-          </div>
+              <div>
+                <label htmlFor="buyFrom" className="mb-1.5 block text-sm font-semibold">
+                  Buy from
+                </label>
+                <input
+                  id="buyFrom"
+                  required
+                  value={buyFrom}
+                  onChange={(e) => setBuyFrom(e.target.value)}
+                  placeholder={SHOPPING_TYPES[shopType].buyFrom}
+                  className={inputCls}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <label htmlFor="title" className="mb-1.5 block text-sm font-semibold">
+                  {flow === "parcel" ? "What's the parcel?" : "What are you picking up?"}
+                </label>
+                <input
+                  id="title"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder={
+                    flow === "parcel"
+                      ? "e.g. Amazon package — small box"
+                      : "e.g. Zomato order waiting at the gate"
+                  }
+                  className={inputCls}
+                />
+              </div>
 
-          <div>
-            <label htmlFor="pickup" className="mb-1.5 block text-sm font-semibold">
-              Pickup point
-            </label>
-            <input
-              id="pickup"
-              required
-              value={pickup}
-              onChange={(e) => setPickup(e.target.value)}
-              placeholder="e.g. Foodys, near Main Gate"
-              className={inputCls}
-            />
-          </div>
+              <div>
+                <label htmlFor="pickup" className="mb-1.5 block text-sm font-semibold">
+                  Pickup point
+                </label>
+                <input
+                  id="pickup"
+                  required
+                  value={pickup}
+                  onChange={(e) => setPickup(e.target.value)}
+                  placeholder={flow === "parcel" ? "e.g. Parcel point, block C" : "e.g. Main Gate"}
+                  className={inputCls}
+                />
+              </div>
+            </>
+          )}
 
+          {/* Deliver to (shared) */}
           <div>
             <label className="mb-1.5 block text-sm font-semibold">Deliver to</label>
             {savedDrops.length > 0 && (
@@ -293,7 +482,7 @@ export default function NewErrand() {
             />
           </div>
 
-          {isPickupMode && (
+          {isPickup && (
             <div className="space-y-4 rounded-2xl border-2 border-dashed border-brand/40 bg-brand-soft/50 p-4">
               <div className="text-sm font-bold text-brand-dark">
                 🔐 Pickup verification{" "}

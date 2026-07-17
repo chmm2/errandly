@@ -5,9 +5,10 @@ import { fetchMyErrands } from "../api/errands";
 import { useAuth } from "../stores/auth";
 import NotificationBell from "./NotificationBell";
 
-// You're locked into a role while it has work in flight.
-const ACTIVE_REQUESTED = ["OPEN", "ACCEPTED", "IN_PROGRESS", "DELIVERED"];
-const ACTIVE_RUNNING = ["ACCEPTED", "IN_PROGRESS", "DELIVERED"];
+// A run you've taken on (accepted or mid-delivery) is the only thing that
+// commits you — everything else, including any order you've placed, leaves you
+// free to switch. Delivered runs are already handed off, so they don't count.
+const ACTIVE_RUN = ["ACCEPTED", "IN_PROGRESS"];
 
 function ModeToggle() {
   const location = useLocation();
@@ -15,45 +16,51 @@ function ModeToggle() {
   const onRunner = location.pathname.startsWith("/runner");
 
   const { data: mine } = useQuery({ queryKey: ["my-errands"], queryFn: fetchMyErrands });
-  const activeRequested = (mine?.requested ?? []).some((e) =>
-    ACTIVE_REQUESTED.includes(e.status),
-  );
-  const activeRunning = (mine?.running ?? []).some((e) => ACTIVE_RUNNING.includes(e.status));
-  // A live errand (as requester or runner) commits you to that side until it's done.
-  const locked = activeRequested || activeRunning;
-  const lockHint = locked
-    ? "Finish your active errand before switching roles"
+  // Directional lock: you can always jump INTO run mode. You just can't leave
+  // it back to Order while a delivery you accepted is still on you — so nobody
+  // gets ghosted mid-run. Placing/receiving an order never locks anything.
+  const onActiveRun = (mine?.running ?? []).some((e) => ACTIVE_RUN.includes(e.status));
+  const lockLeaveRunner = onRunner && onActiveRun;
+  const lockHint = lockLeaveRunner
+    ? "Finish the run you're on before switching back to Order"
     : undefined;
 
   function go(runner: boolean) {
-    if (locked || runner === onRunner) return;
+    if (runner === onRunner) return;
+    if (!runner && lockLeaveRunner) return; // leaving Run mode mid-delivery
     navigate(runner ? "/runner" : "/");
   }
 
-  const seg = (label: string, isActive: boolean, target: boolean) =>
-    isActive ? (
-      <span className="rounded-full bg-brand px-3 py-1.5 text-white">{label}</span>
-    ) : (
+  const seg = (label: string, isActive: boolean, target: boolean) => {
+    if (isActive) {
+      return <span className="rounded-full bg-brand px-3 py-1.5 text-white">{label}</span>;
+    }
+    // Only the Order segment (target === false) is ever disabled, and only
+    // while you're mid-run on the runner page.
+    const disabled = target === false && lockLeaveRunner;
+    return (
       <button
         onClick={() => go(target)}
-        disabled={locked}
-        title={lockHint}
+        disabled={disabled}
+        title={disabled ? lockHint : undefined}
         className={`rounded-full px-3 py-1.5 transition ${
-          locked ? "cursor-not-allowed text-muted/50" : "text-brand-dark hover:text-brand"
+          disabled ? "cursor-not-allowed text-muted/50" : "text-brand-dark hover:text-brand"
         }`}
       >
         {label}
       </button>
     );
+  };
 
   return (
-    <div
-      className="flex items-center rounded-full bg-brand-soft p-0.5 text-sm font-bold"
-      title={lockHint}
-    >
+    <div className="flex items-center rounded-full bg-brand-soft p-0.5 text-sm font-bold">
       {seg("🧑 Order", !onRunner, false)}
       {seg("🛵 Run", onRunner, true)}
-      {locked && <span className="px-1.5 text-xs">🔒</span>}
+      {lockLeaveRunner && (
+        <span className="px-1.5 text-xs" title={lockHint}>
+          🔒
+        </span>
+      )}
     </div>
   );
 }
@@ -80,23 +87,7 @@ export default function Navbar() {
               My store
             </Link>
           ) : (
-            <>
-              <Link
-                to="/shops"
-                className="hidden rounded-lg px-2 py-1.5 text-xl transition hover:bg-brand-soft sm:block"
-                title="Campus stores"
-              >
-                🏪
-              </Link>
-              <ModeToggle />
-              <Link
-                to="/timetable"
-                title="My timetable"
-                className="hidden rounded-lg px-2 py-1.5 text-xl transition hover:bg-brand-soft sm:block"
-              >
-                🗓️
-              </Link>
-            </>
+            <ModeToggle />
           )}
           <NotificationBell />
           <span className="hidden items-center gap-1 font-medium text-muted sm:flex">
@@ -120,17 +111,19 @@ export default function Navbar() {
               </span>
             </div>
           )}
-          {user?.photo_url ? (
-            <img
-              src={user.photo_url}
-              alt={user.display_name}
-              className="h-9 w-9 rounded-full object-cover"
-            />
-          ) : (
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft font-bold text-brand">
-              {(user?.display_name ?? "?").charAt(0).toUpperCase()}
-            </div>
-          )}
+          <Link to="/profile" title="Profile, history & settings" className="shrink-0">
+            {user?.photo_url ? (
+              <img
+                src={user.photo_url}
+                alt={user.display_name}
+                className="h-9 w-9 rounded-full object-cover ring-2 ring-transparent transition hover:ring-brand"
+              />
+            ) : (
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft font-bold text-brand ring-2 ring-transparent transition hover:ring-brand">
+                {(user?.display_name ?? "?").charAt(0).toUpperCase()}
+              </div>
+            )}
+          </Link>
           <button
             onClick={() => {
               logout();
