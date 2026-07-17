@@ -57,14 +57,22 @@ async def create_slot(db: AsyncSession, user: User, data) -> TimetableSlot:
 
 
 async def set_vit_slots(
-    db: AsyncSession, user: User, codes: list[str]
+    db: AsyncSession,
+    user: User,
+    codes: list[str] | None = None,
+    raw: str | None = None,
 ) -> tuple[list[TimetableSlot], list[str]]:
-    """Replace the user's whole timetable from a set of VIT slot codes.
+    """Replace the user's whole timetable from VIT slots.
 
-    Replace-all (not append) because a student submits their complete
-    timetable — re-submitting simply overwrites. Returns (slots, unknown_codes).
+    Accepts either a `raw` VTOP paste (grid or registered-courses list — we
+    figure out which) or a pre-split `codes` list. Replace-all (not append)
+    because a student submits their complete timetable — re-submitting simply
+    overwrites. Returns (slots, unknown_codes).
     """
-    blocks, unknown = vit_slots.resolve(codes)
+    if raw is not None:
+        blocks, unknown = vit_slots.resolve_paste(raw)
+    else:
+        blocks, unknown = vit_slots.resolve(codes or [])
     if not blocks:
         raise TimetableError(
             "No valid VIT slots recognised. Paste codes like A1, TB2, L11.", 400
