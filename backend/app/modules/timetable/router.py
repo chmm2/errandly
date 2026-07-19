@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -15,7 +15,16 @@ router = APIRouter(prefix="/timetable", tags=["timetable"])
 
 
 class VitSlotsRequest(BaseModel):
-    codes: list[str] = Field(min_length=1, max_length=200)
+    # Preferred: the raw VTOP paste (grid or registered-courses list). `codes`
+    # kept for callers that pre-split into clean slot codes.
+    raw: str | None = Field(default=None, max_length=20000)
+    codes: list[str] | None = Field(default=None, max_length=400)
+
+    @model_validator(mode="after")
+    def need_input(self):
+        if not self.raw and not self.codes:
+            raise ValueError("Provide `raw` (a VTOP paste) or `codes`.")
+        return self
 
 
 class VitSlotsResponse(BaseModel):
@@ -49,9 +58,11 @@ async def set_vit_slots(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Replace the timetable from VIT slot codes (A1, TB2, L11 …)."""
+    """Replace the timetable from a VTOP paste, or explicit slot codes."""
     try:
-        slots, unknown = await service.set_vit_slots(db, user, data.codes)
+        slots, unknown = await service.set_vit_slots(
+            db, user, codes=data.codes, raw=data.raw
+        )
     except TimetableError as e:
         raise HTTPException(e.status_code, e.message) from e
     return VitSlotsResponse(slots=slots, unknown=unknown)

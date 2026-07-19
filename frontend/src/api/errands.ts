@@ -55,6 +55,7 @@ export interface Errand {
   rated: boolean;
   status: ErrandStatus;
   version: number;
+  expires_at: string | null;
   accepted_at: string | null;
   delivered_at: string | null;
   completed_at: string | null;
@@ -66,14 +67,17 @@ export interface OrderLine {
   id: string;
   menu_item_id: string | null;
   name_snapshot: string;
-  unit_price_snapshot: number;
+  unit_price_snapshot: number | null;
   quantity: number;
+  is_available: boolean;
+  note: string | null;
 }
 
 export interface ErrandCreate {
   category: Category;
   vendor_id?: string;
   items?: { menu_item_id: string; quantity: number }[];
+  list_items?: { name: string; quantity: number; note?: string }[];
   title: string;
   notes?: string;
   pickup_label: string;
@@ -81,6 +85,7 @@ export interface ErrandCreate {
   drop_lng: number;
   drop_label?: string;
   reward: number;
+  wait_minutes?: number;
   external_ref?: string;
   otp?: string;
   collect_amount?: number;
@@ -144,6 +149,16 @@ export async function pickupErrand(id: string): Promise<Errand> {
 
 export async function deliverErrand(id: string): Promise<Errand> {
   return (await api.post<Errand>(`/errands/${id}/deliver`)).data;
+}
+
+export async function setItemAvailability(
+  errandId: string,
+  itemId: string,
+  available: boolean,
+): Promise<Errand> {
+  return (
+    await api.post<Errand>(`/errands/${errandId}/items/${itemId}/availability`, { available })
+  ).data;
 }
 
 export async function completeErrand(id: string): Promise<Errand> {

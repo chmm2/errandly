@@ -35,6 +35,7 @@ export default function Timetable() {
   const [error, setError] = useState<string | null>(null);
   const [raw, setRaw] = useState("");
   const [unknown, setUnknown] = useState<string[]>([]);
+  const [loaded, setLoaded] = useState<number | null>(null);
 
   const { data: slots } = useQuery({ queryKey: ["timetable"], queryFn: fetchSlots });
 
@@ -53,10 +54,11 @@ export default function Timetable() {
   const applyVit = useMutation({
     // Tokenise the pasted slots on anything that isn't a letter/number
     // (so "B2+TB2 L11+L12, C2" all works), then replace the timetable.
-    mutationFn: () => setVitSlots(raw.split(/[^A-Za-z0-9]+/).filter(Boolean)),
+    mutationFn: () => setVitSlots(raw),
     onSuccess: (res) => {
       setError(null);
       setUnknown(res.unknown);
+      setLoaded(res.slots.length);
       setRaw("");
       refresh();
     },
@@ -101,20 +103,25 @@ export default function Timetable() {
         {/* Primary: paste VIT slots from VTOP */}
         <div className="mt-6 rounded-2xl border border-line bg-brand-soft/40 p-5">
           <label htmlFor="vit" className="block font-bold">
-            Paste your VIT slots
+            Paste your VTOP timetable
           </label>
           <p className="mt-1 text-sm text-muted">
-            Copy the slot codes from your VTOP timetable — theory and lab. Separate them any way
-            you like. Example:{" "}
-            <span className="font-mono text-ink">A2+TA2 B2+TB2 L11+L12 C2+TC2</span>
+            Open VTOP → your registered courses (or timetable) and copy the whole page — messy is
+            fine. We pull out just your slots (A1, TB2, L11 …) and ignore course names, venues,
+            faculty and the rest. No need to type slots by hand.
           </p>
           <textarea
             id="vit"
-            rows={2}
+            rows={6}
             value={raw}
             onChange={(e) => setRaw(e.target.value)}
-            placeholder="A2+TA2  B2+TB2  L11+L12  C2+TC2  D2+TD2 …"
-            className={`${inputCls} mt-3 font-mono`}
+            placeholder={
+              "Paste the whole thing, e.g.\n" +
+              "2  BCSE317L - Information Security  ( Theory Only )  D1+TD1 -  SJT504  RAMANI S\n" +
+              "3  BCSE324L - Foundations of Blockchain  A1+TA1 -  SJT503  THANUJA R\n" +
+              "…"
+            }
+            className={`${inputCls} mt-3 font-mono text-sm`}
           />
           <div className="mt-3 flex items-center gap-3">
             <button
@@ -126,10 +133,16 @@ export default function Timetable() {
             </button>
             <span className="text-xs text-muted">This replaces your current timetable.</span>
           </div>
+          {loaded !== null && (
+            <div className="mt-3 rounded-lg bg-green-50 px-3 py-2 text-sm font-semibold text-green-700">
+              ✓ Pulled out {loaded} class slot{loaded === 1 ? "" : "s"} from what you pasted.
+            </div>
+          )}
           {unknown.length > 0 && (
             <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
-              Didn't recognise: <span className="font-mono">{unknown.join(", ")}</span> — check the
-              spelling against your VTOP.
+              These looked like slots but aren't in the VIT grid:{" "}
+              <span className="font-mono">{unknown.join(", ")}</span> — double-check them against
+              your VTOP.
             </div>
           )}
         </div>

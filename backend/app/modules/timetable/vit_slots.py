@@ -12,7 +12,16 @@ If the university revises slot timings, edit the column arrays / day sequences
 below — nothing else needs to change.
 """
 
+import re
+
 DAY = {"MON": 0, "TUE": 1, "WED": 2, "THU": 3, "FRI": 4, "SAT": 5, "SUN": 6}
+
+# What a slot code looks like: 1-4 letters then 1-2 digits (A1, TB2, TAA1, L11,
+# V10, W22). Students don't hand us clean codes — they paste their whole VTOP
+# "registered courses" page. Anything not matching this shape (prose, venues
+# like SJT504, reg numbers, staff names, dates) is silently ignored so it never
+# clutters the "didn't recognise" list; only slot-shaped-but-invalid codes do.
+_SLOT_SHAPE = re.compile(r"^[A-Z]{1,4}\d{1,2}$")
 
 
 def _m(h: int, mm: int) -> int:
@@ -84,26 +93,88 @@ for _day, _seq in LAB.items():
         SLOT_TIMES.setdefault(_code, []).append((DAY[_day], *LAB_COLS[_i]))
 
 
+# A student's real class in the VTOP timetable GRID is annotated with its course
+# code, e.g. "A2-BCSE307L-TH-SJT401-ALL" or "L1-BCSE308P-LO-SJT419-ALL". The
+# glued "<SLOT>-<COURSE>" is what tells a booked cell apart from the hundred-odd
+# empty grid labels ("A1", "V3", "L5") printed on the same page.
+_ANNOTATED_SLOT = re.compile(
+    r"\b([A-Z]{1,4}\d{1,2})-([A-Z]{3,4}\d{3}[A-Z])\b", re.IGNORECASE
+)
+
+
+def resolve_paste(text: str) -> tuple[list[tuple[int, int, int, str]], list[str]]:
+    """Extract a timetable from whatever a student pastes out of VTOP.
+
+    Two shapes come in, and they need opposite treatment:
+
+    * **Timetable grid** — every one of the ~138 master slots is printed, but
+      only the student's booked cells carry a course code ("D2-BCSE306L-…").
+      Reading every bare label would mark them in class all week, so when we see
+      any annotated cells we trust ONLY those, grouped by course.
+    * **Registered-courses list** — slots appear as clubbed codes ("D1+TD1"),
+      one per course row, with no slot⁠-course glue.
+
+    Either way, a course's clubbed slots stay together as one label ("A1+TA1",
+    "D2+TD2") — never fragmented into standalone A1 / TA1 rows. Returns
+    (blocks, unknown); each block is (day, start, end, label).
+    """
+    annotated = [
+        (m.group(1).upper(), m.group(2).upper()) for m in _ANNOTATED_SLOT.finditer(text)
+    ]
+    if annotated:
+        # Grid: gather each course's booked slots, keep them as one group.
+        by_course: dict[str, list[str]] = {}
+        for slot, course in annotated:
+            slots = by_course.setdefault(course, [])
+            if slot not in slots:
+                slots.append(slot)
+        groups = [("+".join(sorted(slots)), slots) for slots in by_course.values()]
+    else:
+        # List: each whitespace token may be a clubbed group like "D1+TD1".
+        groups = []
+        for token in text.split():
+            members = []
+            for part in token.split("+"):
+                code = re.sub(r"[^A-Za-z0-9]", "", part).upper()
+                if _SLOT_SHAPE.match(code):
+                    members.append(code)
+            if members:
+                groups.append(("+".join(members), members))
+    return _expand_groups(groups)
+
+
 def resolve(codes: list[str]) -> tuple[list[tuple[int, int, int, str]], list[str]]:
-    """Expand slot codes into concrete busy blocks.
+    """Expand bare slot codes into busy blocks — one label per code.
 
     Returns (blocks, unknown) where each block is (day, start, end, label) and
-    `unknown` lists any codes we didn't recognise. Duplicate blocks (same
-    day+start) are collapsed so pasting a slot twice is harmless.
+    `unknown` lists slot-shaped codes we didn't recognise.
+    """
+    groups = [(c.strip().upper(), [c.strip().upper()]) for c in codes if c.strip()]
+    return _expand_groups(groups)
+
+
+def _expand_groups(
+    groups: list[tuple[str, list[str]]],
+) -> tuple[list[tuple[int, int, int, str]], list[str]]:
+    """Expand (label, [slot codes]) groups into concrete busy blocks.
+
+    Every block a group produces carries the group's label, so a clubbed course
+    reads as "A1+TA1" throughout. Duplicate (day, start) blocks are collapsed so
+    pasting a slot twice is harmless; only slot-shaped-but-unknown codes are
+    reported back.
     """
     seen: set[tuple[int, int]] = set()
     blocks: list[tuple[int, int, int, str]] = []
     unknown: list[str] = []
-    for raw in codes:
-        code = raw.strip().upper()
-        if not code:
-            continue
-        times = SLOT_TIMES.get(code)
-        if times is None:
-            unknown.append(code)
-            continue
-        for day, start, end in times:
-            if (day, start) not in seen:
-                seen.add((day, start))
-                blocks.append((day, start, end, code))
+    for label, members in groups:
+        for code in members:
+            times = SLOT_TIMES.get(code)
+            if times is None:
+                if _SLOT_SHAPE.match(code):
+                    unknown.append(code)
+                continue
+            for day, start, end in times:
+                if (day, start) not in seen:
+                    seen.add((day, start))
+                    blocks.append((day, start, end, label))
     return blocks, unknown

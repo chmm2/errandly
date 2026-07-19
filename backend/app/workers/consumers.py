@@ -298,20 +298,27 @@ async def broaden_stale_offers() -> None:
 
 
 async def expire_stale_open_errands() -> None:
-    """Nobody accepted within EXPIRE_AFTER_SECONDS → OPEN goes to EXPIRED and
-    the requester is told. Row is locked so this never races an accept that
+    """Past the poster's chosen deadline with no runner → OPEN goes to EXPIRED
+    and the requester is told. Row is locked so this never races an accept that
     lands in the same instant (SKIP LOCKED = don't fight an in-flight accept)."""
+    from sqlalchemy import func
+
     from app.modules.errands import service as errands_service  # avoid import cycle
 
     async with SessionLocal() as db:
-        cutoff = datetime.now(UTC) - timedelta(seconds=EXPIRE_AFTER_SECONDS)
+        now = datetime.now(UTC)
+        # Fall back to the legacy fixed window for any row without a deadline.
+        deadline = func.coalesce(
+            Errand.expires_at,
+            Errand.created_at + timedelta(seconds=EXPIRE_AFTER_SECONDS),
+        )
         stale = list(
             await db.scalars(
                 select(Errand)
                 .where(
                     Errand.status == "OPEN",
                     Errand.deleted_at.is_(None),
-                    Errand.created_at < cutoff,
+                    deadline < now,
                 )
                 .with_for_update(skip_locked=True)
             )

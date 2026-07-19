@@ -15,6 +15,7 @@ import {
 import { setPhoto } from "../api/auth";
 import { fetchEarnings } from "../api/ledger";
 import { fetchRunnerProfile, setAvailability, updateLocation } from "../api/runners";
+import { fetchSlots } from "../api/timetable";
 import Navbar from "../components/Navbar";
 import { apiErrorMessage } from "../lib/api";
 import { useSocket } from "../lib/ws";
@@ -197,6 +198,21 @@ export default function Runner() {
   const activeRuns = (mine?.running ?? []).filter((e) =>
     ["ACCEPTED", "IN_PROGRESS"].includes(e.status),
   );
+
+  // One-time check: the first time someone runs, make them set (or explicitly
+  // skip) their class timetable. After that it lives in the profile, never here.
+  const { data: ttSlots } = useQuery({ queryKey: ["timetable"], queryFn: fetchSlots });
+  const [ttAcked, setTtAcked] = useState(false);
+  const ttKey = user ? `errandly-timetable-verified-${user.id}` : null;
+  const ttVerified =
+    ttAcked ||
+    (ttKey ? localStorage.getItem(ttKey) === "1" : false) ||
+    (ttSlots?.length ?? 0) > 0;
+  const showTimetableGate = ttSlots !== undefined && !ttVerified;
+  function ackTimetable() {
+    if (ttKey) localStorage.setItem(ttKey, "1");
+    setTtAcked(true);
+  }
 
   function refresh() {
     queryClient.invalidateQueries({ queryKey: ["runner-feed"] });
@@ -421,7 +437,7 @@ export default function Runner() {
                     to={`/errands/${e.id}`}
                     className="mt-3 inline-block text-sm font-semibold text-brand hover:underline"
                   >
-                    💬 Chat &amp; live view →
+                    💬 Chat &amp; order details →
                   </Link>
                 </div>
               ))}
@@ -431,14 +447,9 @@ export default function Runner() {
 
         {/* Nearby feed */}
         <section>
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-extrabold">
-              {available ? "Open errands near you" : "Open errands"}
-            </h2>
-            <Link to="/" className="text-sm font-semibold text-brand hover:underline">
-              ← Requester mode
-            </Link>
-          </div>
+          <h2 className="text-xl font-extrabold">
+            {available ? "Open errands near you" : "Open errands"}
+          </h2>
           {!available ? (
             <div className="mt-4 rounded-2xl border-2 border-dashed border-line p-10 text-center text-muted">
               Go online to see nearby errands sorted by distance.
@@ -489,6 +500,33 @@ export default function Runner() {
           )}
         </section>
       </div>
+
+      {showTimetableGate && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="text-4xl">🗓️</div>
+            <h3 className="mt-2 text-xl font-extrabold">One-time setup: your class timetable</h3>
+            <p className="mt-2 text-sm text-muted">
+              Runner mode locks itself during class, so you never get offered an errand you can't
+              run. Set your VIT slots once — you can always edit them later from your profile.
+            </p>
+            <div className="mt-5 flex flex-col gap-2">
+              <Link
+                to="/timetable"
+                className="rounded-xl bg-brand py-3 text-center font-bold text-white transition hover:bg-brand-dark"
+              >
+                Set my timetable →
+              </Link>
+              <button
+                onClick={ackTimetable}
+                className="rounded-xl border border-line py-3 font-semibold text-muted transition hover:border-brand hover:text-brand"
+              >
+                I have no fixed classes — skip
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

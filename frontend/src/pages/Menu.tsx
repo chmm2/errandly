@@ -26,6 +26,7 @@ export default function Menu() {
   const [geo, setGeo] = useState<Geo>({ status: "idle" });
   const [dropLabel, setDropLabel] = useState("");
   const [reward, setReward] = useState("25");
+  const [waitMinutes, setWaitMinutes] = useState(30);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,6 +86,7 @@ export default function Menu() {
         drop_lng: geo.lng,
         drop_label: dropLabel.trim() || undefined,
         reward: Number(reward),
+        wait_minutes: waitMinutes,
       });
       navigate(`/errands/${errand.id}`);
     } catch (err) {
@@ -281,6 +283,23 @@ export default function Menu() {
                 className={inputCls}
                 aria-label="Runner reward"
               />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-semibold text-muted">Wait up to</span>
+              {[15, 30, 45, 60].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setWaitMinutes(m)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                    waitMinutes === m
+                      ? "border-brand bg-brand text-white"
+                      : "border-line text-muted hover:border-brand hover:text-brand"
+                  }`}
+                >
+                  {m} min
+                </button>
+              ))}
             </div>
             <button
               onClick={placeOrder}

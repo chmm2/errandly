@@ -16,6 +16,20 @@ ERRAND_PAYLOAD = {
 }
 
 
+GROCERY_PAYLOAD = {
+    "category": "GROCERY",
+    "title": "Groceries: 2x Milk, 1x Bread",
+    "pickup_label": "Campus store",
+    "drop_lat": 12.9692,
+    "drop_lng": 79.1559,
+    "reward": 30,
+    "list_items": [
+        {"name": "Milk", "quantity": 2, "note": "full cream"},
+        {"name": "Bread", "quantity": 1},
+    ],
+}
+
+
 async def _create(client, headers) -> dict:
     resp = await client.post("/errands", json=ERRAND_PAYLOAD, headers=headers)
     assert resp.status_code == 201, resp.text
@@ -113,8 +127,8 @@ async def test_permission_guards(client, make_user):
     resp = await client.post(f"/errands/{eid}/pickup", headers=stranger)
     assert resp.status_code == 403
 
-    # Only the requester cancels
-    resp = await client.post(f"/errands/{eid}/cancel", headers=runner)
+    # A non-party can't cancel (the requester and assigned runner both can)
+    resp = await client.post(f"/errands/{eid}/cancel", headers=stranger)
     assert resp.status_code == 403
 
 
@@ -196,3 +210,63 @@ async def test_my_errands(client, make_user):
 
     mine_runner = (await client.get("/errands/mine", headers=runner)).json()
     assert errand["id"] in [e["id"] for e in mine_runner["running"]]
+
+
+async def test_shopping_list_items_and_runner_availability(client, make_user):
+    """Shopping-list lines are structured (priceless) and only the assigned
+    runner can flip one out of stock during an active run."""
+    _, requester = await make_user("Requester")
+    _, runner = await make_user("Runner")
+    _, stranger = await make_user("Stranger")
+
+    errand = (await client.post("/errands", json=GROCERY_PAYLOAD, headers=requester)).json()
+    eid = errand["id"]
+    items = errand["items"]
+    assert len(items) == 2
+    milk = next(i for i in items if i["name_snapshot"] == "Milk")
+    assert milk["quantity"] == 2
+    assert milk["note"] == "full cream"
+    assert milk["unit_price_snapshot"] is None
+    assert milk["is_available"] is True
+
+    await client.post(f"/errands/{eid}/accept", headers=runner)
+    url = f"/errands/{eid}/items/{milk['id']}/availability"
+
+    # Non-parties and the requester can't touch item availability
+    assert (await client.post(url, json={"available": False}, headers=stranger)).status_code == 403
+    assert (await client.post(url, json={"available": False}, headers=requester)).status_code == 403
+
+    # The assigned runner marks Milk out of stock; it drops from the total
+    resp = await client.post(url, json={"available": False}, headers=runner)
+    assert resp.status_code == 200, resp.text
+    updated = next(i for i in resp.json()["items"] if i["id"] == milk["id"])
+    assert updated["is_available"] is False
+
+
+async def test_runner_cancels_when_nothing_available(client, make_user):
+    """The single-item edge case: mark everything unavailable and the runner
+    can back out before pickup, with the reason on the audit trail."""
+    _, requester = await make_user("Requester")
+    _, runner = await make_user("Runner")
+
+    errand = (await client.post("/errands", json=GROCERY_PAYLOAD, headers=requester)).json()
+    eid = errand["id"]
+    await client.post(f"/errands/{eid}/accept", headers=runner)
+
+    for it in errand["items"]:
+        resp = await client.post(
+            f"/errands/{eid}/items/{it['id']}/availability",
+            json={"available": False},
+            headers=runner,
+        )
+        assert resp.status_code == 200
+
+    resp = await client.post(
+        f"/errands/{eid}/cancel", json={"reason": "None in stock"}, headers=runner
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "CANCELLED"
+
+    events = (await client.get(f"/errands/{eid}/events", headers=requester)).json()
+    cancelled = next(e for e in events if e["event_type"] == "CANCELLED")
+    assert cancelled["payload"]["reason"] == "None in stock"

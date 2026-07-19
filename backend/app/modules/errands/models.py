@@ -4,6 +4,7 @@ from typing import Any
 
 from geoalchemy2 import Geography
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -109,6 +110,9 @@ class Errand(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(16), nullable=False, server_default="OPEN")
     version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
 
+    # Poster-chosen deadline: OPEN errands past this are swept to EXPIRED.
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -136,8 +140,15 @@ class ErrandItem(Base):
         UUID(as_uuid=True), ForeignKey("menu_items.id", ondelete="SET NULL"), nullable=True
     )
     name_snapshot: Mapped[str] = mapped_column(String(120), nullable=False)
-    unit_price_snapshot: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    # Priceless for shopping-list lines (grocery/stationery/pharmacy).
+    unit_price_snapshot: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Runner flips this false when a store is out of an item.
+    is_available: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("true")
+    )
+    # Per-item detail the requester added (brand, size, flavour…).
+    note: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
 
 class ErrandHandoffSecret(Base):

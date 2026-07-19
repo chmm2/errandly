@@ -25,7 +25,8 @@ export interface VitSlotsResult {
   unknown: string[];
 }
 
-/** Replace the whole timetable from VIT slot codes (A1, TB2, L11 …). */
-export async function setVitSlots(codes: string[]): Promise<VitSlotsResult> {
-  return (await api.put<VitSlotsResult>("/timetable/vit", { codes })).data;
+/** Replace the whole timetable from a raw VTOP paste — the backend figures out
+ * whether it's the timetable grid or the registered-courses list. */
+export async function setVitSlots(raw: string): Promise<VitSlotsResult> {
+  return (await api.put<VitSlotsResult>("/timetable/vit", { raw })).data;
 }

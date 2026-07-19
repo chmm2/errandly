@@ -1,10 +1,17 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import L from "leaflet";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
 import { Link, useParams } from "react-router-dom";
 
-import type { Errand, ErrandEvent, ErrandStatus, RunnerSummary } from "../api/errands";
+import {
+  cancelErrand,
+  type Errand,
+  type ErrandEvent,
+  type ErrandStatus,
+  type RunnerSummary,
+  setItemAvailability,
+} from "../api/errands";
 import ChatPanel from "../components/ChatPanel";
 import Navbar from "../components/Navbar";
 import { api } from "../lib/api";
@@ -64,44 +71,209 @@ function timeLabel(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-/** Full-width "we're finding you a runner" state with a live countdown. */
-function FindingRunner({ createdAt }: { createdAt: string }) {
-  const deadline = new Date(createdAt).getTime() + FIND_WINDOW_MS;
+/** Circular countdown that unwinds from full to empty over the poster's wait
+ * window, with the time remaining in the middle. */
+function CountdownRing({ createdAt, expiresAt }: { createdAt: string; expiresAt: string }) {
+  const start = new Date(createdAt).getTime();
+  const end = new Date(expiresAt).getTime();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
-  const remaining = Math.max(0, deadline - now);
+
+  const total = Math.max(1, end - start);
+  const remaining = Math.max(0, end - now);
+  const fraction = Math.max(0, Math.min(1, remaining / total));
   const mm = Math.floor(remaining / 60000);
   const ss = Math.floor((remaining % 60000) / 1000);
   const outOfTime = remaining === 0;
 
+  const size = 184;
+  const stroke = 12;
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+
+  return (
+    <div className="relative mx-auto" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          strokeWidth={stroke}
+          stroke="currentColor"
+          className="text-brand-soft"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          stroke="currentColor"
+          className="text-brand transition-[stroke-dashoffset] duration-1000 ease-linear"
+          style={{ strokeDasharray: circ, strokeDashoffset: circ * (1 - fraction) }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        {outOfTime ? (
+          <span className="text-4xl">🛵</span>
+        ) : (
+          <>
+            <span className="text-4xl font-extrabold tabular-nums text-brand-dark">
+              {mm}:{String(ss).padStart(2, "0")}
+            </span>
+            <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted">
+              until it expires
+            </span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Full-width "we're finding you a runner" state with the countdown ring. */
+function FindingRunner({ createdAt, expiresAt }: { createdAt: string; expiresAt: string }) {
+  const outOfTime = Date.now() >= new Date(expiresAt).getTime();
   return (
     <div className="mt-8 rounded-2xl border border-line bg-brand-soft/40 p-10 text-center">
-      <div className="relative mx-auto h-24 w-24">
-        <span className="absolute inset-0 animate-ping rounded-full bg-brand/20" />
-        <span className="absolute inset-2 animate-pulse rounded-full bg-brand/20" />
-        <span className="absolute inset-0 flex items-center justify-center text-5xl">🛵</span>
-      </div>
+      <CountdownRing createdAt={createdAt} expiresAt={expiresAt} />
       <h2 className="mt-6 text-2xl font-extrabold">
         {outOfTime ? "Still searching…" : "Finding a runner nearby"}
       </h2>
       <p className="mx-auto mt-2 max-w-md text-muted">
         {outOfTime
-          ? "No one has accepted yet. Hang on — we're widening the search one last time."
+          ? "No one has accepted yet — one last widen of the search before it expires."
           : "We're offering your errand to verified students heading your way."}
       </p>
-      {!outOfTime && (
-        <div className="mt-6">
-          <div className="text-5xl font-extrabold tabular-nums text-brand-dark">
-            {mm}:{String(ss).padStart(2, "0")}
-          </div>
-          <div className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted">
-            we'll keep trying for 10 minutes
-          </div>
+    </div>
+  );
+}
+
+/** What was ordered — items or the shopping list, plus where it goes. The
+ * runner's primary content (they don't get the map). When `canManage` is set,
+ * the runner can mark items out of stock and, if nothing's left, cancel. */
+function OrderDetails({ errand, canManage }: { errand: Errand; canManage: boolean }) {
+  const queryClient = useQueryClient();
+  const items = errand.items ?? [];
+
+  const toggle = useMutation({
+    mutationFn: (v: { itemId: string; available: boolean }) =>
+      setItemAvailability(errand.id, v.itemId, v.available),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["errand", errand.id] });
+      queryClient.invalidateQueries({ queryKey: ["errand-events", errand.id] });
+    },
+  });
+  const cancel = useMutation({
+    mutationFn: () => cancelErrand(errand.id, "None of the items were available in store"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["errand", errand.id] });
+      queryClient.invalidateQueries({ queryKey: ["my-errands"] });
+    },
+  });
+
+  const allUnavailable = items.length > 0 && items.every((it) => !it.is_available);
+
+  return (
+    <div className="mt-6 rounded-2xl border border-line p-5">
+      <div className="text-xs font-semibold uppercase tracking-wide text-muted">Order details</div>
+
+      {items.length > 0 ? (
+        <>
+          <ul className="mt-3 space-y-2.5">
+            {items.map((it) => (
+              <li key={it.id} className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div
+                    className={`text-sm font-semibold ${
+                      it.is_available ? "" : "text-muted line-through"
+                    }`}
+                  >
+                    {it.quantity}× {it.name_snapshot}
+                  </div>
+                  {it.note && <div className="text-xs text-muted">{it.note}</div>}
+                  {!it.is_available && (
+                    <div className="text-xs font-bold text-red-500">out of stock</div>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  {it.unit_price_snapshot != null && (
+                    <span
+                      className={`text-sm text-muted ${it.is_available ? "" : "line-through"}`}
+                    >
+                      ₹{(it.unit_price_snapshot * it.quantity).toFixed(0)}
+                    </span>
+                  )}
+                  {canManage && (
+                    <button
+                      onClick={() =>
+                        toggle.mutate({ itemId: it.id, available: !it.is_available })
+                      }
+                      disabled={toggle.isPending}
+                      className={`rounded-lg border px-2.5 py-1 text-xs font-bold transition disabled:opacity-50 ${
+                        it.is_available
+                          ? "border-line text-muted hover:border-red-400 hover:text-red-600"
+                          : "border-brand text-brand hover:bg-brand-soft"
+                      }`}
+                    >
+                      {it.is_available ? "Out of stock" : "Restore"}
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+          {errand.items_total > 0 && (
+            <div className="mt-3 flex items-center justify-between border-t border-line pt-2 text-sm font-bold">
+              <span>Items total</span>
+              <span>₹{Number(errand.items_total).toFixed(0)}</span>
+            </div>
+          )}
+        </>
+      ) : errand.notes ? (
+        <p className="mt-3 whitespace-pre-wrap text-sm text-ink">{errand.notes}</p>
+      ) : (
+        <p className="mt-3 text-sm text-muted">{errand.title}</p>
+      )}
+
+      {canManage && allUnavailable && (
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3">
+          <p className="text-sm font-semibold text-red-700">
+            Nothing on this list is available.
+          </p>
+          <button
+            onClick={() => cancel.mutate()}
+            disabled={cancel.isPending}
+            className="mt-2 w-full rounded-lg bg-red-600 py-2 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-60"
+          >
+            {cancel.isPending ? "Cancelling…" : "Cancel run — nothing available"}
+          </button>
         </div>
       )}
+
+      <div className="mt-4 space-y-1.5 border-t border-line pt-3 text-sm text-muted">
+        <div>
+          🏪 From <span className="font-semibold text-ink">{errand.pickup_label}</span>
+        </div>
+        <div>
+          📍 Deliver to{" "}
+          <span className="font-semibold text-ink">{errand.drop_label || "pinned location"}</span>
+        </div>
+        {errand.collect_amount > 0 && (
+          <div>
+            💵 Pay at pickup{" "}
+            <span className="font-semibold text-brand-dark">
+              ₹{Number(errand.collect_amount).toFixed(0)}
+            </span>{" "}
+            (reimbursed)
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -229,10 +401,16 @@ export default function Track() {
     );
   }
 
+  const isRunner = !!myId && errand.runner_id === myId;
   const finding = errand.status === "OPEN";
   const expired = errand.status === "EXPIRED";
   const cancelled = errand.status === "CANCELLED";
-  const showMap = !finding && !expired && !cancelled;
+  const live = !finding && !expired && !cancelled;
+  // The runner doesn't get the live map — watching their own dot is pointless.
+  const showMap = live && !isRunner;
+  const expiresAt =
+    errand.expires_at ??
+    new Date(new Date(errand.created_at).getTime() + FIND_WINDOW_MS).toISOString();
   const drop: [number, number] = [errand.drop_lat, errand.drop_lng];
   const runner =
     runnerPos ??
@@ -241,6 +419,12 @@ export default function Track() {
     (acc, s, i) => (doneEvents.has(s.key) ? i : acc),
     -1,
   );
+  const cancelReason = (
+    (events ?? []).find((e) => e.event_type === "CANCELLED")?.payload as
+      | { reason?: string }
+      | null
+      | undefined
+  )?.reason;
 
   return (
     <div className="min-h-screen bg-white">
@@ -260,13 +444,27 @@ export default function Track() {
           {errand.drop_label ? ` → ${errand.drop_label}` : ""}
         </p>
 
-        {finding && <FindingRunner createdAt={errand.created_at} />}
+        {finding && !isRunner && (
+          <FindingRunner createdAt={errand.created_at} expiresAt={expiresAt} />
+        )}
         {expired && <ExpiredCard />}
 
         {/* Runner profile card (name, rating, call) — hidden when the viewer
             IS the runner (no "your runner" card for yourself) */}
         {errand.runner && errand.runner.id !== myId && !expired && !cancelled && (
           <RunnerCard runner={errand.runner} />
+        )}
+
+        {/* Order details — shown from the moment it's posted (under the ring
+            while finding), and the runner's primary content later (no map) */}
+        {!expired && !cancelled && (
+          <OrderDetails
+            errand={errand}
+            canManage={
+              isRunner &&
+              (errand.status === "ACCEPTED" || errand.status === "IN_PROGRESS")
+            }
+          />
         )}
 
         {/* Chat opens once a runner is assigned, for both parties */}
@@ -301,8 +499,8 @@ export default function Track() {
           </div>
         )}
 
-        {/* Status stepper */}
-        {showMap && (
+        {/* Status stepper — shown to both parties (it's progress, not location) */}
+        {live && (
           <div className="mt-8 rounded-2xl border border-line p-6">
             <ol className="space-y-0">
               {STEPS.map((step, i) => {
@@ -347,6 +545,9 @@ export default function Track() {
           <div className="mt-8 rounded-2xl border border-line p-10 text-center">
             <div className="text-4xl">🚫</div>
             <p className="mt-2 font-bold">This errand was cancelled</p>
+            {cancelReason && (
+              <p className="mx-auto mt-1 max-w-sm text-sm text-muted">{cancelReason}</p>
+            )}
           </div>
         )}
       </div>

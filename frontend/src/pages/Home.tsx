@@ -34,30 +34,89 @@ const CATEGORY_ICONS: Record<string, string> = {
   CUSTOM: "✨",
 };
 
+// Four ways to start an errand. Grocery/stationery/pharmacy all share the
+// same "shopping list" flow; food browses the canteens; parcel & main gate
+// are verified pickups.
 const CATEGORIES = [
-  { icon: "🍔", name: "Food run", desc: "Canteen, food court, night mess" },
-  { icon: "🛒", name: "Groceries", desc: "Campus store & beyond the gate" },
-  { icon: "📦", name: "Parcel pickup", desc: "Amazon / Flipkart collection point" },
-  { icon: "📚", name: "Stationery", desc: "Prints, records, lab supplies" },
-  { icon: "💊", name: "Pharmacy", desc: "Health centre & medical store" },
-  { icon: "✨", name: "Custom errand", desc: "Anything else — name your task" },
-];
-
-const STEPS = [
-  { n: "1", title: "Post your errand", desc: "What you need, where it goes, what you'll pay." },
   {
-    n: "2",
-    title: "We match a runner",
-    desc: "Live geo-matching finds a verified student already heading your way.",
+    icon: "🛒",
+    name: "Shopping list",
+    desc: "Groceries, stationery, medicines — list what you need",
+    to: "/errands/new",
+    state: { mode: "shopping" },
   },
   {
-    n: "3",
-    title: "Track to your door",
-    desc: "Follow the run in real time and rate your runner after handoff.",
+    icon: "🍔",
+    name: "Food",
+    desc: "Canteens, food court, night mess",
+    to: "/shops",
+    state: { category: "FOOD" },
+  },
+  {
+    icon: "📦",
+    name: "Parcel pickup",
+    desc: "Amazon / Flipkart collection point",
+    to: "/errands/new",
+    state: { category: "Parcel pickup" },
+  },
+  {
+    icon: "🛺",
+    name: "Main gate",
+    desc: "Collect a delivery waiting at the gate",
+    to: "/errands/new",
+    state: { category: "Main gate" },
   },
 ];
 
 const LIVE_STATUSES: ErrandStatus[] = ["OPEN", "ACCEPTED", "IN_PROGRESS", "DELIVERED"];
+
+// Rough end-to-end estimate once a runner is on it — enough to set the
+// requester's expectation ("~12 min") without a full routing model.
+const ETA_MINUTES = 15;
+
+function useNow(intervalMs = 20_000) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(t);
+  }, [intervalMs]);
+  return now;
+}
+
+function minsAgo(from: number, now: number) {
+  return Math.max(0, Math.round((now - from) / 60_000));
+}
+
+/** Live "how long" line for an active errand so the requester always knows
+ * where things stand — time since posting, or an ETA once accepted. */
+function EtaBadge({ errand }: { errand: Errand }) {
+  const now = useNow();
+  if (errand.status === "OPEN") {
+    const m = minsAgo(new Date(errand.created_at).getTime(), now);
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600">
+        ⏳ Finding a runner · posted {m === 0 ? "just now" : `${m} min ago`}
+      </span>
+    );
+  }
+  if (errand.status === "ACCEPTED" || errand.status === "IN_PROGRESS") {
+    const base = errand.accepted_at ? new Date(errand.accepted_at).getTime() : now;
+    const remaining = Math.round((base + ETA_MINUTES * 60_000 - now) / 60_000);
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-dark">
+        ⏱️ {remaining > 1 ? `ETA ~${remaining} min` : "Arriving any moment"}
+      </span>
+    );
+  }
+  if (errand.status === "DELIVERED") {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-semibold text-purple-600">
+        ✅ Handed over — confirm to close
+      </span>
+    );
+  }
+  return null;
+}
 
 function RatingModal({ errandId, onDone }: { errandId: string; onDone: () => void }) {
   const [stars, setStars] = useState(0);
@@ -151,6 +210,9 @@ function ErrandCard({
           <div className="mt-0.5 truncate text-sm text-muted">
             from {errand.pickup_label} · ₹{Number(errand.reward).toFixed(0)} reward · track →
           </div>
+          <div className="mt-1">
+            <EtaBadge errand={errand} />
+          </div>
         </div>
       </Link>
       <span className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${status.cls}`}>
@@ -205,9 +267,6 @@ export default function Home() {
   const active = (mine?.requested ?? []).filter(
     (e) => !["COMPLETED", "CANCELLED", "EXPIRED"].includes(e.status),
   );
-  const past = (mine?.requested ?? []).filter((e) =>
-    ["COMPLETED", "CANCELLED", "EXPIRED"].includes(e.status),
-  );
 
   return (
     <div className="min-h-screen bg-white">
@@ -223,40 +282,39 @@ export default function Home() {
             A verified student runner is minutes away. Post an errand or pick one up on your way
             back to the hostel.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-8">
             <Link
               to="/errands/new"
-              className="rounded-xl bg-white px-6 py-3.5 font-bold text-brand shadow-lg transition hover:-translate-y-0.5"
+              className="inline-block rounded-xl bg-white px-6 py-3.5 font-bold text-brand shadow-lg transition hover:-translate-y-0.5"
             >
               Post an errand →
-            </Link>
-            <Link
-              to="/runner"
-              className="rounded-xl border-2 border-white px-6 py-3.5 font-bold text-white transition hover:-translate-y-0.5 hover:bg-white hover:text-brand"
-            >
-              Become a runner 🛵
-            </Link>
-            <Link
-              to="/campus"
-              className="rounded-xl border-2 border-white/60 px-6 py-3.5 font-bold text-white/90 transition hover:-translate-y-0.5 hover:border-white"
-            >
-              🗺️ Campus map
             </Link>
           </div>
         </div>
       </section>
 
+      {/* Active errands first — the moment something's in flight, it's the
+          top thing you want to see. */}
+      {active.length > 0 && (
+        <section className="mx-auto max-w-6xl px-4 pt-10">
+          <h2 className="text-2xl font-extrabold">Your active errands</h2>
+          <div className="mt-6 space-y-3">
+            {active.map((e) => (
+              <ErrandCard key={e.id} errand={e} onConfirmed={setRatingFor} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Categories */}
       <section className="mx-auto max-w-6xl px-4 py-12">
         <h2 className="text-2xl font-extrabold">What can we get you?</h2>
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {CATEGORIES.map((c) => (
             <Link
               key={c.name}
-              to={
-                ["Parcel pickup", "Custom errand"].includes(c.name) ? "/errands/new" : "/shops"
-              }
-              state={{ category: c.name }}
+              to={c.to}
+              state={c.state}
               className="group rounded-2xl border border-line p-5 transition hover:-translate-y-1 hover:border-brand hover:shadow-lg"
             >
               <div className="text-4xl">{c.icon}</div>
@@ -265,54 +323,15 @@ export default function Home() {
             </Link>
           ))}
         </div>
-      </section>
-
-      {/* How it works */}
-      <section className="bg-brand-soft">
-        <div className="mx-auto max-w-6xl px-4 py-12">
-          <h2 className="text-2xl font-extrabold">How Errandly works</h2>
-          <div className="mt-6 grid gap-6 sm:grid-cols-3">
-            {STEPS.map((s) => (
-              <div key={s.n} className="rounded-2xl bg-white p-6 shadow-sm">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand font-extrabold text-white">
-                  {s.n}
-                </div>
-                <div className="mt-4 font-bold">{s.title}</div>
-                <div className="mt-1 text-sm text-muted">{s.desc}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Active errands — live from the order service */}
-      <section className="mx-auto max-w-6xl px-4 py-12">
-        <h2 className="text-2xl font-extrabold">Your active errands</h2>
-        {active.length === 0 ? (
-          <div className="mt-6 rounded-2xl border-2 border-dashed border-line p-12 text-center">
-            <div className="text-5xl">🌤️</div>
-            <p className="mt-4 font-semibold">Nothing in flight</p>
-            <p className="mt-1 text-sm text-muted">
-              Post your first errand and it will show up here with live status.
-            </p>
-          </div>
-        ) : (
-          <div className="mt-6 space-y-3">
-            {active.map((e) => (
-              <ErrandCard key={e.id} errand={e} onConfirmed={setRatingFor} />
-            ))}
-          </div>
-        )}
-
-        {past.length > 0 && (
-          <>
-            <h2 className="mt-12 text-2xl font-extrabold">History</h2>
-            <div className="mt-6 space-y-3">
-              {past.map((e) => (
-                <ErrandCard key={e.id} errand={e} onConfirmed={setRatingFor} />
-              ))}
-            </div>
-          </>
+        {active.length === 0 && (
+          <p className="mt-6 text-sm text-muted">
+            Nothing in flight right now — pick a category above to post your first errand. Past
+            errands live in your{" "}
+            <Link to="/profile" className="font-semibold text-brand hover:underline">
+              profile
+            </Link>
+            .
+          </p>
         )}
       </section>
 
