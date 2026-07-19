@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { type Category, createErrand } from "../api/errands";
 import CampusDropPicker from "../components/CampusDropPicker";
@@ -61,6 +61,7 @@ function initialFlow(state: { mode?: string; category?: string } | null): Flow {
 
 export default function NewErrand() {
   const preset = useLocation().state as { mode?: string; category?: string } | null;
+  const navigate = useNavigate();
   const [flow, setFlow] = useState<Flow>(() => initialFlow(preset));
 
   // Shopping-list state
@@ -77,6 +78,7 @@ export default function NewErrand() {
 
   // Shared
   const [reward, setReward] = useState("30");
+  const [waitMinutes, setWaitMinutes] = useState(30);
   const [notes, setNotes] = useState("");
   const [geo, setGeo] = useState<GeoState>({ status: "idle" });
   const [dropLabel, setDropLabel] = useState("");
@@ -84,7 +86,6 @@ export default function NewErrand() {
   const [savedDrops] = useState<SavedDrop[]>(loadSavedDrops);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
 
   const isPickup = flow === "parcel" || flow === "gate";
 
@@ -131,23 +132,24 @@ export default function NewErrand() {
       drop_lng: geo.status === "ok" ? geo.lng : 0,
       drop_label: dropLabel.trim() || undefined,
       reward: Number(reward),
+      wait_minutes: waitMinutes,
     };
 
     if (flow === "shopping") {
       const type = SHOPPING_TYPES[shopType];
       const valid = items.filter((it) => it.name.trim());
-      const summary = valid
-        .map((it) => `${it.qty}× ${it.name.trim()}`)
-        .join(", ");
-      const detail = valid
-        .map((it) => `${it.qty}× ${it.name.trim()}${it.note.trim() ? ` — ${it.note.trim()}` : ""}`)
-        .join("\n");
+      const summary = valid.map((it) => `${it.qty}× ${it.name.trim()}`).join(", ");
       return {
         ...shared,
         category: type.category,
         title: `${type.label}: ${summary}`.slice(0, 200),
-        notes:
-          [detail, notes.trim()].filter(Boolean).join("\n\n").slice(0, 2000) || undefined,
+        // Structured lines so the runner can mark one out of stock later.
+        list_items: valid.map((it) => ({
+          name: it.name.trim().slice(0, 120),
+          quantity: it.qty,
+          note: it.note.trim() ? it.note.trim().slice(0, 200) : undefined,
+        })),
+        notes: notes.trim() || undefined,
       };
     }
 
@@ -176,40 +178,16 @@ export default function NewErrand() {
     }
     setBusy(true);
     try {
-      await createErrand(buildPayload());
+      const created = await createErrand(buildPayload());
       if (dropLabel.trim() && geo.status === "ok") {
         saveDrop({ label: dropLabel.trim(), lat: geo.lat, lng: geo.lng });
       }
-      setSubmitted(true);
+      // Straight to live tracking — no dead-end "posted!" screen.
+      navigate(`/errands/${created.id}`);
     } catch (err) {
       setError(apiErrorMessage(err, "Could not post your errand."));
-    } finally {
       setBusy(false);
     }
-  }
-
-  if (submitted) {
-    return (
-      <div className="min-h-screen bg-white">
-        <Navbar />
-        <div className="mx-auto max-w-xl px-4 py-24 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-3xl">
-            🚀
-          </div>
-          <h1 className="mt-6 text-3xl font-extrabold">Errand posted!</h1>
-          <p className="mt-3 text-muted">
-            It's live on the campus feed. You'll see the status change here the moment a runner
-            accepts it.
-          </p>
-          <Link
-            to="/"
-            className="mt-8 inline-block rounded-xl bg-brand px-8 py-3.5 font-bold text-white transition hover:bg-brand-dark"
-          >
-            Back to home
-          </Link>
-        </div>
-      </div>
-    );
   }
 
   const FLOW_TABS: { key: Flow; icon: string; label: string }[] = [
@@ -554,6 +532,32 @@ export default function NewErrand() {
             />
             <p className="mt-1 text-xs text-muted">
               What you pay the runner on top of item cost. ₹20–₹50 is typical.
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold">
+              How long will you wait for a runner?
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {[15, 30, 45, 60].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setWaitMinutes(m)}
+                  className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                    waitMinutes === m
+                      ? "border-brand bg-brand text-white"
+                      : "border-line text-muted hover:border-brand hover:text-brand"
+                  }`}
+                >
+                  {m} min
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-muted">
+              We keep offering your errand until then. No runner by the deadline → it expires and
+              nothing is charged.
             </p>
           </div>
 

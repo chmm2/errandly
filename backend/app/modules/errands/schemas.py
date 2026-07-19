@@ -14,11 +14,21 @@ class OrderItemIn(BaseModel):
     quantity: int = Field(ge=1, le=20)
 
 
+class ListItemIn(BaseModel):
+    """A hand-typed shopping-list line (no menu, no price)."""
+
+    name: str = Field(min_length=1, max_length=120)
+    quantity: int = Field(default=1, ge=1, le=99)
+    note: str | None = Field(default=None, max_length=200)
+
+
 class ErrandCreate(BaseModel):
     category: Category
     # Catalog orders: which store + what items (server revalidates + reprices)
     vendor_id: uuid.UUID | None = None
     items: list[OrderItemIn] = Field(default_factory=list, max_length=20)
+    # Shopping-list orders: hand-typed lines the runner buys off a real shelf.
+    list_items: list[ListItemIn] = Field(default_factory=list, max_length=30)
     title: str = Field(min_length=3, max_length=200)
     notes: str | None = Field(default=None, max_length=2000)
     pickup_label: str = Field(min_length=2, max_length=200)
@@ -26,6 +36,8 @@ class ErrandCreate(BaseModel):
     drop_lng: float = Field(ge=-180, le=180)
     drop_label: str | None = Field(default=None, max_length=200)
     reward: float = Field(ge=0, le=10000)
+    # How long the requester will wait for a runner before the errand expires.
+    wait_minutes: int = Field(default=30, ge=5, le=120)
     # Verified handoff (gate/parcel pickups only)
     external_ref: str | None = Field(default=None, max_length=100)
     otp: str | None = Field(default=None, min_length=3, max_length=12)
@@ -37,10 +49,12 @@ class ErrandCreate(BaseModel):
             raise ValueError(
                 "Order number / OTP only apply to Custom (gate) and Parcel pickups."
             )
-        if self.items and self.category not in CATALOG_CATEGORIES:
-            raise ValueError("Menu items only apply to store orders.")
+        if (self.items or self.list_items) and self.category not in CATALOG_CATEGORIES:
+            raise ValueError("Items only apply to store orders and shopping lists.")
         if self.items and self.vendor_id is None:
             raise ValueError("Menu items need a vendor_id.")
+        if self.items and self.list_items:
+            raise ValueError("Use menu items or a hand-typed list, not both.")
         return self
 
 
@@ -97,6 +111,7 @@ class ErrandOut(BaseModel):
     rated: bool = False
     status: str
     version: int
+    expires_at: datetime | None = None
     accepted_at: datetime | None
     delivered_at: datetime | None
     completed_at: datetime | None
@@ -122,8 +137,10 @@ class ErrandItemOut(BaseModel):
     id: uuid.UUID
     menu_item_id: uuid.UUID | None
     name_snapshot: str
-    unit_price_snapshot: float
+    unit_price_snapshot: float | None
     quantity: int
+    is_available: bool = True
+    note: str | None = None
 
 
 class HandoffSecretOut(BaseModel):

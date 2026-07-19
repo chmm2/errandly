@@ -437,7 +437,7 @@ export default function Runner() {
                     to={`/errands/${e.id}`}
                     className="mt-3 inline-block text-sm font-semibold text-brand hover:underline"
                   >
-                    💬 Chat &amp; live view →
+                    💬 Chat &amp; order details →
                   </Link>
                 </div>
               ))}

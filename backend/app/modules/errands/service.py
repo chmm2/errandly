@@ -1,6 +1,6 @@
 import json
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from geoalchemy2 import WKTElement
 from redis.asyncio import Redis
@@ -230,8 +230,14 @@ async def _attach_items(db: AsyncSession, errands: list[Errand]) -> None:
         by_errand.setdefault(item.errand_id, []).append(item)
     for e in errands:
         e.items = by_errand.get(e.id, [])
+        # Total counts only what's actually available and priced (unavailable
+        # items drop out, shopping-list lines have no price).
         e.items_total = float(
-            sum(i.unit_price_snapshot * i.quantity for i in e.items)
+            sum(
+                (i.unit_price_snapshot or 0) * i.quantity
+                for i in e.items
+                if i.is_available
+            )
         )
 
 
@@ -250,6 +256,7 @@ async def create_errand(db: AsyncSession, redis: Redis, user: User, data: Errand
         drop_lng=data.drop_lng,
         drop_label=data.drop_label,
         reward=data.reward,
+        expires_at=datetime.now(UTC) + timedelta(minutes=data.wait_minutes),
         fulfillment_type=CATEGORY_FULFILLMENT[data.category],
         external_ref=data.external_ref,
         collect_amount=data.collect_amount,
@@ -260,6 +267,19 @@ async def create_errand(db: AsyncSession, redis: Redis, user: User, data: Errand
     for item in order_items:
         item.errand_id = errand.id
         db.add(item)
+    # Hand-typed shopping-list lines: structured (so the runner can mark one
+    # out of stock), but priceless — the runner pays the real shelf price.
+    for li in data.list_items:
+        db.add(
+            ErrandItem(
+                errand_id=errand.id,
+                menu_item_id=None,
+                name_snapshot=li.name.strip()[:120],
+                unit_price_snapshot=None,
+                quantity=li.quantity,
+                note=(li.note.strip()[:200] if li.note and li.note.strip() else None),
+            )
+        )
     if data.otp:
         db.add(ErrandHandoffSecret(errand_id=errand.id, otp_ciphertext=encrypt_str(data.otp)))
     _record(db, errand, user, "CREATED", {"category": data.category, "reward": data.reward})
@@ -574,19 +594,76 @@ async def rate_errand(
     await db.commit()
 
 
+async def set_item_availability(
+    db: AsyncSession,
+    redis: Redis,
+    user: User,
+    errand_id: uuid.UUID,
+    item_id: uuid.UUID,
+    available: bool,
+) -> Errand:
+    """Runner flips one order line in/out of stock during an active run. The
+    requester sees it live; an unavailable item drops out of the total."""
+    errand = await db.scalar(select(Errand).where(Errand.id == errand_id).with_for_update())
+    if errand is None or errand.deleted_at is not None or errand.campus_id != user.campus_id:
+        raise ErrandError("Errand not found.", 404)
+    if errand.runner_id != user.id:
+        raise ErrandError("Only the assigned runner can update items.", 403)
+    if errand.status not in ("ACCEPTED", "IN_PROGRESS"):
+        raise ErrandError("Items can only be updated during an active run.", 409)
+
+    item = await db.get(ErrandItem, item_id)
+    if item is None or item.errand_id != errand.id:
+        raise ErrandError("Item not found on this errand.", 404)
+
+    item.is_available = available
+    _record(
+        db, errand, user,
+        "ITEM_UNAVAILABLE" if not available else "ITEM_RESTORED",
+        {"item": item.name_snapshot, "quantity": item.quantity},
+    )
+    await db.commit()
+    await db.refresh(errand)
+    await publish_status(redis, errand)  # nudge the requester's tracker to refetch
+    await _attach_secret_flags(db, [errand])
+    await _attach_items(db, [errand])
+    await _attach_rated(db, [errand])
+    return errand
+
+
 async def cancel_errand(
     db: AsyncSession, redis: Redis, user: User, errand_id: uuid.UUID, reason: str | None
 ) -> Errand:
     errand = await db.scalar(select(Errand).where(Errand.id == errand_id).with_for_update())
     if errand is None or errand.deleted_at is not None or errand.campus_id != user.campus_id:
         raise ErrandError("Errand not found.", 404)
-    if errand.requester_id != user.id:
-        raise ErrandError("Only the requester can cancel.", 403)
+
+    is_requester = errand.requester_id == user.id
+    is_runner = errand.runner_id == user.id
+    if not (is_requester or is_runner):
+        raise ErrandError("Only the requester or assigned runner can cancel.", 403)
+    # A runner can back out before pickup (e.g. nothing was in stock) — but
+    # once they've picked up, they must deliver.
+    if is_runner and not is_requester and errand.status != "ACCEPTED":
+        raise ErrandError("You can only cancel before pickup.", 409)
 
     _transition(errand, "CANCELLED")
     errand.cancelled_at = datetime.now(UTC)
     _record(db, errand, user, "CANCELLED", {"reason": reason} if reason else None)
     _emit_order_event(db, errand, "CANCELLED")
+    # The ORDER_CANCELLED event notifies the runner; when the RUNNER is the one
+    # backing out, tell the requester directly so they're not left waiting.
+    if is_runner and not is_requester:
+        from app.modules.notifications import service as notifications
+
+        await notifications.create_and_push(
+            db, redis, errand.requester_id,
+            "ERRAND_CANCELLED_BY_RUNNER", "Runner couldn't complete it 😔",
+            f"“{errand.title}” was cancelled"
+            + (f": {reason}" if reason else "")
+            + ". Nothing was charged — post it again if you like.",
+            {"errand_id": str(errand.id)},
+        )
     await db.commit()
     await db.refresh(errand)
     await publish_status(redis, errand)

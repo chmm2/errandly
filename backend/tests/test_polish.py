@@ -99,12 +99,12 @@ async def test_stale_open_errand_expires_and_notifies(client, make_user):
     errand = (await client.post("/errands", json=errand_payload(), headers=requester)).json()
     eid = uuid.UUID(errand["id"])
 
-    # Backdate creation past the 10-minute window instead of waiting.
+    # Move the poster's deadline into the past instead of waiting for it.
     async with SessionLocal() as db:
         await db.execute(
             update(Errand)
             .where(Errand.id == eid)
-            .values(created_at=datetime.now(UTC) - timedelta(minutes=20))
+            .values(expires_at=datetime.now(UTC) - timedelta(minutes=1))
         )
         await db.commit()
 

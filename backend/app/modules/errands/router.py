@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -142,6 +143,28 @@ async def complete(
 ):
     try:
         return await service.complete_errand(db, redis, user, errand_id)
+    except ErrandError as e:
+        _raise(e)
+
+
+class ItemAvailability(BaseModel):
+    available: bool
+
+
+@router.post("/{errand_id}/items/{item_id}/availability", response_model=ErrandOut)
+async def set_item_availability(
+    errand_id: uuid.UUID,
+    item_id: uuid.UUID,
+    body: ItemAvailability,
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+):
+    """Assigned runner marks an item in/out of stock during an active run."""
+    try:
+        return await service.set_item_availability(
+            db, redis, user, errand_id, item_id, body.available
+        )
     except ErrandError as e:
         _raise(e)
 
