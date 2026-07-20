@@ -5,7 +5,7 @@ from sqlalchemy import select, update
 
 from app.core.database import SessionLocal
 from app.modules.auth.models import User
-from app.modules.ledger.models import LedgerEntry
+from app.modules.ledger.models import EscrowHold, LedgerEntry
 from app.workers.consumers import already_processed, handle_settlement
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -187,29 +187,13 @@ async def test_order_revalidation_and_snapshots(client, make_user):
 
 # ---------------------------------------------------------- settlement ledger
 
-async def test_settlement_idempotent_and_earnings(client, make_user, campus):
-    runner_id, runner_headers = await make_user("Paid Runner")
-    event = {
-        "event_id": str(uuid.uuid4()),
-        "event_type": "ORDER_COMPLETED",
-        "aggregate_type": "errand",
-        "aggregate_id": str(uuid.uuid4()),
-        "occurred_at": "2026-07-12T10:00:00+00:00",
-        "payload": {
-            "errand_id": None,  # ledger allows null errand ref
-            "campus_id": str(campus),
-            "requester_id": str(uuid.uuid4()),
-            "runner_id": str(runner_id),
-            "status": "COMPLETED",
-            "title": "Settlement test",
-            "category": "CUSTOM",
-            "reward": 45.0,
-            "collect_amount": 250.0,
-        },
-    }
-    # settlement needs an errand_id-free path: fake a uuid errand? FK requires
-    # a real errand — create one instead.
+async def test_settlement_releases_escrow_idempotently(client, make_user, campus):
+    """ORDER_COMPLETED releases the hold once: the runner is paid the fee
+    (incl. the requester's tip) + the reimbursed budget, and a Kafka redelivery
+    pays nobody twice (processed_events gate + HELD-status guard)."""
     _, requester = await make_user("Requester")
+    runner_id, runner_headers = await make_user("Paid Runner")
+
     errand = (
         await client.post(
             "/errands",
@@ -221,28 +205,64 @@ async def test_settlement_idempotent_and_earnings(client, make_user, campus):
             headers=requester,
         )
     ).json()
-    event["payload"]["errand_id"] = errand["id"]
+    eid = errand["id"]
+    # runner must be assigned so release_hold knows who to pay
+    assert (await client.post(f"/errands/{eid}/accept", headers=runner_headers)).status_code == 200
+
+    async with SessionLocal() as db:
+        hold = await db.get(EscrowHold, uuid.UUID(eid))
+        # no priced items on a gate errand → the full budget is reimbursed
+        expected_payout = round(float(hold.runner_fee) + float(hold.item_total), 2)
+
+    event = {
+        "event_id": str(uuid.uuid4()),
+        "event_type": "ORDER_COMPLETED",
+        "aggregate_type": "errand",
+        "aggregate_id": eid,
+        "occurred_at": "2026-07-20T10:00:00+00:00",
+        "payload": {
+            "errand_id": eid,
+            "campus_id": str(campus),
+            "requester_id": str(errand["requester_id"]),
+            "runner_id": str(runner_id),
+            "status": "COMPLETED",
+            "title": "Settlement test",
+            "category": "CUSTOM",
+            "reward": 45.0,
+            "collect_amount": 250.0,
+        },
+    }
 
     async with SessionLocal() as db:
         assert not await already_processed(db, "settlement-service", uuid.UUID(event["event_id"]))
         await handle_settlement(db, event)
         await db.commit()
 
-    # redelivery: gate blocks the double payout
+    # redelivery: event gate blocks reprocessing
     async with SessionLocal() as db:
         assert await already_processed(db, "settlement-service", uuid.UUID(event["event_id"]))
+        await db.commit()
+    # even if it slipped past the gate, the RELEASED hold refuses a second payout
+    async with SessionLocal() as db:
+        await handle_settlement(db, event)
         await db.commit()
 
     async with SessionLocal() as db:
         entries = list(
-            await db.scalars(select(LedgerEntry).where(LedgerEntry.user_id == runner_id))
+            await db.scalars(
+                select(LedgerEntry).where(
+                    LedgerEntry.account_id == runner_id,
+                    LedgerEntry.entry_type.in_(("REWARD", "REIMBURSEMENT")),
+                )
+            )
         )
+        hold = await db.get(EscrowHold, uuid.UUID(eid))
     assert sorted(e.entry_type for e in entries) == ["REIMBURSEMENT", "REWARD"]
-    assert sum(float(e.amount) for e in entries) == 295.0
+    assert round(sum(float(e.amount) for e in entries), 2) == expected_payout
+    assert hold.status == "RELEASED"
 
     earnings = (await client.get("/ledger/me", headers=runner_headers)).json()
-    assert earnings["balance"] == 295.0
-    assert earnings["week_total"] == 295.0
+    assert earnings["week_total"] == expected_payout
     assert earnings["week_runs"] == 1
 
 

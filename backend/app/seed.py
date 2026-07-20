@@ -13,16 +13,24 @@ Accounts created (all pre-approved):
 
 import asyncio
 
+from geoalchemy2 import WKTElement
 from sqlalchemy import select
 
+import app.models  # noqa: F401 — register ALL mappers so ledger FKs resolve
 from app.core.database import SessionLocal
 from app.core.security import hash_password
 from app.modules.auth.models import AuthCredential, User
 from app.modules.campus.models import Campus
+from app.modules.ledger import service as ledger_service
 from app.modules.vendors.models import MenuItem, Vendor
 
 DEFAULT_CAMPUS = "VIT Vellore"
+# Campus reference point (near VIT Vellore main gate) — anchors the
+# distance-based runner fee until pickup coordinates are captured.
+CAMPUS_CENTER_LAT = 12.9692
+CAMPUS_CENTER_LNG = 79.1559
 PASSWORD = "password123"
+STARTING_WALLET = 1000.0  # demo students start funded so escrow is demoable
 
 STUDENTS = [
     ("23BCE0001", "test.student@vitstudent.ac.in", "Test Student"),
@@ -66,9 +74,23 @@ async def seed() -> None:
             db.add(campus)
             await db.flush()
             print(f"created campus: {campus.name}")
+        if campus.center is None:
+            campus.center = WKTElement(
+                f"POINT({CAMPUS_CENTER_LNG} {CAMPUS_CENTER_LAT})", srid=4326
+            )
+            print(f"set campus center for {campus.name}")
 
         for student_id, email, name in STUDENTS:
-            await _ensure_user(db, campus.id, email=email, name=name, student_id=student_id)
+            student = await _ensure_user(
+                db, campus.id, email=email, name=name, student_id=student_id
+            )
+            # Fund the wallet once so escrow holds work out of the box.
+            balance = await ledger_service.account_balance(db, campus.id, student.id)
+            if balance == 0:
+                await ledger_service.credit_topup(
+                    db, campus.id, student.id, STARTING_WALLET
+                )
+                print(f"funded {email} with ₹{STARTING_WALLET:.0f}")
 
         await _ensure_user(
             db, campus.id,

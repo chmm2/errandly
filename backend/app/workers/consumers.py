@@ -30,7 +30,7 @@ from app.core.redis import redis_client
 from app.core.resilience import retry_with_backoff
 from app.modules.analytics.models import DailyStat
 from app.modules.errands.models import Errand, ErrandEvent
-from app.modules.ledger.models import LedgerEntry
+from app.modules.ledger import service as ledger_service
 from app.modules.notifications import service as notifications
 from app.modules.outbox.models import ProcessedEvent
 from app.modules.runners import service as runners_service
@@ -121,8 +121,11 @@ async def handle_analytics(db: AsyncSession, event: dict) -> None:
 # ------------------------------------------------------------------ settlement
 
 async def handle_settlement(db: AsyncSession, event: dict) -> None:
-    """Money moves ONLY here, only on ORDER_COMPLETED, and only once — the
-    processed_events gate makes a Kafka redelivery pay nobody twice."""
+    """RELEASE the escrow hold on ORDER_COMPLETED, and only once — the
+    processed_events gate plus release_hold's HELD-status guard make a Kafka
+    redelivery pay nobody twice. Splits the held funds across runner
+    reimbursement + delivery fee, the platform's convenience charge, and any
+    unspent budget refunded to the customer."""
     if event["event_type"] != "ORDER_COMPLETED":
         return
     payload = event["payload"]
@@ -130,34 +133,27 @@ async def handle_settlement(db: AsyncSession, event: dict) -> None:
         return
     runner_id = uuid.UUID(payload["runner_id"])
     errand_id = uuid.UUID(payload["errand_id"])
-    db.add(
-        LedgerEntry(
-            user_id=runner_id, errand_id=errand_id,
-            entry_type="REWARD", amount=payload["reward"],
-        )
-    )
-    if payload.get("collect_amount", 0) > 0:
-        db.add(
-            LedgerEntry(
-                user_id=runner_id, errand_id=errand_id,
-                entry_type="REIMBURSEMENT", amount=payload["collect_amount"],
-            )
-        )
+    result = await ledger_service.release_hold(db, errand_id)
+    if result is None:
+        return  # no hold (legacy errand) or already released
+
+    msg = f"₹{result['reward']:.0f} delivery fee"
+    if result["reimbursement"] > 0:
+        msg += f" + ₹{result['reimbursement']:.0f} reimbursed"
     await notifications.create_and_push(
-        db,
-        redis_client,
-        runner_id,
-        "SETTLEMENT",
-        "Paid out 💰",
-        f"₹{payload['reward']:.0f} reward"
-        + (
-            f" + ₹{payload['collect_amount']:.0f} reimbursed"
-            if payload.get("collect_amount", 0) > 0
-            else ""
-        )
-        + f" for {payload['title']}.",
+        db, redis_client, runner_id,
+        "SETTLEMENT", "Paid out 💰",
+        f"{msg} for {payload['title']}.",
         {"errand_id": payload["errand_id"]},
     )
+    if result["refund"] > 0:
+        await notifications.create_and_push(
+            db, redis_client, uuid.UUID(payload["requester_id"]),
+            "REFUND", "Money back 💸",
+            f"₹{result['refund']:.0f} of your budget for “{payload['title']}” "
+            "wasn't spent and was refunded to your wallet.",
+            {"errand_id": payload["errand_id"]},
+        )
 
 
 # ------------------------------------------------------------------- consumers
@@ -325,11 +321,15 @@ async def expire_stale_open_errands() -> None:
         )
         for errand in stale:
             errands_service.expire_errand(db, errand)
+            refunded = await ledger_service.refund_hold(db, errand.id)
+            refund_line = (
+                f" ₹{refunded:.0f} was refunded to your wallet." if refunded else ""
+            )
             await notifications.create_and_push(
                 db, redis_client, errand.requester_id,
                 "ERRAND_EXPIRED", "No runner found 😔",
-                f"Nobody picked up “{errand.title}” in time. "
-                "You can post it again, maybe with a higher reward.",
+                f"Nobody picked up “{errand.title}” in time." + refund_line
+                + " You can post it again, maybe with a higher reward.",
                 {"errand_id": str(errand.id)},
             )
             logger.info("expired errand %s (no runner in %ds)", errand.id, EXPIRE_AFTER_SECONDS)

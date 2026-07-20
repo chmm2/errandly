@@ -278,6 +278,76 @@ function OrderDetails({ errand, canManage }: { errand: Errand; canManage: boolea
   );
 }
 
+/** The escrow panel — the trust centerpiece. Shows the customer's money is
+ * secured before the runner shops, and how it settles. Shown to both parties. */
+function EscrowPanel({
+  errand,
+  isRunner,
+}: {
+  errand: Errand;
+  isRunner: boolean;
+}) {
+  const escrow = errand.escrow;
+  if (!escrow) return null;
+
+  if (escrow.status === "REFUNDED") {
+    return (
+      <div className="mt-6 rounded-2xl border border-line bg-gray-50 p-5">
+        <div className="flex items-center gap-2 font-bold">
+          <span>💸</span> Refunded
+        </div>
+        <p className="mt-1 text-sm text-muted">
+          ₹{escrow.total.toFixed(0)} was returned to the customer's wallet. Nothing was charged.
+        </p>
+      </div>
+    );
+  }
+
+  const released = escrow.status === "RELEASED";
+  return (
+    <div
+      className={`mt-6 rounded-2xl border p-5 ${
+        released ? "border-green-200 bg-green-50" : "border-brand/30 bg-brand-soft/40"
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 font-bold">
+          <span>{released ? "✅" : "🔒"}</span>
+          {released ? "Payment released" : "Secured in escrow"}
+        </div>
+        <span className="text-lg font-extrabold text-brand-dark">₹{escrow.total.toFixed(0)}</span>
+      </div>
+
+      <dl className="mt-3 space-y-1.5 border-t border-line/70 pt-3 text-sm text-muted">
+        {escrow.item_total > 0 && (
+          <div className="flex justify-between">
+            <dt>Item cost</dt>
+            <dd>₹{escrow.item_total.toFixed(0)}</dd>
+          </div>
+        )}
+        <div className="flex justify-between">
+          <dt>Runner fee</dt>
+          <dd>₹{escrow.runner_fee.toFixed(0)}</dd>
+        </div>
+        <div className="flex justify-between">
+          <dt>Convenience</dt>
+          <dd>₹{escrow.convenience_fee.toFixed(0)}</dd>
+        </div>
+      </dl>
+
+      <p className="mt-3 text-sm font-medium text-ink">
+        {released
+          ? isRunner
+            ? "You've been paid your fee and reimbursed for what you spent. 🎉"
+            : "The runner has been paid and any unspent budget refunded to your wallet."
+          : isRunner
+            ? "The customer's money is already secured — you'll be paid your fee and reimbursed the moment delivery is confirmed. No risk to you."
+            : "This amount left your wallet and is held safely. It's released to the runner only after you confirm delivery."}
+      </p>
+    </div>
+  );
+}
+
 /** Apology shown when the errand expired with no runner. */
 function ExpiredCard() {
   return (
@@ -286,8 +356,8 @@ function ExpiredCard() {
       <h2 className="mt-4 text-2xl font-extrabold">No runner was available</h2>
       <p className="mx-auto mt-2 max-w-md text-muted">
         We're sorry — nobody could pick this up right now, so we've closed the request.
-        Nothing was charged. Try again in a bit, or offer a slightly higher reward to
-        catch more attention.
+        Any amount held for it has been refunded to your wallet. Try again in a bit, or
+        offer a slightly higher reward to catch more attention.
       </p>
       <div className="mt-6 flex justify-center gap-3">
         <Link
@@ -443,6 +513,8 @@ export default function Track() {
           from {errand.pickup_label}
           {errand.drop_label ? ` → ${errand.drop_label}` : ""}
         </p>
+
+        <EscrowPanel errand={errand} isRunner={isRunner} />
 
         {finding && !isRunner && (
           <FindingRunner createdAt={errand.created_at} expiresAt={expiresAt} />

@@ -2,8 +2,23 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { fetchMyErrands } from "../api/errands";
+import { fetchWallet } from "../api/ledger";
 import { useAuth } from "../stores/auth";
 import NotificationBell from "./NotificationBell";
+
+function WalletChip() {
+  const { data } = useQuery({ queryKey: ["wallet"], queryFn: fetchWallet });
+  return (
+    <Link
+      to="/wallet"
+      title="Wallet & escrow"
+      className="flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1.5 font-bold text-brand-dark transition hover:bg-brand hover:text-white"
+    >
+      <span>👛</span>
+      <span>₹{Number(data?.balance ?? 0).toFixed(0)}</span>
+    </Link>
+  );
+}
 
 // A run you've taken on (accepted or mid-delivery) is the only thing that
 // commits you — everything else, including any order you've placed, leaves you
@@ -89,6 +104,7 @@ export default function Navbar() {
           ) : (
             <ModeToggle />
           )}
+          {user?.role !== "VENDOR" && <WalletChip />}
           <NotificationBell />
           <span className="hidden items-center gap-1 font-medium text-muted sm:flex">
             <svg className="h-4 w-4 text-brand" fill="currentColor" viewBox="0 0 20 20">

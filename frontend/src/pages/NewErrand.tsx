@@ -1,7 +1,9 @@
+import { useQuery } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { type Category, createErrand } from "../api/errands";
+import { fetchQuote } from "../api/ledger";
 import CampusDropPicker from "../components/CampusDropPicker";
 import Navbar from "../components/Navbar";
 import { apiErrorMessage } from "../lib/api";
@@ -88,6 +90,20 @@ export default function NewErrand() {
   const [error, setError] = useState<string | null>(null);
 
   const isPickup = flow === "parcel" || flow === "gate";
+
+  // Live escrow quote so the poster sees exactly what's held before submitting.
+  const budget = Number(collectAmount || 0);
+  const { data: quote } = useQuery({
+    queryKey: ["quote", geo, budget, reward],
+    queryFn: () =>
+      fetchQuote({
+        drop_lat: (geo as { lat: number }).lat,
+        drop_lng: (geo as { lng: number }).lng,
+        item_total: budget,
+        tip: Number(reward || 0),
+      }),
+    enabled: geo.status === "ok",
+  });
 
   function switchFlow(next: Flow) {
     setFlow(next);
@@ -233,7 +249,12 @@ export default function NewErrand() {
 
         {error && (
           <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
+            {error}{" "}
+            {error.toLowerCase().includes("wallet") && (
+              <Link to="/wallet" className="font-bold underline">
+                Add money →
+              </Link>
+            )}
           </div>
         )}
 
@@ -557,7 +578,7 @@ export default function NewErrand() {
             </div>
             <p className="mt-1 text-xs text-muted">
               We keep offering your errand until then. No runner by the deadline → it expires and
-              nothing is charged.
+              the held amount is refunded to your wallet.
             </p>
           </div>
 
@@ -575,6 +596,33 @@ export default function NewErrand() {
             />
           </div>
 
+          {/* Escrow breakdown — the exact amount held from the wallet */}
+          {quote && geo.status === "ok" && (
+            <div className="rounded-xl border border-line bg-brand-soft/30 p-4 text-sm">
+              {quote.item_total > 0 && (
+                <div className="flex justify-between text-muted">
+                  <span>Budget</span>
+                  <span>₹{quote.item_total.toFixed(0)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-muted">
+                <span>Runner fee</span>
+                <span>₹{quote.runner_fee.toFixed(0)}</span>
+              </div>
+              <div className="flex justify-between text-muted">
+                <span>Convenience</span>
+                <span>₹{quote.convenience_fee.toFixed(0)}</span>
+              </div>
+              <div className="mt-1.5 flex justify-between border-t border-line/70 pt-1.5 font-bold">
+                <span>🔒 Held in escrow</span>
+                <span>₹{quote.total.toFixed(0)}</span>
+              </div>
+              <p className="mt-2 text-xs text-muted">
+                Held safely and released to the runner only after you confirm delivery.
+              </p>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={geo.status !== "ok" || busy}
@@ -583,7 +631,7 @@ export default function NewErrand() {
             {busy
               ? "Posting…"
               : geo.status === "ok"
-                ? "Post errand"
+                ? `Post errand${quote ? ` · ₹${quote.total.toFixed(0)}` : ""}`
                 : "Detect your location to continue"}
           </button>
         </form>

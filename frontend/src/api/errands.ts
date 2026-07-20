@@ -29,6 +29,16 @@ export interface RunnerSummary {
   phone: string | null;
 }
 
+export type EscrowStatus = "HELD" | "RELEASED" | "REFUNDED";
+
+export interface EscrowInfo {
+  item_total: number;
+  runner_fee: number;
+  convenience_fee: number;
+  total: number;
+  status: EscrowStatus;
+}
+
 export interface Errand {
   id: string;
   campus_id: string;
@@ -52,6 +62,7 @@ export interface Errand {
   vendor_id: string | null;
   items: OrderLine[];
   items_total: number;
+  escrow: EscrowInfo | null;
   rated: boolean;
   status: ErrandStatus;
   version: number;

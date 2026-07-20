@@ -18,6 +18,8 @@ from app.modules.errands.models import (
     Rating,
 )
 from app.modules.errands.schemas import ErrandCreate
+from app.modules.ledger import service as ledger_service
+from app.modules.ledger.service import LedgerError
 from app.modules.outbox import service as outbox
 from app.modules.runners import service as runners_service
 from app.modules.runners.models import RunnerProfile
@@ -282,6 +284,24 @@ async def create_errand(db: AsyncSession, redis: Redis, user: User, data: Errand
         )
     if data.otp:
         db.add(ErrandHandoffSecret(errand_id=errand.id, otp_ciphertext=encrypt_str(data.otp)))
+
+    # Escrow: hold item cost + fees from the customer's wallet up front, in the
+    # SAME transaction as the errand — an underfunded post fails as a whole and
+    # nothing is persisted. Priced carts hold the exact cart; unpriced errands
+    # (shopping list / gate / parcel) hold the customer's stated budget.
+    if order_items:
+        item_total = sum(float(i.unit_price_snapshot) * i.quantity for i in order_items)
+    else:
+        item_total = float(data.collect_amount or 0)
+    try:
+        await ledger_service.place_hold(
+            db, user.campus_id, user.id, errand.id,
+            float(data.drop_lat), float(data.drop_lng), item_total,
+            tip=float(data.reward or 0),
+        )
+    except LedgerError as e:
+        raise ErrandError(e.message, e.status_code) from e
+
     _record(db, errand, user, "CREATED", {"category": data.category, "reward": data.reward})
     _emit_order_event(db, errand, "CREATED")
     await db.commit()
@@ -294,6 +314,7 @@ async def create_errand(db: AsyncSession, redis: Redis, user: User, data: Errand
 
     errand.has_handoff_secret = data.otp is not None
     await _attach_items(db, [errand])
+    await ledger_service.attach_holds(db, [errand])
     return errand
 
 
@@ -359,6 +380,7 @@ async def list_mine(db: AsyncSession, user: User) -> tuple[list[Errand], list[Er
     await _attach_secret_flags(db, requested + running)
     await _attach_items(db, requested + running)
     await _attach_rated(db, requested + running)
+    await ledger_service.attach_holds(db, requested + running)
     return requested, running
 
 
@@ -369,6 +391,7 @@ async def get_errand(db: AsyncSession, user: User, errand_id: uuid.UUID) -> Erra
     await _attach_secret_flags(db, [errand])
     await _attach_items(db, [errand])
     await _attach_rated(db, [errand])
+    await ledger_service.attach_holds(db, [errand])
     return errand
 
 
@@ -414,9 +437,9 @@ async def attach_runner_summary(db: AsyncSession, user: User, errand: Errand) ->
 
 
 def expire_errand(db: AsyncSession, errand: Errand) -> None:
-    """OPEN → EXPIRED: nobody accepted within the window. Internal only —
-    no Kafka/ledger involvement (no money or downstream fan-out for a
-    non-event). Caller commits and publishes the status."""
+    """OPEN → EXPIRED: nobody accepted within the window. Pure state change —
+    the caller (the scheduler sweep) refunds the hold, notifies, commits and
+    publishes the status."""
     _transition(errand, "EXPIRED")
     _record(db, errand, None, "EXPIRED")
 
@@ -651,17 +674,24 @@ async def cancel_errand(
     errand.cancelled_at = datetime.now(UTC)
     _record(db, errand, user, "CANCELLED", {"reason": reason} if reason else None)
     _emit_order_event(db, errand, "CANCELLED")
+    # Return the held funds to the customer, in this same transaction.
+    refunded = await ledger_service.refund_hold(db, errand.id)
     # The ORDER_CANCELLED event notifies the runner; when the RUNNER is the one
     # backing out, tell the requester directly so they're not left waiting.
     if is_runner and not is_requester:
         from app.modules.notifications import service as notifications
 
+        refund_line = (
+            f" ₹{refunded:.0f} was refunded to your wallet."
+            if refunded
+            else " Nothing was charged."
+        )
         await notifications.create_and_push(
             db, redis, errand.requester_id,
             "ERRAND_CANCELLED_BY_RUNNER", "Runner couldn't complete it 😔",
             f"“{errand.title}” was cancelled"
             + (f": {reason}" if reason else "")
-            + ". Nothing was charged — post it again if you like.",
+            + "." + refund_line + " Post it again if you like.",
             {"errand_id": str(errand.id)},
         )
     await db.commit()

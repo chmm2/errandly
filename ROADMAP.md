@@ -92,10 +92,17 @@ that table is the interview/viva cheat sheet).
 - [ ] cache-aside on menus (read-heavy → Redis) **with invalidation on vendor edits** —
   sold-out must reflect instantly, not after a TTL; **fallback-to-stale** if Postgres is slow
   (a slightly old menu beats an error page)
-- [ ] ledger_entries / wallets; settlement on delivery incl. `collect_amount` reimbursement
-  (runner fronts cash at pickup → repaid + reward; KARMA now, UPI later)
+- [x] **escrow payments** (our own): customer prepays `item + distance runner fee + convenience`
+  into a wallet-backed **hold** at post time; released to the runner (reimbursement + fee) and
+  platform on delivery-confirm; refunded on cancel/expire. Simulated wallet behind a
+  `PaymentProvider` port (UPI later). Removes the runner's "will I be repaid?" risk.
+- [x] **tamper-evident hash-chained ledger** (our own): append-only, signed double-entry,
+  per-campus **HMAC hash chain** (`prev_hash`/`entry_hash`); serialized append under an advisory
+  lock; `/ledger/verify` recomputes the chain and names the first altered `seq`.
+- [x] ledger_entries / wallets; settlement on delivery incl. `collect_amount` reimbursement
+  (now escrow-backed: runner reimbursed from the hold on confirm; KARMA now, UPI later)
 - [ ] ratings → reputation → feedback into matching; **post-delivery rating modal at handoff**
-- [ ] **runner earnings summary** ("₹240 this week · 12 deliveries") from the ledger
+- [x] **runner earnings summary** ("₹240 this week · 12 deliveries") from the ledger
 - [ ] menu UX details *(ref: Enatega)*: sticky category tabs, sold-out item states,
   persistent bottom cart bar ("2 items · ₹110 · View cart")
 - [ ] MongoDB chat + notifications feed; chat UI
@@ -143,6 +150,12 @@ that table is the interview/viva cheat sheet).
 | Cache-aside | Redis in front of Postgres reads; vendor menus | 3, 5 |
 | Least-privilege secret disclosure | pickup OTP gated to assigned runner + SECRET_VIEWED audit | 3 |
 | Snapshot vs reference | errand_items copy name+price at order time | 5 |
+| Escrow / hold-release | funds held at post, released on delivery-confirm, refunded on cancel | 5 |
+| Double-entry ledger | balanced signed pairs; every errand's entries sum to zero | 5 |
+| Tamper-evident hash chain (HMAC) | per-campus `prev_hash`/`entry_hash`; `/ledger/verify` detects edits | 5 |
+| Serialized append (advisory lock) | `pg_advisory_xact_lock` keeps the chain linear under concurrency | 5 |
+| Sync hold / async release | atomic hold in the request; effectively-once payout in the consumer | 5 |
+| Hexagonal port | `PaymentProvider` (simulated now, UPI later) — escrow logic unchanged | 5 |
 | RBAC + ownership auth | role column + require_vendor; vendors edit only their own menu | 5 |
 | Cache invalidation on write | vendor sold-out toggle busts the menu cache immediately | 5 |
 | Throttling / backpressure | WS location updates capped at ~1 per 5–10s | 3 |

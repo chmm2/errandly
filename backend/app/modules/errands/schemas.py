@@ -67,6 +67,17 @@ class RateRequest(BaseModel):
     comment: str | None = Field(default=None, max_length=500)
 
 
+class EscrowInfo(BaseModel):
+    """The customer's held funds for this errand — shown on the tracking page
+    so both parties can see the money is secured."""
+
+    item_total: float
+    runner_fee: float
+    convenience_fee: float
+    total: float
+    status: str
+
+
 class RunnerSummary(BaseModel):
     """Who's running the errand — shown to the two parties on the tracking
     page. Phone is revealed only during an active run so the requester can
@@ -108,6 +119,7 @@ class ErrandOut(BaseModel):
     vendor_id: uuid.UUID | None = None
     items: list["ErrandItemOut"] = []
     items_total: float = 0
+    escrow: EscrowInfo | None = None
     rated: bool = False
     status: str
     version: int

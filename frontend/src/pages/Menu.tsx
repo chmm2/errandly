@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { createErrand } from "../api/errands";
+import { fetchQuote } from "../api/ledger";
 import { fetchMenu, type MenuItem } from "../api/vendors";
 import Navbar from "../components/Navbar";
 import { apiErrorMessage } from "../lib/api";
@@ -55,6 +56,19 @@ export default function Menu() {
     (sum, [itemId, q]) => sum + (byId.get(itemId)?.price ?? 0) * q,
     0,
   );
+
+  // Live escrow quote: item cost + distance runner fee (+ tip) + convenience.
+  const { data: quote } = useQuery({
+    queryKey: ["quote", geo, cartTotal, reward],
+    queryFn: () =>
+      fetchQuote({
+        drop_lat: (geo as { lat: number }).lat,
+        drop_lng: (geo as { lng: number }).lng,
+        item_total: cartTotal,
+        tip: Number(reward || 0),
+      }),
+    enabled: checkout && geo.status === "ok" && cartTotal > 0,
+  });
 
   function setQty(itemId: string, qty: number) {
     setCart((c) => ({ ...c, [itemId]: Math.max(0, qty) }));
@@ -144,12 +158,6 @@ export default function Menu() {
                 {section}
               </a>
             ))}
-          </div>
-        )}
-
-        {error && (
-          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
           </div>
         )}
 
@@ -301,12 +309,48 @@ export default function Menu() {
                 </button>
               ))}
             </div>
+
+            {/* Escrow breakdown — the exact amount held from the wallet */}
+            {quote && (
+              <div className="rounded-xl border border-line bg-brand-soft/30 p-3 text-sm">
+                <div className="flex justify-between text-muted">
+                  <span>Items</span>
+                  <span>₹{quote.item_total.toFixed(0)}</span>
+                </div>
+                <div className="flex justify-between text-muted">
+                  <span>Runner fee</span>
+                  <span>₹{quote.runner_fee.toFixed(0)}</span>
+                </div>
+                <div className="flex justify-between text-muted">
+                  <span>Convenience</span>
+                  <span>₹{quote.convenience_fee.toFixed(0)}</span>
+                </div>
+                <div className="mt-1.5 flex justify-between border-t border-line/70 pt-1.5 font-bold">
+                  <span>🔒 Held in escrow</span>
+                  <span>₹{quote.total.toFixed(0)}</span>
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {error}{" "}
+                {error.toLowerCase().includes("wallet") && (
+                  <Link to="/wallet" className="font-bold underline">
+                    Add money →
+                  </Link>
+                )}
+              </div>
+            )}
+
             <button
               onClick={placeOrder}
               disabled={geo.status !== "ok" || busy}
               className="w-full rounded-xl bg-brand py-3.5 font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {busy ? "Placing order…" : `Place order · ₹${(cartTotal + Number(reward || 0)).toFixed(0)}`}
+              {busy
+                ? "Placing order…"
+                : `Place order · ₹${(quote?.total ?? cartTotal + Number(reward || 0)).toFixed(0)}`}
             </button>
           </div>
         </div>

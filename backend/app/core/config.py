@@ -28,6 +28,26 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
 
+    # Escrow ledger — the hash chain is keyed by its OWN secret, so rotating
+    # jwt_secret (which would break login tokens) never invalidates the money
+    # log. Change this only if you intend to re-key and re-chain the ledger.
+    ledger_hmac_secret: str = "change-me-ledger"
+
+    # Escrow fees. total held = item_total + runner_fee + convenience_fee.
+    # runner_fee = clamp(base + per_km * distance_km, min, max); distance is
+    # measured from the campus reference point to the drop (pickup has no
+    # coordinates today — see ledger.service.compute_fees).
+    fee_runner_base: float = 20.0
+    fee_runner_per_km: float = 10.0
+    fee_runner_min: float = 20.0
+    fee_runner_max: float = 60.0
+    fee_convenience_pct: float = 0.03
+    fee_convenience_min: float = 5.0
+
+    # Which payment provider backs wallet top-ups. "simulated" credits instantly
+    # (demo/dev). A real UPI/Razorpay provider implements the same port later.
+    payment_provider: str = "simulated"
+
     # Email / OTP verification
     # Leave smtp_host blank to run in dev mode: the OTP is logged (and surfaced
     # via an X-Dev-OTP header) instead of emailed. Fill these in backend/.env

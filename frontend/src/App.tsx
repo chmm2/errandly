@@ -13,6 +13,7 @@ import Shops from "./pages/Shops";
 import Timetable from "./pages/Timetable";
 import Track from "./pages/Track";
 import VendorPortal from "./pages/VendorPortal";
+import Wallet from "./pages/Wallet";
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="/errands/:id" element={<Track />} />
         <Route path="/runner" element={<Runner />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/wallet" element={<Wallet />} />
         <Route path="/timetable" element={<Timetable />} />
         <Route path="/campus" element={<Campus />} />
         <Route path="/shops" element={<Shops />} />

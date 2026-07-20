@@ -9,6 +9,11 @@ from app.core.redis import redis_client
 from app.main import app
 from app.modules.auth.models import User
 from app.modules.campus.models import Campus
+from app.modules.ledger import service as ledger_service
+
+# Every test user starts funded so escrow holds (required to post any errand)
+# succeed without each test wiring up a top-up.
+TEST_WALLET = 100000.0
 
 
 @pytest.fixture
@@ -52,6 +57,8 @@ def make_user(client, campus):
             await db.execute(
                 update(User).where(User.id == user_id).values(account_status="ACTIVE")
             )
+            u = await db.get(User, user_id)
+            await ledger_service.credit_topup(db, u.campus_id, user_id, TEST_WALLET)
             await db.commit()
         login = await client.post(
             "/auth/login", json={"email": email, "password": "password123"}
