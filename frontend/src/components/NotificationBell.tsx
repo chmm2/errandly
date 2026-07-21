@@ -10,7 +10,7 @@ const TYPE_ICONS: Record<string, string> = {
   ORDER_DELIVERED: "🎉",
   ORDER_COMPLETED: "✅",
   ORDER_CANCELLED: "🚫",
-  TIMETABLE_BLOCK: "📚",
+  ERRAND_CANCELLED_BY_RUNNER: "😔",
   ERRAND_EXPIRED: "😔",
   SETTLEMENT: "💰",
 };
@@ -35,11 +35,35 @@ export default function NotificationBell() {
   });
   const unread = data?.unread ?? 0;
 
+  // Ask once for permission to show OS-level notifications.
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
+
   // Live: the Kafka notification consumer pushes through Redis → this socket.
+  // Besides refreshing the bell, pop a real desktop/OS notification.
   useSocket(
     "/ws/notifications",
     useCallback(
-      () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+      (data: Record<string, unknown>) => {
+        queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        if (
+          typeof data.title === "string" &&
+          "Notification" in window &&
+          Notification.permission === "granted"
+        ) {
+          try {
+            new Notification(data.title, {
+              body: typeof data.body === "string" ? data.body : undefined,
+              tag: typeof data.id === "string" ? data.id : undefined,
+            });
+          } catch {
+            /* some environments only allow notifications from a service worker */
+          }
+        }
+      },
       [queryClient],
     ),
   );

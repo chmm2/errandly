@@ -6,6 +6,7 @@ import { Link, useParams } from "react-router-dom";
 
 import {
   cancelErrand,
+  completeErrand,
   type Errand,
   type ErrandEvent,
   type ErrandStatus,
@@ -349,6 +350,72 @@ function RunnerCard({ runner }: { runner: RunnerSummary }) {
   );
 }
 
+/** The "settle up" screen shown the moment the runner marks Arrived — the
+ * enlarged amount due plus a line-item breakdown. */
+function PaymentCard({ errand, isRequester }: { errand: Errand; isRequester: boolean }) {
+  const queryClient = useQueryClient();
+  const items = errand.items ?? [];
+  const itemsTotal = Number(errand.items_total) || 0;
+  const collect = Number(errand.collect_amount) || 0;
+  const reward = Number(errand.reward) || 0;
+  const total = itemsTotal + collect + reward;
+  const pricelessItems = items.length > 0 && itemsTotal === 0;
+
+  const complete = useMutation({
+    mutationFn: () => completeErrand(errand.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["errand", errand.id] });
+      queryClient.invalidateQueries({ queryKey: ["errand-events", errand.id] });
+      queryClient.invalidateQueries({ queryKey: ["my-errands"] });
+    },
+  });
+
+  const row = (label: string, value: string) => (
+    <div className="flex justify-between">
+      <span className="text-muted">{label}</span>
+      <span className="font-semibold tabular-nums">{value}</span>
+    </div>
+  );
+
+  return (
+    <div className="mt-6 rounded-3xl border-2 border-brand bg-brand-soft/40 p-6 text-center shadow-sm">
+      <div className="text-3xl">🧾</div>
+      <div className="mt-2 text-xs font-bold uppercase tracking-wide text-brand-dark">
+        {isRequester ? "Runner has arrived — settle up" : "Delivered — collect payment"}
+      </div>
+      <div className="mt-3 text-5xl font-extrabold tabular-nums text-ink">₹{total.toFixed(0)}</div>
+      {pricelessItems && (
+        <div className="mt-1 text-sm font-semibold text-muted">+ the store bill</div>
+      )}
+
+      <div className="mx-auto mt-5 max-w-xs space-y-2 text-left text-sm">
+        {itemsTotal > 0 && row("Items", `₹${itemsTotal.toFixed(0)}`)}
+        {pricelessItems && row("Items", "store bill")}
+        {collect > 0 && row("Cash paid at pickup", `₹${collect.toFixed(0)}`)}
+        {row("Runner reward", `₹${reward.toFixed(0)}`)}
+        <div className="flex justify-between border-t border-line pt-2 text-base font-extrabold">
+          <span>Total{pricelessItems ? " + bill" : ""}</span>
+          <span className="tabular-nums">₹{total.toFixed(0)}</span>
+        </div>
+      </div>
+
+      {isRequester ? (
+        <button
+          onClick={() => complete.mutate()}
+          disabled={complete.isPending}
+          className="mt-5 w-full rounded-xl bg-brand py-3.5 text-lg font-extrabold text-white transition hover:bg-brand-dark disabled:opacity-60"
+        >
+          {complete.isPending ? "Confirming…" : `Pay & confirm · ₹${total.toFixed(0)}`}
+        </button>
+      ) : (
+        <div className="mt-5 rounded-xl border border-line bg-white py-3 text-sm font-semibold text-muted">
+          Collect ₹{total.toFixed(0)} — waiting for the requester to confirm.
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Track() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
@@ -402,6 +469,7 @@ export default function Track() {
   }
 
   const isRunner = !!myId && errand.runner_id === myId;
+  const isRequester = !!myId && errand.requester_id === myId;
   const finding = errand.status === "OPEN";
   const expired = errand.status === "EXPIRED";
   const cancelled = errand.status === "CANCELLED";
@@ -453,6 +521,11 @@ export default function Track() {
             IS the runner (no "your runner" card for yourself) */}
         {errand.runner && errand.runner.id !== myId && !expired && !cancelled && (
           <RunnerCard runner={errand.runner} />
+        )}
+
+        {/* Payment screen — appears the moment the runner marks Arrived */}
+        {errand.status === "DELIVERED" && (
+          <PaymentCard errand={errand} isRequester={isRequester} />
         )}
 
         {/* Order details — shown from the moment it's posted (under the ring

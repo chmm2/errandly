@@ -11,11 +11,11 @@ import {
   fetchMyErrands,
   type HandoffSecret,
   pickupErrand,
+  releaseErrand,
 } from "../api/errands";
 import { setPhoto } from "../api/auth";
 import { fetchEarnings } from "../api/ledger";
 import { fetchRunnerProfile, setAvailability, updateLocation } from "../api/runners";
-import { fetchSlots } from "../api/timetable";
 import Navbar from "../components/Navbar";
 import { apiErrorMessage } from "../lib/api";
 import { useSocket } from "../lib/ws";
@@ -199,21 +199,6 @@ export default function Runner() {
     ["ACCEPTED", "IN_PROGRESS"].includes(e.status),
   );
 
-  // One-time check: the first time someone runs, make them set (or explicitly
-  // skip) their class timetable. After that it lives in the profile, never here.
-  const { data: ttSlots } = useQuery({ queryKey: ["timetable"], queryFn: fetchSlots });
-  const [ttAcked, setTtAcked] = useState(false);
-  const ttKey = user ? `errandly-timetable-verified-${user.id}` : null;
-  const ttVerified =
-    ttAcked ||
-    (ttKey ? localStorage.getItem(ttKey) === "1" : false) ||
-    (ttSlots?.length ?? 0) > 0;
-  const showTimetableGate = ttSlots !== undefined && !ttVerified;
-  function ackTimetable() {
-    if (ttKey) localStorage.setItem(ttKey, "1");
-    setTtAcked(true);
-  }
-
   function refresh() {
     queryClient.invalidateQueries({ queryKey: ["runner-feed"] });
     queryClient.invalidateQueries({ queryKey: ["my-errands"] });
@@ -236,6 +221,11 @@ export default function Runner() {
   });
   const pickup = useMutation({ mutationFn: pickupErrand, onSettled: refresh });
   const deliver = useMutation({ mutationFn: deliverErrand, onSettled: refresh });
+  const release = useMutation({
+    mutationFn: releaseErrand,
+    onError: (err) => setError(apiErrorMessage(err, "Could not release this errand.")),
+    onSettled: refresh,
+  });
 
   async function toggle() {
     setError(null);
@@ -412,6 +402,18 @@ export default function Runner() {
                       </div>
                     </div>
                     <div className="flex gap-2">
+                      {e.status === "ACCEPTED" &&
+                        e.accepted_at != null &&
+                        Date.now() - new Date(e.accepted_at).getTime() < 5 * 60 * 1000 && (
+                          <button
+                            onClick={() => release.mutate(e.id)}
+                            disabled={release.isPending}
+                            title="Hand it back to the queue for another runner (within 5 min)"
+                            className="rounded-xl border border-line px-4 py-2 text-sm font-semibold text-muted transition hover:border-red-400 hover:text-red-600 disabled:opacity-60"
+                          >
+                            Not for me ↩
+                          </button>
+                        )}
                       {e.status === "ACCEPTED" && (
                         <button
                           onClick={() => pickup.mutate(e.id)}
@@ -427,7 +429,7 @@ export default function Runner() {
                           disabled={deliver.isPending}
                           className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                         >
-                          Delivered ✅
+                          Arrived ✅
                         </button>
                       )}
                     </div>
@@ -500,33 +502,6 @@ export default function Runner() {
           )}
         </section>
       </div>
-
-      {showTimetableGate && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
-            <div className="text-4xl">🗓️</div>
-            <h3 className="mt-2 text-xl font-extrabold">One-time setup: your class timetable</h3>
-            <p className="mt-2 text-sm text-muted">
-              Runner mode locks itself during class, so you never get offered an errand you can't
-              run. Set your VIT slots once — you can always edit them later from your profile.
-            </p>
-            <div className="mt-5 flex flex-col gap-2">
-              <Link
-                to="/timetable"
-                className="rounded-xl bg-brand py-3 text-center font-bold text-white transition hover:bg-brand-dark"
-              >
-                Set my timetable →
-              </Link>
-              <button
-                onClick={ackTimetable}
-                className="rounded-xl border border-line py-3 font-semibold text-muted transition hover:border-brand hover:text-brand"
-              >
-                I have no fixed classes — skip
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
