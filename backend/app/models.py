@@ -18,7 +18,6 @@ from app.modules.ledger.models import LedgerEntry
 from app.modules.notifications.models import Notification
 from app.modules.outbox.models import OutboxEvent, ProcessedEvent
 from app.modules.runners.models import RunnerProfile
-from app.modules.timetable.models import TimetableSlot
 from app.modules.vendors.models import MenuItem, Vendor
 
 __all__ = [
@@ -36,7 +35,6 @@ __all__ = [
     "ProcessedEvent",
     "Notification",
     "DailyStat",
-    "TimetableSlot",
     "ErrandItem",
     "Rating",
     "LedgerEntry",

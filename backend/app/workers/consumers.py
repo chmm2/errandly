@@ -6,8 +6,8 @@
 - Both are idempotent via processed_events (insert-or-skip on PK) — Kafka
   is at-least-once, so replays MUST be harmless. Kill this process
   mid-stream, restart it, and nothing duplicates: that's the demo.
-- The scheduler loop handles timetable enforcement (auto-block runners when
-  class starts) and offer broadening for errands nobody accepted.
+- The scheduler loop handles offer broadening for errands nobody accepted and
+  expiry of errands past their deadline.
 
 Run: python -m app.workers.consumers
 """
@@ -34,8 +34,6 @@ from app.modules.ledger.models import LedgerEntry
 from app.modules.notifications import service as notifications
 from app.modules.outbox.models import ProcessedEvent
 from app.modules.runners import service as runners_service
-from app.modules.runners.models import RunnerProfile
-from app.modules.timetable import service as timetable
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s worker %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -200,37 +198,11 @@ async def run_consumer(group: str) -> None:
 
 # ------------------------------------------------------------------- scheduler
 
-ENFORCER_INTERVAL = 30
+SCHEDULER_INTERVAL = 30
 BROADEN_AFTER_SECONDS = 60
 BROADEN_RADIUS_M = 8000
 BROADEN_FANOUT = 10
 EXPIRE_AFTER_SECONDS = 600  # 10 min with no runner → give up and apologise
-
-
-async def enforce_timetable() -> None:
-    """Auto-block: flip runners offline the moment their class starts."""
-    async with SessionLocal() as db:
-        available = list(
-            await db.scalars(select(RunnerProfile).where(RunnerProfile.is_available.is_(True)))
-        )
-        blocked = await timetable.in_class_user_ids(db, [p.user_id for p in available])
-        for profile in available:
-            if profile.user_id not in blocked:
-                continue
-            profile.is_available = False
-            await redis_client.zrem(
-                runners_service.geo_key(profile.campus_id), str(profile.user_id)
-            )
-            await notifications.create_and_push(
-                db,
-                redis_client,
-                profile.user_id,
-                "TIMETABLE_BLOCK",
-                "Class time — runner mode off 📚",
-                "Your timetable says you're in class, so we took you offline.",
-            )
-            logger.info("enforcer: blocked runner %s (in class)", profile.user_id)
-        await db.commit()
 
 
 async def broaden_stale_offers() -> None:
@@ -268,7 +240,6 @@ async def broaden_stale_offers() -> None:
                 limit=BROADEN_FANOUT,
                 exclude=errand.requester_id,
             )
-            in_class = await timetable.in_class_user_ids(db, [r for r, _ in nearby])
             payload = {
                 "type": "offer",
                 "errand_id": str(errand.id),
@@ -278,8 +249,6 @@ async def broaden_stale_offers() -> None:
             }
             count = 0
             for runner_id, distance_m in nearby:
-                if runner_id in in_class:
-                    continue
                 payload["distance_m"] = round(distance_m)
                 await redis_client.publish(
                     f"{errands_service.OFFER_CHANNEL_PREFIX}{runner_id}", json.dumps(payload)
@@ -339,12 +308,8 @@ async def expire_stale_open_errands() -> None:
 
 
 async def scheduler() -> None:
-    logger.info("scheduler up (interval %ss)", ENFORCER_INTERVAL)
+    logger.info("scheduler up (interval %ss)", SCHEDULER_INTERVAL)
     while True:
-        try:
-            await enforce_timetable()
-        except Exception:
-            logger.exception("timetable enforcer sweep failed")
         try:
             await broaden_stale_offers()
         except Exception:
@@ -353,7 +318,7 @@ async def scheduler() -> None:
             await expire_stale_open_errands()
         except Exception:
             logger.exception("errand expiry sweep failed")
-        await asyncio.sleep(ENFORCER_INTERVAL)
+        await asyncio.sleep(SCHEDULER_INTERVAL)
 
 
 async def main() -> None:

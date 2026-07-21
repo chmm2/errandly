@@ -13,7 +13,6 @@ from app.modules.ledger.router import router as ledger_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.realtime.router import router as realtime_router
 from app.modules.runners.router import router as runners_router
-from app.modules.timetable.router import router as timetable_router
 from app.modules.vendors.router import router as vendors_router
 
 app = FastAPI(title="Errandly API", version="0.1.0")
@@ -30,7 +29,6 @@ app.include_router(auth_router)
 app.include_router(errands_router)
 app.include_router(runners_router)
 app.include_router(realtime_router)
-app.include_router(timetable_router)
 app.include_router(notifications_router)
 app.include_router(analytics_router)
 app.include_router(vendors_router)

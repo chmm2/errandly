@@ -1,10 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { Link } from "react-router-dom";
 
 import { fetchMe, setPhoto } from "../api/auth";
 import { type Errand, fetchMyErrands, rateErrand } from "../api/errands";
-import { fetchSlots } from "../api/timetable";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../stores/auth";
 
@@ -134,7 +132,6 @@ export default function Profile() {
 
   useQuery({ queryKey: ["me"], queryFn: fetchMe }); // keep the store fresh
   const { data: mine } = useQuery({ queryKey: ["my-errands"], queryFn: fetchMyErrands });
-  const { data: slots } = useQuery({ queryKey: ["timetable"], queryFn: fetchSlots });
 
   const requestedHistory = (mine?.requested ?? []).filter((e) => TERMINAL.includes(e.status));
   const ranHistory = (mine?.running ?? []).filter((e) => TERMINAL.includes(e.status));
@@ -203,24 +200,6 @@ export default function Profile() {
       </section>
 
       <div className="mx-auto max-w-4xl space-y-10 px-4 py-10">
-        {/* Timetable */}
-        <section>
-          <h2 className="text-xl font-extrabold">Class timetable 🗓️</h2>
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line p-5">
-            <p className="text-sm text-muted">
-              {(slots?.length ?? 0) > 0
-                ? `${slots!.length} class slot${slots!.length > 1 ? "s" : ""} saved — runner mode stays off during class.`
-                : "Not set. Add your slots so runner mode locks itself during class."}
-            </p>
-            <Link
-              to="/timetable"
-              className="shrink-0 rounded-xl bg-brand px-5 py-2.5 text-sm font-bold text-white transition hover:bg-brand-dark"
-            >
-              {(slots?.length ?? 0) > 0 ? "Edit timetable" : "Set up timetable"}
-            </Link>
-          </div>
-        </section>
-
         {/* History */}
         <section>
           <h2 className="text-xl font-extrabold">History</h2>

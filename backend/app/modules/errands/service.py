@@ -21,7 +21,6 @@ from app.modules.errands.schemas import ErrandCreate
 from app.modules.outbox import service as outbox
 from app.modules.runners import service as runners_service
 from app.modules.runners.models import RunnerProfile
-from app.modules.timetable import service as timetable
 from app.modules.vendors.models import MenuItem, Vendor
 
 ACCEPT_LOCK_PREFIX = "errand:accept:"
@@ -41,8 +40,12 @@ ALLOWED_TRANSITIONS = {
     ("DELIVERED", "COMPLETED"),
     ("OPEN", "CANCELLED"),
     ("ACCEPTED", "CANCELLED"),
+    ("ACCEPTED", "OPEN"),  # runner backs out in the grace window → re-queued
     ("OPEN", "EXPIRED"),  # nobody accepted within the window (worker sweep)
 }
+
+# How long after accepting a runner can hand an errand back to the queue.
+RELEASE_WINDOW_SECONDS = 300  # 5 minutes
 
 
 class ErrandError(Exception):
@@ -136,10 +139,6 @@ async def _offer_to_nearby_runners(db: AsyncSession, redis: Redis, errand: Erran
         limit=OFFER_FANOUT,
         exclude=errand.requester_id,
     )
-    # Timetable enforcement at the matching seam: never offer to someone
-    # sitting in class, even if the enforcer hasn't swept them out yet.
-    in_class = await timetable.in_class_user_ids(db, [rid for rid, _ in nearby])
-    nearby = [(rid, dist) for rid, dist in nearby if rid not in in_class]
     payload = {
         "type": "offer",
         "errand_id": str(errand.id),
@@ -592,6 +591,44 @@ async def rate_errand(
     runner.reputation_score = round(total / runner.rating_count, 2)
     _record(db, errand, user, "RATED", {"stars": stars})
     await db.commit()
+
+
+async def release_errand(
+    db: AsyncSession, redis: Redis, user: User, errand_id: uuid.UUID
+) -> Errand:
+    """Runner hands an accepted errand back to the queue within the grace
+    window (Uber-style) — it returns to OPEN and is re-offered, not cancelled."""
+    errand = await db.scalar(select(Errand).where(Errand.id == errand_id).with_for_update())
+    if errand is None or errand.deleted_at is not None or errand.campus_id != user.campus_id:
+        raise ErrandError("Errand not found.", 404)
+    if errand.runner_id != user.id:
+        raise ErrandError("Only the assigned runner can release this errand.", 403)
+    if errand.status != "ACCEPTED":
+        raise ErrandError("You can only release it before pickup.", 409)
+    if errand.accepted_at is not None:
+        elapsed = (datetime.now(UTC) - errand.accepted_at).total_seconds()
+        if elapsed > RELEASE_WINDOW_SECONDS:
+            raise ErrandError(
+                "The 5-minute release window has passed — deliver it or cancel.", 409
+            )
+
+    _transition(errand, "OPEN")
+    errand.runner_id = None
+    errand.accepted_at = None
+    _record(db, errand, user, "RELEASED")
+    await db.commit()
+    await db.refresh(errand)
+    await publish_status(redis, errand)
+
+    # Straight back into matching for the next nearby runner.
+    offered = await _offer_to_nearby_runners(db, redis, errand)
+    if offered:
+        _record(db, errand, None, "OFFERED", {"runners": offered})
+        await db.commit()
+
+    await _attach_secret_flags(db, [errand])
+    await _attach_items(db, [errand])
+    return errand
 
 
 async def set_item_availability(

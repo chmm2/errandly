@@ -147,6 +147,20 @@ async def complete(
         _raise(e)
 
 
+@router.post("/{errand_id}/release", response_model=ErrandOut)
+async def release(
+    errand_id: uuid.UUID,
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+):
+    """Runner hands the errand back to the queue within the grace window."""
+    try:
+        return await service.release_errand(db, redis, user, errand_id)
+    except ErrandError as e:
+        _raise(e)
+
+
 class ItemAvailability(BaseModel):
     available: bool
 

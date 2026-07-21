@@ -151,6 +151,10 @@ export async function deliverErrand(id: string): Promise<Errand> {
   return (await api.post<Errand>(`/errands/${id}/deliver`)).data;
 }
 
+export async function releaseErrand(id: string): Promise<Errand> {
+  return (await api.post<Errand>(`/errands/${id}/release`)).data;
+}
+
 export async function setItemAvailability(
   errandId: string,
   itemId: string,

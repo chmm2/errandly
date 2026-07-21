@@ -270,3 +270,31 @@ async def test_runner_cancels_when_nothing_available(client, make_user):
     events = (await client.get(f"/errands/{eid}/events", headers=requester)).json()
     cancelled = next(e for e in events if e["event_type"] == "CANCELLED")
     assert cancelled["payload"]["reason"] == "None in stock"
+
+
+async def test_runner_releases_errand_back_to_queue(client, make_user):
+    """Uber-style: a runner hands an accepted errand back to the queue — it
+    returns to OPEN and can be picked up by someone else, not cancelled."""
+    _, requester = await make_user("Requester")
+    _, runner = await make_user("Runner")
+    _, other = await make_user("Other")
+    errand = await _create(client, requester)
+    eid = errand["id"]
+
+    await client.post(f"/errands/{eid}/accept", headers=runner)
+    resp = await client.post(f"/errands/{eid}/release", headers=runner)
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "OPEN"
+    assert resp.json()["runner_id"] is None
+
+    # Back on the feed and claimable by another runner
+    feed = (await client.get("/errands", headers=other)).json()
+    assert eid in [e["id"] for e in feed["items"]]
+    assert (await client.post(f"/errands/{eid}/accept", headers=other)).status_code == 200
+
+    # The original runner is no longer assigned, so can't release it
+    assert (await client.post(f"/errands/{eid}/release", headers=runner)).status_code == 403
+
+    # And you can't release after pickup
+    await client.post(f"/errands/{eid}/pickup", headers=other)
+    assert (await client.post(f"/errands/{eid}/release", headers=other)).status_code == 409
