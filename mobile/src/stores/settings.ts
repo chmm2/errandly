@@ -29,8 +29,10 @@ export const useSettings = create<SettingsState>()(
       name: "errandly-settings",
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (s) => ({ apiHostOverride: s.apiHostOverride }),
-      onRehydrateStorage: () => (state) => {
-        useSettings.setState({ hydrated: true, ...(state ?? {}) });
+      // Only flip the flag — see the note in stores/auth.ts for why spreading
+      // the rehydrated state here would overwrite it straight back to false.
+      onRehydrateStorage: () => () => {
+        useSettings.setState({ hydrated: true });
       },
     },
   ),

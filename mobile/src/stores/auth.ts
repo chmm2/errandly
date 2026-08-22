@@ -46,8 +46,13 @@ export const useAuth = create<AuthState>()(
         refreshToken: s.refreshToken,
         user: s.user,
       }),
-      onRehydrateStorage: () => (state) => {
-        useAuth.setState({ hydrated: true, ...(state ?? {}) });
+      // Zustand has already merged the persisted values by the time this runs,
+      // so only flip the flag. Spreading `state` here would be actively wrong:
+      // it's the full store state, whose own `hydrated` is still false, and
+      // spreading it after the flag would overwrite it back — leaving the app
+      // stuck on the splash spinner forever.
+      onRehydrateStorage: () => () => {
+        useAuth.setState({ hydrated: true });
       },
     },
   ),
