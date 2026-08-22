@@ -15,7 +15,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { fetchMe, login } from "../../src/api/auth";
-import { BackendSetting } from "../../src/components/BackendSetting";
 import { Button, Caption, ErrorNote, Field } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
 import { useAuth } from "../../src/stores/auth";
@@ -36,7 +35,6 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [showServer, setShowServer] = useState(false);
 
   // `animate-float` from the web app — a slow bob on the scooter mark.
   const bob = useRef(new Animated.Value(0)).current;
@@ -171,18 +169,6 @@ export default function Login() {
               </View>
             </View>
 
-            {/* Escape hatch: an unreachable server means you can't sign in, so
-                the fix has to live on this side of the login wall. */}
-            <Pressable onPress={() => setShowServer((v) => !v)} hitSlop={10} style={s.serverBtn}>
-              <Text style={s.serverText}>
-                {showServer ? "Hide server settings" : "Can't connect? Change server"}
-              </Text>
-            </Pressable>
-            {showServer ? (
-              <View style={{ marginTop: space.md }}>
-                <BackendSetting compact />
-              </View>
-            ) : null}
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -259,11 +245,4 @@ const s = StyleSheet.create({
   },
   link: { color: colors.brand, fontSize: font.small, fontFamily: font.bold },
 
-  serverBtn: { marginTop: space.xl },
-  serverText: {
-    color: "rgba(255,255,255,0.85)",
-    fontSize: font.small,
-    fontFamily: font.semi,
-    textAlign: "center",
-  },
 });

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 
 import { fetchMe } from "../../src/api/auth";
+import { fetchNotifications } from "../../src/api/notifications";
 import {
   cancelErrand,
   completeErrand,
@@ -180,6 +181,13 @@ export default function Home() {
     refetchInterval: 15_000,
   });
 
+  const { data: notifications } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: fetchNotifications,
+    refetchInterval: 60_000,
+  });
+  const unread = notifications?.unread ?? 0;
+
   const active = (mine?.requested ?? []).filter(
     (e) => !["COMPLETED", "CANCELLED", "EXPIRED"].includes(e.status),
   );
@@ -206,6 +214,16 @@ export default function Home() {
           style={{ marginTop: space.xl, alignSelf: "flex-start" }}
         />
       </Hero>
+
+      {/* Bell sits over the hero, same position the web navbar puts it. */}
+      <Pressable onPress={() => router.push("/notifications")} style={s.bell} hitSlop={10}>
+        <Text style={{ fontSize: 17 }}>🔔</Text>
+        {unread > 0 ? (
+          <View style={s.badge}>
+            <Text style={s.badgeText}>{unread > 9 ? "9+" : unread}</Text>
+          </View>
+        ) : null}
+      </Pressable>
 
       <View style={{ paddingHorizontal: space.lg }}>
         {/* Active errands first — the moment something's in flight, it's the
@@ -257,6 +275,31 @@ export default function Home() {
 }
 
 const s = StyleSheet.create({
+  bell: {
+    position: "absolute",
+    top: space.xl,
+    right: space.lg,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: { color: colors.brand, fontSize: 10, fontFamily: font.black },
+
   eta: { fontSize: font.tiny, fontFamily: font.semi },
   rowBtn: { height: 36, paddingHorizontal: space.lg },
 

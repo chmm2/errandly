@@ -21,6 +21,12 @@ import { colors, font, radius, shadow, space } from "../theme";
 
 /* ------------------------------------------------------------------ layout */
 
+/**
+ * Clearance so the last row of a scrolling screen isn't hidden behind the tab
+ * bar. Screens outside the tab group pass `tabBarClearance={false}`.
+ */
+const TAB_BAR_CLEARANCE = 96;
+
 export function Screen({
   children,
   scroll = false,
@@ -28,6 +34,7 @@ export function Screen({
   refreshControl,
   edges = ["top"],
   bg = colors.bg,
+  tabBarClearance = true,
 }: {
   children: ReactNode;
   scroll?: boolean;
@@ -35,14 +42,16 @@ export function Screen({
   refreshControl?: React.ReactElement<RefreshControlProps>;
   edges?: ("top" | "bottom")[];
   bg?: string;
+  tabBarClearance?: boolean;
 }) {
   const inner = padded ? { paddingHorizontal: space.lg } : undefined;
+  const bottom = tabBarClearance ? TAB_BAR_CLEARANCE : space.xxxl;
   return (
     <SafeAreaView style={[s.screen, { backgroundColor: bg }]} edges={edges}>
       {scroll ? (
         <ScrollView
           style={s.flex}
-          contentContainerStyle={[inner, { paddingBottom: space.xxxl }]}
+          contentContainerStyle={[inner, { paddingBottom: bottom }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           refreshControl={refreshControl}

@@ -1,5 +1,6 @@
 import { Tabs } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, font, radius } from "../../src/theme";
 
@@ -12,15 +13,20 @@ function TabIcon({ glyph, focused }: { glyph: string; focused: boolean }) {
 }
 
 export default function TabsLayout() {
+  // Size the bar from the real bottom inset rather than a hardcoded guess —
+  // a fixed 26pt gap clipped the labels on anything without a home indicator.
+  const insets = useSafeAreaInsets();
+  const bottomInset = Platform.OS === "web" ? 8 : Math.max(insets.bottom, 8);
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: s.bar,
+        tabBarStyle: [s.bar, { height: 58 + bottomInset, paddingBottom: bottomInset }],
         tabBarActiveTintColor: colors.brand,
         tabBarInactiveTintColor: colors.muted,
         tabBarLabelStyle: s.label,
-        tabBarItemStyle: { paddingTop: 6 },
+        tabBarItemStyle: { paddingTop: 5 },
         sceneStyle: { backgroundColor: colors.bg },
       }}
     >
@@ -61,14 +67,12 @@ const s = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopColor: colors.line,
     borderTopWidth: 1,
-    height: 84,
-    paddingBottom: 26,
-    paddingTop: 6,
+    paddingTop: 4,
   },
-  label: { fontSize: font.tiny, fontFamily: font.bold, marginTop: 2 },
+  label: { fontSize: 10, fontFamily: font.bold, marginTop: 1 },
   icon: {
-    width: 40,
-    height: 28,
+    width: 38,
+    height: 26,
     borderRadius: radius.pill,
     alignItems: "center",
     justifyContent: "center",

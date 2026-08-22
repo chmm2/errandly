@@ -1,10 +1,12 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
+import { useState } from "react";
+import { Alert, Image, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 
+import { fetchMe, setPhoto } from "../../src/api/auth";
+import { type Errand, fetchMyErrands } from "../../src/api/errands";
 import { fetchEarnings } from "../../src/api/ledger";
-import { fetchNotifications, markAllRead } from "../../src/api/notifications";
-import { BackendSetting } from "../../src/components/BackendSetting";
 import {
   Body,
   Button,
@@ -14,32 +16,115 @@ import {
   Footer,
   Heading,
   Hero,
+  IconTile,
   Row,
   Screen,
 } from "../../src/components/ui";
-import { useSocket } from "../../src/lib/ws";
+import { apiErrorMessage } from "../../src/lib/api";
 import { useAuth } from "../../src/stores/auth";
-import { colors, font, radius, rupees, space, timeAgo } from "../../src/theme";
+import {
+  categoryIcon,
+  colors,
+  font,
+  radius,
+  rupees,
+  space,
+  statusStyle,
+  timeAgo,
+} from "../../src/theme";
+
+const DONE = ["COMPLETED", "CANCELLED", "EXPIRED"];
+
+/** A finished errand or run, in the compact history style. */
+function HistoryRow({ errand, onPress }: { errand: Errand; onPress: () => void }) {
+  const status = statusStyle[errand.status];
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [s.histRow, pressed && s.pressed]}>
+      <IconTile emoji={categoryIcon[errand.category] ?? "✨"} size={38} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Body numberOfLines={1} style={{ fontFamily: font.semi }}>
+          {errand.title}
+        </Body>
+        <Caption numberOfLines={1}>
+          {rupees(errand.reward)} · {timeAgo(errand.created_at)}
+        </Caption>
+      </View>
+      <Caption style={{ color: status.text, fontFamily: font.bold, fontSize: 10 }}>
+        {status.label}
+      </Caption>
+    </Pressable>
+  );
+}
+
+function StatBlock({ value, label }: { value: string | number; label: string }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={s.stat}>{value}</Text>
+      <Caption>{label}</Caption>
+    </View>
+  );
+}
 
 export default function Profile() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const user = useAuth((s) => s.user);
+  const setUser = useAuth((s) => s.setUser);
   const logout = useAuth((s) => s.logout);
 
+  const [uploading, setUploading] = useState(false);
+
   const { data: earnings } = useQuery({ queryKey: ["earnings"], queryFn: fetchEarnings });
-  const { data: notifications } = useQuery({
-    queryKey: ["notifications"],
-    queryFn: fetchNotifications,
-    refetchInterval: 60_000,
+  const { data: mine, refetch, isRefetching } = useQuery({
+    queryKey: ["my-errands"],
+    queryFn: fetchMyErrands,
   });
 
-  // Live notification pushes (Kafka consumer -> Redis -> this socket).
-  useSocket(
-    "/ws/notifications",
-    useCallback(() => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-    }, [queryClient]),
-  );
+  const ordered = mine?.requested ?? [];
+  const ran = mine?.running ?? [];
+  const pastOrders = ordered.filter((e) => DONE.includes(e.status));
+  const pastRuns = ran.filter((e) => DONE.includes(e.status));
+  const completedOrders = ordered.filter((e) => e.status === "COMPLETED");
+  const spent = completedOrders.reduce((sum, e) => sum + Number(e.reward) + Number(e.items_total), 0);
+
+  const savePhoto = useMutation({
+    mutationFn: (dataUrl: string | null) => setPhoto(dataUrl),
+    onSuccess: async () => {
+      setUser(await fetchMe());
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+    },
+    onError: (err) => Alert.alert("Couldn't update photo", apiErrorMessage(err)),
+  });
+
+  /** Pick a square avatar and send it as a data URL, matching the web client. */
+  async function pickPhoto() {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert("Permission needed", "Allow photo access to set a profile picture.");
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+      base64: true,
+    });
+    if (res.canceled || !res.assets[0]?.base64) return;
+
+    setUploading(true);
+    try {
+      // The column caps at ~300k characters, so keep the payload small.
+      const dataUrl = `data:image/jpeg;base64,${res.assets[0].base64}`;
+      if (dataUrl.length > 290_000) {
+        Alert.alert("Image too large", "Pick a smaller photo — try cropping it tighter.");
+        return;
+      }
+      await savePhoto.mutateAsync(dataUrl);
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const initials = (user?.display_name ?? "?")
     .split(" ")
@@ -56,104 +141,122 @@ export default function Profile() {
   }
 
   return (
-    <Screen scroll padded={false}>
+    <Screen
+      scroll
+      padded={false}
+      refreshControl={
+        <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.brand} />
+      }
+    >
       <Hero compact title="Your profile" />
 
       <View style={{ paddingHorizontal: space.lg }}>
-        {/* Identity card, pulled up over the hero edge */}
+        {/* Identity */}
         <Card raised style={s.idCard}>
           <Row gap={space.lg}>
-            <View style={s.avatar}>
-              <Text style={s.initials}>{initials}</Text>
-            </View>
+            <Pressable onPress={pickPhoto} disabled={uploading}>
+              <View style={s.avatar}>
+                {user?.photo_url ? (
+                  <Image source={{ uri: user.photo_url }} style={s.avatarImg} />
+                ) : (
+                  <Text style={s.initials}>{initials}</Text>
+                )}
+              </View>
+              <View style={s.camera}>
+                <Text style={{ fontSize: 11 }}>{uploading ? "…" : "📷"}</Text>
+              </View>
+            </Pressable>
+
             <View style={{ flex: 1 }}>
               <Body numberOfLines={1} style={{ fontFamily: font.black, fontSize: font.h3 }}>
                 {user?.display_name ?? "—"}
               </Body>
               <Caption numberOfLines={1}>{user?.email}</Caption>
-              <Row gap={space.sm} style={{ marginTop: 5 }}>
+              <Row gap={space.sm} style={{ marginTop: 5 }} wrap>
                 <Text style={s.stars}>★ {(user?.reputation_score ?? 5).toFixed(2)}</Text>
                 {user?.student_id ? <Caption>· {user.student_id}</Caption> : null}
               </Row>
             </View>
           </Row>
+          <Caption style={{ marginTop: space.md }}>Tap your photo to change it.</Caption>
         </Card>
 
-        {/* Earnings */}
-        <Heading style={{ marginTop: space.xxl, marginBottom: space.md }}>Earnings</Heading>
+        {/* ---------------------------------------------------- as a customer */}
+        <Heading style={{ marginTop: space.xxl, marginBottom: space.md }}>🧑 As a customer</Heading>
         <Card raised>
-          <Row gap={space.xxl}>
-            <View>
-              <Text style={s.big}>{rupees(earnings?.balance ?? 0)}</Text>
-              <Caption>balance</Caption>
-            </View>
-            <View>
-              <Text style={s.big}>{rupees(earnings?.week_total ?? 0)}</Text>
-              <Caption>this week</Caption>
-            </View>
-            <View>
-              <Text style={s.big}>{earnings?.week_runs ?? 0}</Text>
-              <Caption>runs</Caption>
-            </View>
+          <Row gap={space.md}>
+            <StatBlock value={ordered.length} label="errands posted" />
+            <StatBlock value={completedOrders.length} label="completed" />
+            <StatBlock value={rupees(spent)} label="total spent" />
           </Row>
         </Card>
 
-        {/* Notifications */}
-        <Row justify="space-between" style={{ marginTop: space.xxl, marginBottom: space.md }}>
-          <Heading>
-            Notifications{notifications?.unread ? ` · ${notifications.unread}` : ""}
-          </Heading>
-          {notifications?.unread ? (
-            <Pressable
-              hitSlop={8}
-              onPress={async () => {
-                await markAllRead();
-                queryClient.invalidateQueries({ queryKey: ["notifications"] });
-              }}
-            >
-              <Text style={s.link}>Mark all read</Text>
-            </Pressable>
-          ) : null}
+        <Row justify="space-between" style={{ marginTop: space.lg, marginBottom: space.md }}>
+          <Body style={{ fontFamily: font.bold }}>Previous errands</Body>
+          {pastOrders.length > 5 ? <Caption>{pastOrders.length} total</Caption> : null}
         </Row>
-
         <Card raised style={{ padding: 0 }}>
-          {(notifications?.items ?? []).length === 0 ? (
-            <View style={{ padding: space.xxl, alignItems: "center" }}>
-              <Text style={{ fontSize: 26, marginBottom: space.sm }}>🔔</Text>
-              <Caption>Nothing yet — updates land here live.</Caption>
+          {pastOrders.length === 0 ? (
+            <View style={s.emptyInline}>
+              <Caption>Nothing finished yet — your past errands will show up here.</Caption>
             </View>
           ) : (
-            notifications!.items.slice(0, 12).map((n, i) => (
-              <View key={n.id}>
+            pastOrders.slice(0, 5).map((e, i) => (
+              <View key={e.id}>
                 {i > 0 ? <Divider /> : null}
-                <View style={s.notif}>
-                  <View style={[s.unreadDot, { opacity: n.read_at ? 0 : 1 }]} />
-                  <View style={{ flex: 1 }}>
-                    <Body style={{ fontFamily: n.read_at ? font.regular : font.bold }}>
-                      {n.title}
-                    </Body>
-                    {n.body ? (
-                      <Caption style={{ marginTop: 2 }} numberOfLines={2}>
-                        {n.body}
-                      </Caption>
-                    ) : null}
-                  </View>
-                  <Caption>{timeAgo(n.created_at)}</Caption>
-                </View>
+                <HistoryRow errand={e} onPress={() => router.push(`/errand/${e.id}`)} />
               </View>
             ))
           )}
         </Card>
 
-        {/* Server address — editable so a moved backend doesn't need a rebuild */}
-        <Heading style={{ marginTop: space.xxl, marginBottom: space.md }}>Server</Heading>
-        <BackendSetting />
+        {/* ------------------------------------------------------ as a runner */}
+        <Heading style={{ marginTop: space.xxl, marginBottom: space.md }}>🛵 As a runner</Heading>
+        <Card raised>
+          <Row gap={space.md}>
+            <StatBlock value={rupees(earnings?.balance ?? 0)} label="balance" />
+            <StatBlock value={rupees(earnings?.week_total ?? 0)} label="this week" />
+            <StatBlock value={earnings?.week_runs ?? 0} label="runs this week" />
+          </Row>
+        </Card>
+
+        <Row justify="space-between" style={{ marginTop: space.lg, marginBottom: space.md }}>
+          <Body style={{ fontFamily: font.bold }}>Previous runs</Body>
+          {pastRuns.length > 5 ? <Caption>{pastRuns.length} total</Caption> : null}
+        </Row>
+        <Card raised style={{ padding: 0 }}>
+          {pastRuns.length === 0 ? (
+            <View style={s.emptyInline}>
+              <Caption>No completed runs yet — accept an errand from the Run tab.</Caption>
+            </View>
+          ) : (
+            pastRuns.slice(0, 5).map((e, i) => (
+              <View key={e.id}>
+                {i > 0 ? <Divider /> : null}
+                <HistoryRow errand={e} onPress={() => router.push(`/errand/${e.id}`)} />
+              </View>
+            ))
+          )}
+        </Card>
+
+        {/* ---------------------------------------------------------- account */}
+        <Heading style={{ marginTop: space.xxl, marginBottom: space.md }}>Account</Heading>
+        <Card raised style={{ padding: 0 }}>
+          <Pressable
+            onPress={() => router.push("/notifications")}
+            style={({ pressed }) => [s.link, pressed && s.pressed]}
+          >
+            <Text style={{ fontSize: 16 }}>🔔</Text>
+            <Body style={{ flex: 1 }}>Notifications</Body>
+            <Caption>›</Caption>
+          </Pressable>
+        </Card>
 
         <Button
           title="Log out"
           variant="outline"
           onPress={confirmLogout}
-          style={{ marginTop: space.xxl }}
+          style={{ marginTop: space.xl }}
         />
 
         <Footer />
@@ -164,26 +267,48 @@ export default function Profile() {
 
 const s = StyleSheet.create({
   idCard: { marginTop: -space.xl },
+  pressed: { opacity: 0.7 },
+
   avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     backgroundColor: colors.brandSoft,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
+  avatarImg: { width: "100%", height: "100%" },
   initials: { color: colors.brandDark, fontSize: 21, fontFamily: font.black },
+  camera: {
+    position: "absolute",
+    right: -2,
+    bottom: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   stars: { color: colors.brand, fontSize: font.small, fontFamily: font.bold },
 
-  big: { color: colors.ink, fontSize: font.h2, fontFamily: font.black },
-  link: { color: colors.brand, fontSize: font.small, fontFamily: font.bold },
+  stat: { color: colors.ink, fontSize: font.h3, fontFamily: font.black },
 
-  notif: { flexDirection: "row", gap: space.md, alignItems: "flex-start", padding: space.lg },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.brand,
-    marginTop: 6,
+  histRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    padding: space.lg,
+  },
+  emptyInline: { padding: space.xl, alignItems: "center" },
+
+  link: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    padding: space.lg,
   },
 });
