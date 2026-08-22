@@ -15,7 +15,7 @@ from app.modules.errands.models import (
     Rating,
 )
 from app.modules.ledger.models import LedgerEntry
-from app.modules.notifications.models import Notification
+from app.modules.notifications.models import Notification, PushToken
 from app.modules.outbox.models import OutboxEvent, ProcessedEvent
 from app.modules.runners.models import RunnerProfile
 from app.modules.vendors.models import MenuItem, Vendor
@@ -34,6 +34,7 @@ __all__ = [
     "OutboxEvent",
     "ProcessedEvent",
     "Notification",
+    "PushToken",
     "DailyStat",
     "ErrandItem",
     "Rating",

@@ -9,11 +9,12 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { Loading } from "../src/components/ui";
+import { usePushNotifications } from "../src/lib/push";
 import { useAuth } from "../src/stores/auth";
 import { colors } from "../src/theme";
 
@@ -55,6 +56,16 @@ function useAuthGate() {
 
 export default function RootLayout() {
   const hydrated = useAuthGate();
+  const router = useRouter();
+  const signedIn = !!useAuth((s) => s.accessToken);
+
+  // Register this device for OS-level push once signed in, and open the right
+  // errand when a banner is tapped.
+  usePushNotifications(
+    signedIn,
+    useCallback((errandId: string) => router.push(`/errand/${errandId}`), [router]),
+  );
+
   // Inter, to match the web frontend. Rendering before it loads would show a
   // frame of system font and then reflow.
   const [fontsLoaded] = useFonts({

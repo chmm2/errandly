@@ -39,8 +39,7 @@ MENU = [
 ]
 
 
-async def _ensure_user(db, campus_id, *, email, name, role="STUDENT",
-                       student_id=None, password=PASSWORD) -> User:
+async def _ensure_user(db, campus_id, *, email, name, role="STUDENT", student_id=None, password=PASSWORD) -> User:
     user = await db.scalar(select(User).where(User.email == email))
     if user is None:
         user = User(

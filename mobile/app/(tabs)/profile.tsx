@@ -22,6 +22,7 @@ import {
 } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
 import { notify } from "../../src/lib/dialog";
+import { unregisterForPush } from "../../src/lib/push";
 import { useAuth } from "../../src/stores/auth";
 import {
   categoryIcon,
@@ -239,7 +240,12 @@ export default function Profile() {
         <Button
           title="Log out"
           variant="outline"
-          onPress={logout}
+          onPress={async () => {
+            // Drop this device first — once the token is gone the request
+            // would be unauthenticated.
+            await unregisterForPush();
+            logout();
+          }}
           style={{ marginTop: space.xxl }}
         />
 

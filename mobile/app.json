@@ -47,7 +47,14 @@
           "locationWhenInUsePermission": "Errandly uses your location to match you with nearby errands and to show your live position while you run one."
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "color": "#FC8019",
+          "defaultChannel": "default"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
