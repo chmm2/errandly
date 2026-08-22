@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.email import send_email
+from app.core.emails.otp import otp_email
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -41,12 +42,12 @@ async def _issue_email_otp(db: AsyncSession, user: User) -> str | None:
         otp.attempts = 0
     await db.commit()
 
+    text, html = otp_email(user.display_name, code, settings.otp_ttl_minutes)
     sent = await send_email(
         user.email,
-        "Your Errandly verification code",
-        f"Hi {user.display_name},\n\nYour Errandly verification code is: {code}\n\n"
-        f"It expires in {settings.otp_ttl_minutes} minutes. "
-        "If you didn't sign up, you can ignore this email.",
+        f"{code} is your Errandly verification code",
+        text,
+        html=html,
     )
     return None if sent else code  # dev mode surfaces the code to the caller
 

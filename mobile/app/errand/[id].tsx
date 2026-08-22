@@ -19,6 +19,7 @@ import {
 } from "../../src/api/errands";
 import { ChatPanel } from "../../src/components/ChatPanel";
 import { FindingRunner } from "../../src/components/CountdownRing";
+import { PaymentSummary } from "../../src/components/PaymentSummary";
 import {
   Body,
   Button,
@@ -202,9 +203,10 @@ export default function ErrandDetail() {
           </View>
         </Row>
 
-        {/* Waiting for a runner — the countdown to the poster's deadline is
-            the most useful thing on screen at this point. */}
-        {errand.status === "OPEN" && errand.expires_at ? (
+        {/* Waiting for a runner. Requester-only: this is *their* deadline
+            ticking down. A runner browsing the same errand has no stake in it
+            and shouldn't be shown the poster's private countdown. */}
+        {isRequester && errand.status === "OPEN" && errand.expires_at ? (
           <FindingRunner createdAt={errand.created_at} expiresAt={errand.expires_at} />
         ) : null}
 
@@ -245,9 +247,12 @@ export default function ErrandDetail() {
           </Card>
         ) : null}
 
-        {/* Runner card */}
-        {errand.runner ? (
+        {/* Who's running it, and where they are. Requester-only — a runner
+            doesn't need a card introducing them to themselves, and the live
+            position is the customer's tracking view. */}
+        {isRequester && errand.runner ? (
           <Card raised style={{ marginTop: space.lg }}>
+            <Body style={{ fontFamily: font.bold, marginBottom: space.md }}>Your runner</Body>
             <Row gap={space.md}>
               <View style={s.runnerAvatar}>
                 <Text style={{ fontSize: 20 }}>🛵</Text>
@@ -329,6 +334,12 @@ export default function ErrandDetail() {
               ))}
             </View>
           </Card>
+        ) : null}
+
+        {/* The money, from whichever side you're on. Relevant from the
+            moment a runner is assigned, and still worth seeing afterwards. */}
+        {(isRequester || isRunner) && errand.runner_id ? (
+          <PaymentSummary errand={errand} isRequester={isRequester} />
         ) : null}
 
         {/* Handoff secret — runner only */}
