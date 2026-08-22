@@ -21,7 +21,7 @@ import {
   Screen,
 } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
-import { confirm, notify } from "../../src/lib/dialog";
+import { notify } from "../../src/lib/dialog";
 import { useAuth } from "../../src/stores/auth";
 import {
   categoryIcon,
@@ -134,13 +134,8 @@ export default function Profile() {
     .join("")
     .toUpperCase();
 
-  async function confirmLogout() {
-    const ok = await confirm("Log out?", "You'll need to log in again to post or run errands.", {
-      confirmLabel: "Log out",
-      destructive: true,
-    });
-    if (ok) logout();
-  }
+  // No confirmation — logging back in is a few taps, so a dialog is pure
+  // friction. Cancelling an errand still confirms; that one can't be undone.
 
   return (
     <Screen
@@ -244,7 +239,7 @@ export default function Profile() {
         <Button
           title="Log out"
           variant="outline"
-          onPress={confirmLogout}
+          onPress={logout}
           style={{ marginTop: space.xxl }}
         />
 
