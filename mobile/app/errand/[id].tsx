@@ -20,6 +20,7 @@ import {
 import { ChatPanel } from "../../src/components/ChatPanel";
 import { FindingRunner } from "../../src/components/CountdownRing";
 import { PaymentSummary } from "../../src/components/PaymentSummary";
+import { TrackingMap } from "../../src/components/TrackingMap";
 import {
   Body,
   Button,
@@ -245,6 +246,20 @@ export default function ErrandDetail() {
               );
             })}
           </Card>
+        ) : null}
+
+        {/* Live map — requester's tracking view, only while someone is
+            actually on the way. */}
+        {isRequester && ASSIGNED.includes(errand.status) ? (
+          <TrackingMap
+            drop={{ lat: Number(errand.drop_lat), lng: Number(errand.drop_lng) }}
+            runner={
+              runnerPos ??
+              (errand.runner_lat != null && errand.runner_lng != null
+                ? { lat: Number(errand.runner_lat), lng: Number(errand.runner_lng) }
+                : null)
+            }
+          />
         ) : null}
 
         {/* Who's running it, and where they are. Requester-only — a runner
