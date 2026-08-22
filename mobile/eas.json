@@ -18,7 +18,7 @@
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_API_HOST": "https://ecommerce-dat-variation-tactics.trycloudflare.com"
+        "EXPO_PUBLIC_API_HOST": "https://overcrowd-subway-commence.ngrok-free.dev"
       }
     },
 
@@ -28,7 +28,7 @@
         "simulator": true
       },
       "env": {
-        "EXPO_PUBLIC_API_HOST": "https://ecommerce-dat-variation-tactics.trycloudflare.com"
+        "EXPO_PUBLIC_API_HOST": "https://overcrowd-subway-commence.ngrok-free.dev"
       }
     },
 
