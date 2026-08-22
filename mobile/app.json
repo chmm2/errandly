@@ -2,6 +2,7 @@
   "expo": {
     "name": "Errandly",
     "slug": "errandly",
+    "owner": "chm2s-team",
     "scheme": "errandly",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,11 +13,16 @@
       "supportsTablet": false,
       "bundleIdentifier": "in.errandly.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Errandly uses your location to match you with nearby errands and to show your live position while you run one."
+        "NSLocationWhenInUseUsageDescription": "Errandly uses your location to match you with nearby errands and to show your live position while you run one.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        }
       }
     },
     "android": {
       "package": "in.errandly.app",
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#0B0F1A",
         "foregroundImage": "./assets/android-icon-foreground.png",
