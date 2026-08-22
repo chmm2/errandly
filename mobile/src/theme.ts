@@ -1,93 +1,135 @@
 /**
- * Errandly design tokens.
+ * Errandly design tokens — ported from the web frontend so both clients look
+ * like one product. Source of truth: frontend/src/index.css (@theme block).
  *
- * Dark-first on purpose: this app is used walking around campus, often at
- * night, and a dark ground keeps the vivid category/reward colours doing the
- * signalling work instead of competing with a bright surface.
+ * Light ground, Swiggy-orange brand, Inter throughout.
  */
 
 export const colors = {
-  // Ground
-  bg: "#0B0F1A",
-  bgElevated: "#111726",
-  surface: "#151B2B",
-  surfaceHigh: "#1D2537",
-  surfacePressed: "#242E44",
+  // Ground — white, same as the web app's body
+  bg: "#FFFFFF",
+  bgSoft: "#FAFAFA",
+  surface: "#FFFFFF",
 
-  // Lines
-  border: "#232C42",
-  borderBright: "#33405E",
+  // Brand (frontend: --color-brand / -dark / -soft)
+  brand: "#FC8019",
+  brandDark: "#E8720C",
+  brandSoft: "#FFF4EA",
+  /** Hero wash — matches `bg-gradient-to-br from-brand to-brand-dark`. */
+  brandGradient: ["#FC8019", "#E8720C"] as const,
+  /** Deeper auth-screen wash — `from-brand via-[#f2670f] to-[#c2410c]`. */
+  authGradient: ["#FC8019", "#F2670F", "#C2410C"] as const,
 
-  // Ink
-  text: "#F2F5FA",
-  textDim: "#9AA6BF",
-  textFaint: "#64708A",
-  textOnBrand: "#FFFFFF",
+  // Ink (frontend: --color-ink / --color-muted / --color-line)
+  ink: "#282C3F",
+  muted: "#686B78",
+  line: "#E9E9EB",
 
-  // Brand — violet→blue is the app's signature
-  brand: "#7C5CFF",
-  brandBright: "#9B82FF",
-  brandDeep: "#4B3BD1",
-  brandGradient: ["#8B6BFF", "#4B7BFF"] as const,
+  white: "#FFFFFF",
 
-  // Reward / money — gold carries value everywhere in the app
-  gold: "#FFB020",
-  goldDeep: "#C77E00",
-  goldGradient: ["#FFC84D", "#FF9500"] as const,
-
-  // Semantic
-  success: "#2FD98F",
-  successDeep: "#12805098",
-  warning: "#FFB020",
-  danger: "#FF5F5A",
-  dangerDeep: "#7A211E",
-  info: "#4BB8FF",
-
-  // Overlay
-  scrim: "rgba(6, 9, 16, 0.72)",
+  // Semantic — the pastel pill palette the web app uses for statuses
+  blueBg: "#EFF6FF",
+  blueText: "#1D4ED8",
+  amberBg: "#FFFBEB",
+  amberText: "#B45309",
+  purpleBg: "#FAF5FF",
+  purpleText: "#7E22CE",
+  greenBg: "#F0FDF4",
+  greenText: "#15803D",
+  grayBg: "#F3F4F6",
+  redBg: "#FEF2F2",
+  redText: "#B91C1C",
+  redBorder: "#FECACA",
+  emerald: "#059669",
 } as const;
 
-/** One colour + emoji per errand category, used on cards, chips and maps. */
-export const categoryStyle = {
-  FOOD: { label: "Food", emoji: "🍜", color: "#FF7A45", tint: "rgba(255,122,69,0.14)" },
-  GROCERY: { label: "Grocery", emoji: "🛒", color: "#2FD98F", tint: "rgba(47,217,143,0.14)" },
-  PARCEL: { label: "Parcel", emoji: "📦", color: "#4BB8FF", tint: "rgba(75,184,255,0.14)" },
-  STATIONERY: { label: "Stationery", emoji: "✏️", color: "#FFB020", tint: "rgba(255,176,32,0.14)" },
-  PHARMACY: { label: "Pharmacy", emoji: "💊", color: "#FF5F8A", tint: "rgba(255,95,138,0.14)" },
-  CUSTOM: { label: "Gate pickup", emoji: "🛵", color: "#9B82FF", tint: "rgba(155,130,255,0.14)" },
-} as const;
-
-/** Colour + copy per lifecycle state — mirrors the backend's 7-state machine. */
+/**
+ * Status pills — label and colours lifted from the web STATUS_STYLES map so
+ * both clients say the same thing about the same state.
+ */
 export const statusStyle = {
-  OPEN: { label: "Open", color: colors.info, tint: "rgba(75,184,255,0.14)" },
-  ACCEPTED: { label: "Runner assigned", color: colors.brandBright, tint: "rgba(155,130,255,0.14)" },
-  IN_PROGRESS: { label: "On the way", color: colors.gold, tint: "rgba(255,176,32,0.14)" },
-  DELIVERED: { label: "Delivered", color: colors.success, tint: "rgba(47,217,143,0.14)" },
-  COMPLETED: { label: "Completed", color: colors.success, tint: "rgba(47,217,143,0.14)" },
-  CANCELLED: { label: "Cancelled", color: colors.danger, tint: "rgba(255,95,90,0.14)" },
-  EXPIRED: { label: "Expired", color: colors.textFaint, tint: "rgba(100,112,138,0.14)" },
+  OPEN: { label: "Waiting for a runner", bg: colors.blueBg, text: colors.blueText },
+  ACCEPTED: { label: "Runner assigned", bg: colors.amberBg, text: colors.amberText },
+  IN_PROGRESS: { label: "On the way", bg: colors.brandSoft, text: colors.brandDark },
+  DELIVERED: { label: "Delivered — confirm it", bg: colors.purpleBg, text: colors.purpleText },
+  COMPLETED: { label: "Completed", bg: colors.greenBg, text: colors.greenText },
+  CANCELLED: { label: "Cancelled", bg: colors.grayBg, text: colors.muted },
+  EXPIRED: { label: "Expired", bg: colors.grayBg, text: colors.muted },
 } as const;
+
+/** Category emoji — same glyphs the web app uses. */
+export const categoryIcon: Record<string, string> = {
+  FOOD: "🍔",
+  GROCERY: "🛒",
+  PARCEL: "📦",
+  STATIONERY: "📚",
+  PHARMACY: "💊",
+  CUSTOM: "✨",
+};
+
+/**
+ * The four ways to start an errand, exactly as the web home page frames them.
+ * Note this is a *user-facing* grouping, not the backend's six categories:
+ * grocery, stationery and pharmacy all share one shopping-list flow.
+ */
+export const startOptions = [
+  {
+    icon: "🛒",
+    name: "Shopping list",
+    desc: "Groceries, stationery, medicines — list what you need",
+    route: "/errand/new" as const,
+    params: { mode: "shopping" },
+  },
+  {
+    icon: "🍔",
+    name: "Food",
+    desc: "Canteens, food court, night mess",
+    route: "/(tabs)/shops" as const,
+    params: { category: "FOOD" },
+  },
+  {
+    icon: "📦",
+    name: "Parcel pickup",
+    desc: "Amazon / Flipkart collection point",
+    route: "/errand/new" as const,
+    params: { category: "PARCEL" },
+  },
+  {
+    icon: "🛺",
+    name: "Main gate",
+    desc: "Collect a delivery waiting at the gate",
+    route: "/errand/new" as const,
+    params: { category: "CUSTOM" },
+  },
+];
 
 export const space = {
   xs: 4,
   sm: 8,
   md: 12,
   lg: 16,
-  xl: 24,
-  xxl: 32,
-  xxxl: 48,
+  xl: 20,
+  xxl: 28,
+  xxxl: 40,
 } as const;
 
+/** Matches Tailwind's rounded-xl / -2xl / -3xl / -full. */
 export const radius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 22,
+  md: 10,
+  lg: 12,
+  xl: 16,
+  xxl: 24,
   pill: 999,
 } as const;
 
+/** Inter weights, loaded in app/_layout.tsx. */
 export const font = {
-  // Sizes
+  regular: "Inter_400Regular",
+  medium: "Inter_500Medium",
+  semi: "Inter_600SemiBold",
+  bold: "Inter_700Bold",
+  black: "Inter_800ExtraBold",
+
   display: 32,
   h1: 26,
   h2: 21,
@@ -95,36 +137,31 @@ export const font = {
   body: 15,
   small: 13,
   tiny: 11,
-  // Weights (RN wants strings)
-  black: "800" as const,
-  bold: "700" as const,
-  semi: "600" as const,
-  regular: "400" as const,
-};
+} as const;
 
-/** Elevation presets — iOS shadow + Android elevation in one object. */
+/** Soft elevation — the web app leans on hover:shadow-md / -lg. */
 export const shadow = {
   card: {
-    shadowColor: "#000",
+    shadowColor: "#282C3F",
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  raised: {
+    shadowColor: "#282C3F",
+    shadowOpacity: 0.13,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  brand: {
+    shadowColor: "#FC8019",
     shadowOpacity: 0.35,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
   },
-  raised: {
-    shadowColor: "#000",
-    shadowOpacity: 0.45,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 12,
-  },
-  glow: (color: string) => ({
-    shadowColor: color,
-    shadowOpacity: 0.5,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 10,
-  }),
 } as const;
 
 export function rupees(n: number): string {
@@ -136,21 +173,17 @@ export function metres(m: number | null): string | null {
   return m < 950 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
 }
 
-/** "3m ago" / "2h ago" — compact relative time for feeds. */
-export function timeAgo(iso: string): string {
-  const secs = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (secs < 60) return "just now";
-  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
-  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;
-  return `${Math.floor(secs / 86400)}d ago`;
+/** Rough end-to-end estimate once a runner is on it — mirrors the web app. */
+export const ETA_MINUTES = 15;
+
+export function minsAgo(iso: string): number {
+  return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
 }
 
-/** Countdown to a deadline, e.g. "12m left" — null once past. */
-export function timeLeft(iso: string | null): string | null {
-  if (!iso) return null;
-  const secs = (new Date(iso).getTime() - Date.now()) / 1000;
-  if (secs <= 0) return null;
-  if (secs < 60) return `${Math.floor(secs)}s left`;
-  if (secs < 3600) return `${Math.floor(secs / 60)}m left`;
-  return `${Math.floor(secs / 3600)}h left`;
+export function timeAgo(iso: string): string {
+  const m = minsAgo(iso);
+  if (m === 0) return "just now";
+  if (m < 60) return `${m} min ago`;
+  if (m < 1440) return `${Math.floor(m / 60)}h ago`;
+  return `${Math.floor(m / 1440)}d ago`;
 }

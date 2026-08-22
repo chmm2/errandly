@@ -1,50 +1,187 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { LinearGradient } from "expo-linear-gradient";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 
-import { type Category, type Errand, fetchMyErrands } from "../../src/api/errands";
-import { ErrandCard } from "../../src/components/ErrandCard";
+import { fetchMe } from "../../src/api/auth";
+import {
+  cancelErrand,
+  completeErrand,
+  type Errand,
+  type ErrandStatus,
+  fetchMyErrands,
+} from "../../src/api/errands";
 import {
   Body,
+  Button,
   Caption,
-  EmptyState,
+  Card,
+  Footer,
   Heading,
-  Label,
+  Hero,
+  IconTile,
   Loading,
+  Pill,
   Row,
   Screen,
 } from "../../src/components/ui";
 import { useSocket } from "../../src/lib/ws";
 import { useAuth } from "../../src/stores/auth";
-import { categoryStyle, colors, font, radius, shadow, space } from "../../src/theme";
+import {
+  categoryIcon,
+  colors,
+  ETA_MINUTES,
+  font,
+  minsAgo,
+  radius,
+  rupees,
+  space,
+  startOptions,
+  statusStyle,
+} from "../../src/theme";
 
-const LIVE: Errand["status"][] = ["OPEN", "ACCEPTED", "IN_PROGRESS", "DELIVERED"];
-const QUICK: Category[] = ["FOOD", "GROCERY", "PARCEL", "STATIONERY", "PHARMACY", "CUSTOM"];
+const LIVE_STATUSES: ErrandStatus[] = ["OPEN", "ACCEPTED", "IN_PROGRESS", "DELIVERED"];
+
+/** Ticks so the "posted N min ago" / ETA line stays honest without a refetch. */
+function useNow(intervalMs = 20_000) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(t);
+  }, [intervalMs]);
+  return now;
+}
+
+/** Live "how long" line — time since posting, or an ETA once accepted. */
+function EtaLine({ errand }: { errand: Errand }) {
+  const now = useNow();
+
+  if (errand.status === "OPEN") {
+    const m = minsAgo(errand.created_at);
+    return (
+      <Text style={[s.eta, { color: colors.amberText }]}>
+        ⏳ Finding a runner · posted {m === 0 ? "just now" : `${m} min ago`}
+      </Text>
+    );
+  }
+  if (errand.status === "ACCEPTED" || errand.status === "IN_PROGRESS") {
+    const base = errand.accepted_at ? new Date(errand.accepted_at).getTime() : now;
+    const remaining = Math.round((base + ETA_MINUTES * 60_000 - now) / 60_000);
+    return (
+      <Text style={[s.eta, { color: colors.brandDark }]}>
+        ⏱️ {remaining > 1 ? `ETA ~${remaining} min` : "Arriving any moment"}
+      </Text>
+    );
+  }
+  if (errand.status === "DELIVERED") {
+    return (
+      <Text style={[s.eta, { color: colors.purpleText }]}>✅ Handed over — confirm to close</Text>
+    );
+  }
+  return null;
+}
+
+function ErrandRow({ errand, onRate }: { errand: Errand; onRate: (id: string) => void }) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["my-errands"] });
+
+  const cancel = useMutation({ mutationFn: () => cancelErrand(errand.id), onSettled: refresh });
+  const confirm = useMutation({
+    mutationFn: () => completeErrand(errand.id),
+    onSuccess: () => onRate(errand.id),
+    onSettled: refresh,
+  });
+
+  const status = statusStyle[errand.status];
+  const cancellable = errand.status === "OPEN" || errand.status === "ACCEPTED";
+
+  // Live status: the backend publishes every transition to this errand's
+  // channel; refetch the moment one arrives (polling stays as fallback).
+  useSocket(
+    LIVE_STATUSES.includes(errand.status) ? `/ws/errands/${errand.id}` : null,
+    useCallback(() => refresh(), [queryClient]),
+  );
+
+  return (
+    <Card raised style={{ padding: space.lg }}>
+      <Pressable onPress={() => router.push(`/errand/${errand.id}`)}>
+        <Row gap={space.md} align="flex-start">
+          <IconTile emoji={categoryIcon[errand.category] ?? "✨"} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Body numberOfLines={1} style={{ fontFamily: font.bold }}>
+              {errand.title}
+            </Body>
+            <Caption numberOfLines={1} style={{ marginTop: 2 }}>
+              from {errand.pickup_label} · {rupees(errand.reward)} reward · track →
+            </Caption>
+            <View style={{ marginTop: 5 }}>
+              <EtaLine errand={errand} />
+            </View>
+          </View>
+        </Row>
+      </Pressable>
+
+      <Row gap={space.sm} wrap style={{ marginTop: space.md }}>
+        <Pill label={status.label} bg={status.bg} color={status.text} />
+
+        {errand.status === "DELIVERED" ? (
+          <Button
+            title="Confirm ✓"
+            variant="success"
+            full={false}
+            loading={confirm.isPending}
+            onPress={() => confirm.mutate()}
+            style={s.rowBtn}
+          />
+        ) : null}
+
+        {errand.status === "COMPLETED" && !errand.rated ? (
+          <Button
+            title="Rate ★"
+            variant="outline"
+            full={false}
+            onPress={() => onRate(errand.id)}
+            style={s.rowBtn}
+          />
+        ) : null}
+
+        {cancellable ? (
+          <Pressable
+            onPress={() => cancel.mutate()}
+            disabled={cancel.isPending}
+            style={{ marginLeft: "auto", justifyContent: "center" }}
+            hitSlop={8}
+          >
+            <Caption style={{ fontFamily: font.semi }}>
+              {cancel.isPending ? "Cancelling…" : "Cancel"}
+            </Caption>
+          </Pressable>
+        ) : null}
+      </Row>
+    </Card>
+  );
+}
 
 export default function Home() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const user = useAuth((s) => s.user);
+  const setUser = useAuth((s) => s.setUser);
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data: me } = useQuery({ queryKey: ["me"], queryFn: fetchMe });
+  useEffect(() => {
+    if (me) setUser(me);
+  }, [me, setUser]);
+
+  const { data: mine, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["my-errands"],
     queryFn: fetchMyErrands,
-    refetchInterval: 20_000, // fallback; the socket below is the fast path
+    refetchInterval: 15_000,
   });
 
-  const active = (data?.requested ?? []).filter((e) => LIVE.includes(e.status));
-  const past = (data?.requested ?? []).filter((e) => !LIVE.includes(e.status));
-
-  // One socket for the most recent live errand nudges the whole list to refetch.
-  // (The backend publishes every transition to this errand's channel.)
-  const watched = active[0]?.id ?? null;
-  useSocket(
-    watched ? `/ws/errands/${watched}` : null,
-    useCallback(() => {
-      queryClient.invalidateQueries({ queryKey: ["my-errands"] });
-    }, [queryClient]),
+  const active = (mine?.requested ?? []).filter(
+    (e) => !["COMPLETED", "CANCELLED", "EXPIRED"].includes(e.status),
   );
 
   const firstName = user?.display_name?.split(" ")[0] ?? "there";
@@ -52,141 +189,85 @@ export default function Home() {
   return (
     <Screen
       scroll
+      padded={false}
       refreshControl={
-        <RefreshControl
-          refreshing={isRefetching}
-          onRefresh={refetch}
-          tintColor={colors.brandBright}
-        />
+        <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.brand} />
       }
     >
-      <View style={{ paddingTop: space.md }}>
-        <Caption>Hey {firstName} 👋</Caption>
-        <Heading style={{ marginTop: 2 }}>What do you need today?</Heading>
-      </View>
-
-      {/* Primary CTA */}
-      <Pressable
-        onPress={() => router.push("/errand/new")}
-        style={({ pressed }) => [pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] }]}
+      <Hero
+        title={`Hey ${firstName}, what do you need today?`}
+        subtitle="A verified student runner is minutes away. Post an errand or pick one up on your way back to the hostel."
       >
-        <LinearGradient
-          colors={colors.brandGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[s.cta, shadow.glow(colors.brand)]}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={s.ctaTitle}>Post an errand</Text>
-            <Text style={s.ctaBody}>Someone nearby picks it up in minutes</Text>
+        <Button
+          title="Post an errand  →"
+          variant="white"
+          full={false}
+          onPress={() => router.push("/errand/new")}
+          style={{ marginTop: space.xl, alignSelf: "flex-start" }}
+        />
+      </Hero>
+
+      <View style={{ paddingHorizontal: space.lg }}>
+        {/* Active errands first — the moment something's in flight, it's the
+            top thing you want to see. */}
+        {isLoading ? (
+          <View style={{ height: 150 }}>
+            <Loading />
           </View>
-          <View style={s.ctaArrow}>
-            <Text style={{ fontSize: 20, color: "#fff" }}>→</Text>
-          </View>
-        </LinearGradient>
-      </Pressable>
-
-      {/* Category quick-picks */}
-      <Label style={{ marginTop: space.xl, marginBottom: space.sm }}>Quick start</Label>
-      <Row gap={space.sm} wrap>
-        {QUICK.map((c) => {
-          const cat = categoryStyle[c];
-          return (
-            <Pressable
-              key={c}
-              onPress={() => router.push({ pathname: "/errand/new", params: { category: c } })}
-              style={({ pressed }) => [
-                s.quick,
-                { borderColor: pressed ? cat.color : colors.border },
-              ]}
-            >
-              <Text style={{ fontSize: 22 }}>{cat.emoji}</Text>
-              <Caption style={{ color: colors.text, fontWeight: font.semi }}>{cat.label}</Caption>
-            </Pressable>
-          );
-        })}
-      </Row>
-
-      {/* Active */}
-      <Row justify="space-between" style={{ marginTop: space.xxl, marginBottom: space.sm }}>
-        <Label>Your errands</Label>
-        {active.length > 0 ? <Caption>{active.length} active</Caption> : null}
-      </Row>
-
-      {isLoading ? (
-        <View style={{ height: 180 }}>
-          <Loading />
-        </View>
-      ) : active.length === 0 && past.length === 0 ? (
-        <View style={s.emptyBox}>
-          <EmptyState
-            emoji="🗒️"
-            title="Nothing posted yet"
-            body="Your errands will show up here once you post one."
-          />
-        </View>
-      ) : (
-        <View style={{ gap: space.md }}>
-          {active.map((e) => (
-            <ErrandCard key={e.id} errand={e} onPress={() => router.push(`/errand/${e.id}`)} />
-          ))}
-
-          {past.length > 0 ? (
-            <>
-              <Label style={{ marginTop: space.lg }}>Earlier</Label>
-              {past.slice(0, 8).map((e) => (
-                <ErrandCard key={e.id} errand={e} onPress={() => router.push(`/errand/${e.id}`)} />
+        ) : active.length > 0 ? (
+          <View style={{ paddingTop: space.xxl }}>
+            <Heading>Your active errands</Heading>
+            <View style={{ gap: space.md, marginTop: space.lg }}>
+              {active.map((e) => (
+                <ErrandRow key={e.id} errand={e} onRate={(id) => router.push(`/errand/${id}`)} />
               ))}
-            </>
+            </View>
+          </View>
+        ) : null}
+
+        {/* Start an errand */}
+        <View style={{ paddingTop: space.xxl }}>
+          <Heading>What can we get you?</Heading>
+          <Row gap={space.md} wrap style={{ marginTop: space.lg }}>
+            {startOptions.map((c) => (
+              <Pressable
+                key={c.name}
+                onPress={() => router.push({ pathname: c.route, params: c.params } as never)}
+                style={({ pressed }) => [s.startCard, pressed && s.startCardOn]}
+              >
+                <Text style={{ fontSize: 30 }}>{c.icon}</Text>
+                <Body style={{ fontFamily: font.bold, marginTop: space.sm }}>{c.name}</Body>
+                <Caption style={{ marginTop: 2 }}>{c.desc}</Caption>
+              </Pressable>
+            ))}
+          </Row>
+
+          {active.length === 0 && !isLoading ? (
+            <Caption style={{ marginTop: space.lg }}>
+              Nothing in flight right now — pick a category above to post your first errand. Past
+              errands live in your profile.
+            </Caption>
           ) : null}
         </View>
-      )}
 
-      {/* Running as a runner */}
-      {(data?.running ?? []).length > 0 ? (
-        <>
-          <Label style={{ marginTop: space.xxl, marginBottom: space.sm }}>You're running</Label>
-          <View style={{ gap: space.md }}>
-            {data!.running.map((e) => (
-              <ErrandCard key={e.id} errand={e} onPress={() => router.push(`/errand/${e.id}`)} />
-            ))}
-          </View>
-        </>
-      ) : null}
+        <Footer />
+      </View>
     </Screen>
   );
 }
 
 const s = StyleSheet.create({
-  cta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.md,
+  eta: { fontSize: font.tiny, fontFamily: font.semi },
+  rowBtn: { height: 36, paddingHorizontal: space.lg },
+
+  startCard: {
+    width: "48%",
     borderRadius: radius.xl,
-    padding: space.xl,
-    marginTop: space.lg,
-  },
-  ctaTitle: { color: "#fff", fontSize: font.h2, fontWeight: font.black, letterSpacing: -0.3 },
-  ctaBody: { color: "rgba(255,255,255,0.85)", fontSize: font.small, marginTop: 3 },
-  ctaArrow: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.22)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  quick: {
-    width: "31.5%",
-    aspectRatio: 1.25,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
     borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
+    borderColor: colors.line,
+    backgroundColor: colors.white,
+    padding: space.lg,
+    minHeight: 132,
   },
-
-  emptyBox: { height: 220, backgroundColor: colors.surface, borderRadius: radius.xl },
+  startCardOn: { borderColor: colors.brand, opacity: 0.9 },
 });

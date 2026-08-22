@@ -1,21 +1,13 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { StyleSheet, Text, View } from "react-native";
 
 import type { Errand } from "../api/errands";
-import {
-  categoryStyle,
-  colors,
-  font,
-  metres,
-  radius,
-  rupees,
-  space,
-  statusStyle,
-  timeAgo,
-  timeLeft,
-} from "../theme";
-import { Body, Caption, Card, Chip, Row } from "./ui";
+import { categoryIcon, colors, font, metres, rupees, space, statusStyle, timeAgo } from "../theme";
+import { Body, Caption, Card, IconTile, Pill, Row } from "./ui";
 
+/**
+ * One errand in a list. Mirrors the web app's card: category tile on the left,
+ * title and pickup line, status pill, reward called out on the right.
+ */
 export function ErrandCard({
   errand,
   onPress,
@@ -27,47 +19,33 @@ export function ErrandCard({
   showStatus?: boolean;
   footer?: React.ReactNode;
 }) {
-  const cat = categoryStyle[errand.category];
   const status = statusStyle[errand.status];
   const distance = metres(errand.distance_m);
-  const left = errand.status === "OPEN" ? timeLeft(errand.expires_at) : null;
 
   return (
-    <Card onPress={onPress} style={s.card}>
-      {/* Category stripe — colour-codes the card at a glance */}
-      <LinearGradient
-        colors={[cat.color, "transparent"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={s.stripe}
-      />
+    <Card raised onPress={onPress} style={{ padding: space.lg }}>
+      <Row gap={space.md} align="flex-start">
+        <IconTile emoji={categoryIcon[errand.category] ?? "✨"} />
 
-      <Row justify="space-between" align="flex-start" gap={space.md}>
-        <View style={{ flex: 1 }}>
-          <Row gap={space.sm} wrap style={{ marginBottom: space.sm }}>
-            <Chip label={cat.label} icon={cat.emoji} color={cat.color} tint={cat.tint} />
-            {showStatus ? (
-              <Chip label={status.label} color={status.color} tint={status.tint} />
-            ) : null}
-          </Row>
-
-          <Body numberOfLines={2} style={s.title}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Body numberOfLines={2} style={{ fontFamily: font.bold }}>
             {errand.title}
           </Body>
+          <Caption numberOfLines={1} style={{ marginTop: 2 }}>
+            from {errand.pickup_label}
+            {errand.drop_label ? ` → ${errand.drop_label}` : ""}
+          </Caption>
 
-          <Row gap={space.xs} style={{ marginTop: 5 }}>
-            <Text style={s.pin}>📍</Text>
-            <Caption numberOfLines={1} style={{ flex: 1 }}>
-              {errand.pickup_label}
-              {errand.drop_label ? ` → ${errand.drop_label}` : ""}
-            </Caption>
-          </Row>
+          {showStatus ? (
+            <View style={{ marginTop: space.sm }}>
+              <Pill label={status.label} bg={status.bg} color={status.text} />
+            </View>
+          ) : null}
         </View>
 
-        {/* Reward is the decision-driver for a runner — give it real weight */}
-        <View style={s.rewardWrap}>
+        <View style={{ alignItems: "flex-end" }}>
           <Text style={s.reward}>{rupees(errand.reward)}</Text>
-          <Caption style={s.rewardLabel}>reward</Caption>
+          <Caption style={{ fontSize: 10 }}>reward</Caption>
         </View>
       </Row>
 
@@ -75,36 +53,25 @@ export function ErrandCard({
         {distance ? <Caption>🧭 {distance} away</Caption> : null}
         {errand.items_total > 0 ? <Caption>🧾 {rupees(errand.items_total)} order</Caption> : null}
         {errand.collect_amount > 0 ? (
-          <Caption style={{ color: colors.warning }}>
+          <Caption style={{ color: colors.amberText }}>
             💵 {rupees(errand.collect_amount)} to pay
           </Caption>
         ) : null}
-        {left ? <Caption style={{ color: colors.warning }}>⏳ {left}</Caption> : null}
         <Caption style={{ marginLeft: "auto" }}>{timeAgo(errand.created_at)}</Caption>
       </Row>
 
-      {footer ? <View style={s.footer}>{footer}</View> : null}
+      {footer ? <View style={{ marginTop: space.md, gap: space.sm }}>{footer}</View> : null}
     </Card>
   );
 }
 
 const s = StyleSheet.create({
-  card: { overflow: "hidden", paddingLeft: space.lg + 3 },
-  stripe: { position: "absolute", left: 0, top: 0, bottom: 0, width: 4, opacity: 0.9 },
-
-  title: { fontSize: font.h3, fontWeight: font.bold, lineHeight: 22 },
-  pin: { fontSize: 11 },
-
-  rewardWrap: { alignItems: "flex-end", minWidth: 62 },
-  reward: { color: colors.gold, fontSize: 23, fontWeight: font.black, letterSpacing: -0.6 },
-  rewardLabel: { color: colors.goldDeep, fontSize: 10, letterSpacing: 0.6, marginTop: -2 },
-
+  reward: { color: colors.brand, fontSize: 20, fontFamily: font.black },
   meta: {
     marginTop: space.md,
     paddingTop: space.md,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.line,
     alignItems: "center",
   },
-  footer: { marginTop: space.md, gap: space.sm },
 });

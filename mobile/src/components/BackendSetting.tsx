@@ -51,15 +51,13 @@ export function BackendSetting({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <Card style={{ gap: space.md, ...(compact ? { backgroundColor: colors.surfaceHigh } : {}) }}>
+    <Card style={[{ gap: space.md }, compact ? { padding: space.lg } : null]}>
       <View>
         <Caption>Currently using</Caption>
         <Body style={{ fontSize: font.small, marginTop: 2 }} numberOfLines={2}>
           {active}
         </Body>
-        <Caption
-          style={{ marginTop: 2, color: usingDefault ? colors.textFaint : colors.brandBright }}
-        >
+        <Caption style={{ marginTop: 2, color: usingDefault ? colors.muted : colors.brand }}>
           {usingDefault ? "built-in default" : "custom override"}
         </Caption>
       </View>
@@ -76,7 +74,7 @@ export function BackendSetting({ compact = false }: { compact?: boolean }) {
       />
 
       {result ? (
-        <Caption style={{ color: result.ok ? colors.success : colors.danger }}>
+        <Caption style={{ color: result.ok ? colors.greenText : colors.redText }}>
           {result.ok ? "✓ " : "✕ "}
           {result.text}
         </Caption>
@@ -93,7 +91,7 @@ export function BackendSetting({ compact = false }: { compact?: boolean }) {
         {!usingDefault ? (
           <Button
             title="Reset"
-            variant="surface"
+            variant="outline"
             onPress={() => {
               setOverride(null);
               setDraft("");

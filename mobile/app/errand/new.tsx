@@ -26,19 +26,30 @@ import {
   Title,
 } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
-import { categoryStyle, colors, font, radius, space } from "../../src/theme";
+import { categoryIcon, colors, font, radius, space } from "../../src/theme";
 
-const CATEGORIES: Category[] = ["FOOD", "GROCERY", "PARCEL", "STATIONERY", "PHARMACY", "CUSTOM"];
+const CATEGORIES: { value: Category; label: string }[] = [
+  { value: "FOOD", label: "Food" },
+  { value: "GROCERY", label: "Grocery" },
+  { value: "STATIONERY", label: "Stationery" },
+  { value: "PHARMACY", label: "Pharmacy" },
+  { value: "PARCEL", label: "Parcel" },
+  { value: "CUSTOM", label: "Main gate" },
+];
+
 /** Backend derives fulfillment from category; these two need handoff details. */
 const PICKUP_CATEGORIES: Category[] = ["CUSTOM", "PARCEL"];
 const WAIT_OPTIONS = [15, 30, 45, 60];
+const REWARD_PRESETS = [10, 20, 30, 50];
 
 export default function NewErrand() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const params = useLocalSearchParams<{ category?: Category }>();
+  const params = useLocalSearchParams<{ category?: Category; mode?: string }>();
 
-  const [category, setCategory] = useState<Category>(params.category ?? "FOOD");
+  const [category, setCategory] = useState<Category>(
+    params.category ?? (params.mode === "shopping" ? "GROCERY" : "FOOD"),
+  );
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [pickup, setPickup] = useState("");
@@ -82,7 +93,7 @@ export default function NewErrand() {
   });
 
   const rewardNum = Number(reward) || 0;
-  const ready = title.trim().length >= 3 && pickup.trim().length >= 2 && !!drop && rewardNum >= 0;
+  const ready = title.trim().length >= 3 && pickup.trim().length >= 2 && !!drop;
 
   function submit() {
     if (!drop) return;
@@ -117,43 +128,44 @@ export default function NewErrand() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Row justify="space-between" style={{ marginBottom: space.lg }}>
+          <Row justify="flex-end">
             <Pressable onPress={() => router.back()} style={s.close} hitSlop={12}>
               <Text style={s.closeGlyph}>✕</Text>
             </Pressable>
           </Row>
 
-          <Title>New errand</Title>
-          <Body dim style={{ marginTop: space.xs }}>
+          <Title style={{ marginTop: space.sm }}>New errand</Title>
+          <Body muted style={{ marginTop: space.xs }}>
             Tell a runner what you need and what it's worth.
           </Body>
 
           {/* Category */}
-          <Label style={{ marginTop: space.xl, marginBottom: space.sm }}>Category</Label>
+          <Label style={{ marginTop: space.xxl, marginBottom: space.md }}>Category</Label>
           <Row gap={space.sm} wrap>
             {CATEGORIES.map((c) => {
-              const cat = categoryStyle[c];
-              const on = c === category;
+              const on = c.value === category;
               return (
                 <Pressable
-                  key={c}
-                  onPress={() => setCategory(c)}
-                  style={[
-                    s.cat,
-                    { borderColor: on ? cat.color : colors.border },
-                    on && { backgroundColor: cat.tint },
-                  ]}
+                  key={c.value}
+                  onPress={() => setCategory(c.value)}
+                  style={[s.cat, on && s.catOn]}
                 >
-                  <Text style={{ fontSize: 18 }}>{cat.emoji}</Text>
-                  <Caption style={{ color: on ? cat.color : colors.textDim, fontWeight: font.semi }}>
-                    {cat.label}
+                  <Text style={{ fontSize: 18 }}>{categoryIcon[c.value]}</Text>
+                  <Caption
+                    style={{
+                      color: on ? colors.brandDark : colors.muted,
+                      fontFamily: font.semi,
+                      marginTop: 2,
+                    }}
+                  >
+                    {c.label}
                   </Caption>
                 </Pressable>
               );
             })}
           </Row>
 
-          <View style={{ gap: space.md, marginTop: space.xl }}>
+          <View style={{ gap: space.lg, marginTop: space.xxl }}>
             <Field
               label="What do you need?"
               placeholder="2 veg rolls and a cold coffee"
@@ -176,13 +188,12 @@ export default function NewErrand() {
               value={notes}
               onChangeText={setNotes}
               multiline
-              numberOfLines={3}
               style={{ minHeight: 84, textAlignVertical: "top" }}
               maxLength={2000}
             />
 
             {/* Reward */}
-            <View style={{ gap: space.xs }}>
+            <View style={{ gap: 6 }}>
               <Label>Reward for the runner</Label>
               <Row gap={space.sm}>
                 <Field
@@ -192,16 +203,27 @@ export default function NewErrand() {
                   style={{ flex: 1 }}
                   placeholder="20"
                 />
-                {[10, 20, 30, 50].map((v) => (
-                  <Pressable key={v} onPress={() => setReward(String(v))} style={s.preset}>
-                    <Caption style={{ color: colors.text, fontWeight: font.bold }}>₹{v}</Caption>
+                {REWARD_PRESETS.map((v) => (
+                  <Pressable
+                    key={v}
+                    onPress={() => setReward(String(v))}
+                    style={[s.preset, rewardNum === v && s.presetOn]}
+                  >
+                    <Caption
+                      style={{
+                        color: rewardNum === v ? colors.brandDark : colors.ink,
+                        fontFamily: font.bold,
+                      }}
+                    >
+                      ₹{v}
+                    </Caption>
                   </Pressable>
                 ))}
               </Row>
             </View>
 
             {/* Wait window */}
-            <View style={{ gap: space.xs }}>
+            <View style={{ gap: 6 }}>
               <Label>Wait up to</Label>
               <Row gap={space.sm}>
                 {WAIT_OPTIONS.map((m) => {
@@ -214,8 +236,8 @@ export default function NewErrand() {
                     >
                       <Caption
                         style={{
-                          color: on ? colors.brandBright : colors.textDim,
-                          fontWeight: font.bold,
+                          color: on ? colors.brandDark : colors.muted,
+                          fontFamily: font.bold,
                         }}
                       >
                         {m}m
@@ -229,14 +251,13 @@ export default function NewErrand() {
 
             {/* Gate / parcel handoff */}
             {isPickup ? (
-              <Card style={{ gap: space.md, backgroundColor: colors.surfaceHigh }}>
-                <Row gap={space.sm}>
-                  <Text style={{ fontSize: 15 }}>🔐</Text>
-                  <Body style={{ fontWeight: font.bold, flex: 1 }}>Handoff details</Body>
-                </Row>
-                <Caption style={{ marginTop: -space.sm }}>
-                  Shared only with the runner who accepts, and every view is logged.
-                </Caption>
+              <Card style={{ gap: space.lg, backgroundColor: colors.brandSoft }}>
+                <View>
+                  <Body style={{ fontFamily: font.bold }}>🔐 Handoff details</Body>
+                  <Caption style={{ marginTop: 2 }}>
+                    Shared only with the runner who accepts, and every view is logged.
+                  </Caption>
+                </View>
                 <Field
                   label="Order / tracking number"
                   placeholder="e.g. 4821-9930"
@@ -263,11 +284,11 @@ export default function NewErrand() {
             ) : null}
 
             {/* Drop location */}
-            <Card style={{ backgroundColor: colors.surfaceHigh }}>
+            <Card style={{ backgroundColor: colors.brandSoft }}>
               <Row gap={space.sm} align="flex-start">
                 <Text style={{ fontSize: 15 }}>📍</Text>
                 <View style={{ flex: 1 }}>
-                  <Body style={{ fontWeight: font.bold }}>Deliver to my location</Body>
+                  <Body style={{ fontFamily: font.bold }}>Deliver to my location</Body>
                   <Caption style={{ marginTop: 2 }}>
                     {locating
                       ? "Finding you…"
@@ -287,13 +308,7 @@ export default function NewErrand() {
               loading={create.isPending}
               disabled={!ready}
               onPress={submit}
-              style={{ marginTop: space.sm }}
             />
-            {!drop && !locating ? (
-              <Caption style={{ textAlign: "center", color: colors.danger }}>
-                A drop location is required.
-              </Caption>
-            ) : null}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -305,45 +320,44 @@ const s = StyleSheet.create({
   close: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceHigh,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brandSoft,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: "auto",
   },
-  closeGlyph: { color: colors.text, fontSize: 15, fontWeight: font.bold },
+  closeGlyph: { color: colors.brandDark, fontSize: 15, fontFamily: font.bold },
 
   cat: {
     width: "31.5%",
     paddingVertical: space.md,
     borderRadius: radius.lg,
     borderWidth: 1,
-    backgroundColor: colors.surface,
+    borderColor: colors.line,
+    backgroundColor: colors.white,
     alignItems: "center",
-    gap: 5,
   },
+  catOn: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
 
   preset: {
     paddingHorizontal: space.md,
-    height: 50,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceHigh,
+    height: 48,
+    borderRadius: radius.lg,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     alignItems: "center",
     justifyContent: "center",
   },
+  presetOn: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
 
   wait: {
     flex: 1,
     paddingVertical: space.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     alignItems: "center",
   },
-  waitOn: { borderColor: colors.brand, backgroundColor: "rgba(124,92,255,0.14)" },
+  waitOn: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
 });

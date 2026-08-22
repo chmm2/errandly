@@ -1,3 +1,11 @@
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+  useFonts,
+} from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -47,11 +55,21 @@ function useAuthGate() {
 
 export default function RootLayout() {
   const hydrated = useAuthGate();
+  // Inter, to match the web frontend. Rendering before it loads would show a
+  // frame of system font and then reflow.
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+  });
+
   // Give zustand's async rehydrate one tick before rendering routes.
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    if (hydrated) setReady(true);
-  }, [hydrated]);
+    if (hydrated && fontsLoaded) setReady(true);
+  }, [hydrated, fontsLoaded]);
 
   return (
     <SafeAreaProvider>

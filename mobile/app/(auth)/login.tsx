@@ -16,10 +16,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { fetchMe, login } from "../../src/api/auth";
 import { BackendSetting } from "../../src/components/BackendSetting";
-import { Body, Button, Caption, ErrorNote, Field, Row } from "../../src/components/ui";
+import { Button, Caption, ErrorNote, Field } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
 import { useAuth } from "../../src/stores/auth";
 import { colors, font, radius, shadow, space } from "../../src/theme";
+
+/** The floating errand chips from the web AuthLayout, trimmed for a phone. */
+const FLOATERS = [
+  { emoji: "🍜", text: "Maggi from DC · ₹30", top: 92, left: 12 },
+  { emoji: "📦", text: "Parcel pickup · ₹25", top: 150, right: 10 },
+];
 
 export default function Login() {
   const router = useRouter();
@@ -32,23 +38,30 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const [showServer, setShowServer] = useState(false);
 
-  // Entrance: the wordmark and card lift in together on first paint.
-  const rise = useRef(new Animated.Value(0)).current;
+  // `animate-float` from the web app — a slow bob on the scooter mark.
+  const bob = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.timing(rise, {
-      toValue: 1,
-      duration: 620,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [rise]);
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bob, {
+          toValue: 1,
+          duration: 3000,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(bob, {
+          toValue: 0,
+          duration: 3000,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+  }, [bob]);
 
-  const lift = (distance: number) => ({
-    opacity: rise,
-    transform: [
-      { translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [distance, 0] }) },
-    ],
-  });
+  const float = {
+    transform: [{ translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -12] }) }],
+  };
 
   async function submit() {
     setError(null);
@@ -59,7 +72,7 @@ export default function Login() {
       setUser(await fetchMe());
       router.replace("/(tabs)");
     } catch (err) {
-      setError(apiErrorMessage(err, "Couldn't sign you in."));
+      setError(apiErrorMessage(err, "Login failed."));
     } finally {
       setBusy(false);
     }
@@ -67,15 +80,29 @@ export default function Login() {
 
   return (
     <View style={s.root}>
-      {/* Ambient gradient wash behind everything */}
       <LinearGradient
-        colors={["#1B1147", "#0B0F1A", "#0B0F1A"]}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 0.75 }}
+        colors={colors.authGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <View style={s.orbViolet} />
-      <View style={s.orbBlue} />
+      {/* Ambient shapes, same idea as the web app's blurred circles */}
+      <View style={s.blobTopLeft} />
+      <View style={s.blobBottomRight} />
+
+      {FLOATERS.map((f) => (
+        <View
+          key={f.text}
+          style={[
+            s.floater,
+            { top: f.top },
+            f.left != null ? { left: f.left } : { right: f.right },
+          ]}
+        >
+          <Text style={{ fontSize: 15 }}>{f.emoji}</Text>
+          <Text style={s.floaterText}>{f.text}</Text>
+        </View>
+      ))}
 
       <SafeAreaView style={s.flex} edges={["top", "bottom"]}>
         <KeyboardAvoidingView
@@ -87,31 +114,27 @@ export default function Login() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <Animated.View style={[s.brandBlock, lift(26)]}>
-              <View style={s.logoWrap}>
-                <LinearGradient
-                  colors={colors.brandGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={s.logo}
-                >
-                  <Text style={s.logoGlyph}>⚡</Text>
-                </LinearGradient>
-              </View>
+            {/* Brand */}
+            <View style={s.brand}>
+              <Animated.Text style={[s.scooter, float]}>🛵</Animated.Text>
+              <Text style={s.wordmark}>errandly</Text>
+            </View>
+            <Text style={s.pitch}>
+              Campus errands,{"\n"}delivered by students.
+            </Text>
 
-              <Text style={s.wordmark}>Errandly</Text>
-              <Text style={s.tagline}>Campus errands, run by students.</Text>
-            </Animated.View>
-
-            <Animated.View style={[s.card, shadow.raised, lift(40)]}>
+            {/* Form card */}
+            <View style={[s.card, shadow.raised]}>
               <Text style={s.cardTitle}>Welcome back</Text>
-              <Caption style={{ marginBottom: space.lg }}>
-                Sign in with your campus email.
+              <Caption style={{ marginTop: space.xs }}>
+                Log in with your university email.
               </Caption>
 
-              <View style={{ gap: space.md }}>
+              <View style={{ gap: space.lg, marginTop: space.xl }}>
+                {error ? <ErrorNote>{error}</ErrorNote> : null}
+
                 <Field
-                  label="Email"
+                  label="University email"
                   placeholder="you@vitstudent.ac.in"
                   value={email}
                   onChangeText={setEmail}
@@ -131,46 +154,35 @@ export default function Login() {
                   onSubmitEditing={submit}
                 />
 
-                {error ? <ErrorNote>{error}</ErrorNote> : null}
-
                 <Button
-                  title="Sign in"
+                  title="Log in"
                   size="lg"
                   loading={busy}
                   disabled={!email.trim() || !password}
                   onPress={submit}
-                  style={{ marginTop: space.xs }}
                 />
               </View>
-            </Animated.View>
 
-            <Animated.View style={lift(50)}>
-              <Row gap={space.xs} justify="center" style={{ marginTop: space.xl }}>
-                <Body dim>New here?</Body>
+              <View style={s.newHere}>
+                <Caption>New here? </Caption>
                 <Link href="/(auth)/register" style={s.link}>
                   Create an account
                 </Link>
-              </Row>
+              </View>
+            </View>
 
-              {/* Escape hatch: if the compiled-in server address is dead you
-                  can't sign in, so the fix has to live on THIS side of the
-                  login wall — not buried in Profile. */}
-              <Pressable
-                onPress={() => setShowServer((v) => !v)}
-                hitSlop={10}
-                style={{ marginTop: space.xl }}
-              >
-                <Text style={s.serverToggle}>
-                  {showServer ? "Hide server settings" : "Can't connect? Change server"}
-                </Text>
-              </Pressable>
-
-              {showServer ? (
-                <View style={{ marginTop: space.md }}>
-                  <BackendSetting compact />
-                </View>
-              ) : null}
-            </Animated.View>
+            {/* Escape hatch: an unreachable server means you can't sign in, so
+                the fix has to live on this side of the login wall. */}
+            <Pressable onPress={() => setShowServer((v) => !v)} hitSlop={10} style={s.serverBtn}>
+              <Text style={s.serverText}>
+                {showServer ? "Hide server settings" : "Can't connect? Change server"}
+              </Text>
+            </Pressable>
+            {showServer ? (
+              <View style={{ marginTop: space.md }}>
+                <BackendSetting compact />
+              </View>
+            ) : null}
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -179,63 +191,79 @@ export default function Login() {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+  root: { flex: 1, backgroundColor: colors.brand },
   flex: { flex: 1 },
   scroll: { flexGrow: 1, justifyContent: "center", padding: space.xl },
 
-  // Soft colour orbs give the flat background depth without an image.
-  orbViolet: {
+  blobTopLeft: {
     position: "absolute",
     top: -110,
-    left: -70,
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: "rgba(124,92,255,0.22)",
-  },
-  orbBlue: {
-    position: "absolute",
-    top: 130,
-    right: -110,
+    left: -90,
     width: 260,
     height: 260,
     borderRadius: 130,
-    backgroundColor: "rgba(75,123,255,0.16)",
+    backgroundColor: "rgba(255,255,255,0.10)",
+  },
+  blobBottomRight: {
+    position: "absolute",
+    bottom: -130,
+    right: -80,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: "rgba(255,255,255,0.10)",
   },
 
-  brandBlock: { alignItems: "center", marginBottom: space.xxl },
-  logoWrap: { borderRadius: 26, ...shadow.glow(colors.brand) },
-  logo: {
-    width: 76,
-    height: 76,
-    borderRadius: 26,
+  floater: {
+    position: "absolute",
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    paddingHorizontal: space.md,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
   },
-  logoGlyph: { fontSize: 36 },
+  floaterText: { color: colors.white, fontSize: font.tiny, fontFamily: font.semi },
+
+  brand: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.sm },
+  scooter: { fontSize: 40 },
   wordmark: {
-    color: colors.text,
-    fontSize: 40,
-    fontWeight: font.black,
-    letterSpacing: -1.2,
-    marginTop: space.lg,
+    color: colors.white,
+    fontSize: 34,
+    fontFamily: font.black,
+    letterSpacing: -0.8,
   },
-  tagline: { color: colors.textDim, fontSize: font.body, marginTop: space.xs },
+  pitch: {
+    color: colors.white,
+    fontSize: 25,
+    fontFamily: font.black,
+    textAlign: "center",
+    lineHeight: 32,
+    marginTop: space.lg,
+    marginBottom: space.xxl,
+  },
 
   card: {
-    backgroundColor: "rgba(21,27,43,0.92)",
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.borderBright,
-    padding: space.xl,
+    backgroundColor: colors.white,
+    borderRadius: radius.xxl,
+    padding: space.xxl,
   },
-  cardTitle: { color: colors.text, fontSize: font.h2, fontWeight: font.bold },
+  cardTitle: { color: colors.ink, fontSize: 25, fontFamily: font.black },
 
-  link: { color: colors.brandBright, fontSize: font.body, fontWeight: font.bold },
-  serverToggle: {
-    color: colors.textFaint,
+  newHere: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: space.xl,
+  },
+  link: { color: colors.brand, fontSize: font.small, fontFamily: font.bold },
+
+  serverBtn: { marginTop: space.xl },
+  serverText: {
+    color: "rgba(255,255,255,0.85)",
     fontSize: font.small,
-    fontWeight: font.semi,
+    fontFamily: font.semi,
     textAlign: "center",
   },
 });

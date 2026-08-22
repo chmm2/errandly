@@ -1,12 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Location from "expo-location";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, RefreshControl, StyleSheet, Switch, Text, View } from "react-native";
 
-import { fetchEarnings } from "../../src/api/ledger";
 import { acceptErrand, type Errand, fetchFeed, fetchMyErrands } from "../../src/api/errands";
+import { fetchEarnings } from "../../src/api/ledger";
 import { fetchRunnerProfile, setAvailability, updateLocation } from "../../src/api/runners";
 import { ErrandCard } from "../../src/components/ErrandCard";
 import {
@@ -16,14 +15,14 @@ import {
   Card,
   EmptyState,
   Heading,
-  Label,
+  Hero,
   Loading,
   Row,
   Screen,
 } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
 import { useSocket } from "../../src/lib/ws";
-import { colors, font, metres, radius, rupees, shadow, space } from "../../src/theme";
+import { colors, font, metres, radius, rupees, space } from "../../src/theme";
 
 interface Offer {
   errand_id: string;
@@ -35,6 +34,7 @@ interface Offer {
 
 /** Matches the web client's 10s send throttle. */
 const LOCATION_SEND_MS = 10_000;
+const ACTIVE = ["ACCEPTED", "IN_PROGRESS", "DELIVERED"];
 
 export default function Runner() {
   const router = useRouter();
@@ -45,10 +45,7 @@ export default function Runner() {
   const [toggling, setToggling] = useState(false);
   const lastSent = useRef(0);
 
-  const { data: profile } = useQuery({
-    queryKey: ["runner-profile"],
-    queryFn: fetchRunnerProfile,
-  });
+  const { data: profile } = useQuery({ queryKey: ["runner-profile"], queryFn: fetchRunnerProfile });
   const available = profile?.is_available ?? false;
 
   const { data: earnings } = useQuery({ queryKey: ["earnings"], queryFn: fetchEarnings });
@@ -61,9 +58,7 @@ export default function Runner() {
   });
 
   const { data: mine } = useQuery({ queryKey: ["my-errands"], queryFn: fetchMyErrands });
-  const activeRuns = (mine?.running ?? []).filter((e) =>
-    ["ACCEPTED", "IN_PROGRESS", "DELIVERED"].includes(e.status),
-  );
+  const activeRuns = (mine?.running ?? []).filter((e) => ACTIVE.includes(e.status));
 
   /* ---- live location while available -------------------------------- */
   useEffect(() => {
@@ -105,7 +100,6 @@ export default function Runner() {
     }, []),
   );
 
-  /* ---- go online / offline ------------------------------------------ */
   async function toggle(next: boolean) {
     setToggling(true);
     try {
@@ -117,13 +111,11 @@ export default function Runner() {
         if (status !== "granted") {
           Alert.alert(
             "Location needed",
-            "Errandly matches you with errands near you, so runner mode needs location access.",
+            "Errandly matches you with errands near you, so run mode needs location access.",
           );
           return;
         }
-        const pos = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.High,
-        });
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
         const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setGeo(loc);
         await setAvailability(true, loc);
@@ -147,162 +139,152 @@ export default function Runner() {
     onError: (err) => Alert.alert("Couldn't accept", apiErrorMessage(err)),
   });
 
-  const nearby = (feed?.items ?? []).filter(
-    (e) => !activeRuns.some((r) => r.id === e.id),
-  );
+  const nearby = (feed?.items ?? []).filter((e) => !activeRuns.some((r) => r.id === e.id));
 
   return (
     <Screen
       scroll
+      padded={false}
       refreshControl={
-        <RefreshControl
-          refreshing={isRefetching}
-          onRefresh={refetch}
-          tintColor={colors.brandBright}
-        />
+        <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.brand} />
       }
     >
-      <Heading style={{ paddingTop: space.md }}>Runner mode</Heading>
+      <Hero
+        compact
+        title="Run mode 🛵"
+        subtitle="Pick up an errand on your way back to the hostel and earn for the trip you were making anyway."
+      />
 
-      {/* Online switch + earnings */}
-      <Card style={{ marginTop: space.lg, overflow: "hidden" }} glow={available ? colors.success : undefined}>
-        {available ? (
-          <LinearGradient
-            colors={["rgba(47,217,143,0.14)", "transparent"]}
-            style={StyleSheet.absoluteFill}
-          />
+      <View style={{ paddingHorizontal: space.lg, paddingTop: space.xl }}>
+        {/* Online switch + earnings */}
+        <Card raised>
+          <Row justify="space-between">
+            <View style={{ flex: 1 }}>
+              <Row gap={space.sm}>
+                <View
+                  style={[s.dot, { backgroundColor: available ? colors.emerald : colors.muted }]}
+                />
+                <Body style={{ fontFamily: font.bold }}>
+                  {available ? "You're online" : "You're offline"}
+                </Body>
+              </Row>
+              <Caption style={{ marginTop: 3 }}>
+                {available
+                  ? "Nearby errands will ping you instantly."
+                  : "Go online to start receiving offers."}
+              </Caption>
+            </View>
+            <Switch
+              value={available}
+              onValueChange={toggle}
+              disabled={toggling}
+              trackColor={{ false: colors.line, true: colors.brandSoft }}
+              thumbColor={available ? colors.brand : "#f4f4f5"}
+            />
+          </Row>
+
+          <Row gap={space.xxl} style={s.stats}>
+            <View>
+              <Text style={s.statValue}>{rupees(earnings?.balance ?? 0)}</Text>
+              <Caption>balance</Caption>
+            </View>
+            <View>
+              <Text style={s.statValue}>{rupees(earnings?.week_total ?? 0)}</Text>
+              <Caption>this week</Caption>
+            </View>
+            <View>
+              <Text style={s.statValue}>{earnings?.week_runs ?? 0}</Text>
+              <Caption>runs</Caption>
+            </View>
+          </Row>
+        </Card>
+
+        {/* Live offers */}
+        {offers.length > 0 ? (
+          <>
+            <Heading style={{ marginTop: space.xxl }}>⚡ Live offers for you</Heading>
+            <View style={{ gap: space.md, marginTop: space.lg }}>
+              {offers.map((o) => (
+                <Card key={o.errand_id} raised style={s.offer}>
+                  <Row justify="space-between" gap={space.md}>
+                    <View style={{ flex: 1 }}>
+                      <Body numberOfLines={1} style={{ fontFamily: font.bold }}>
+                        {o.title}
+                      </Body>
+                      <Caption style={{ marginTop: 2 }}>
+                        {o.distance_m != null ? `${metres(o.distance_m)} away` : "Nearby"}
+                      </Caption>
+                    </View>
+                    <Text style={s.offerReward}>{rupees(o.reward)}</Text>
+                  </Row>
+                  <Row gap={space.sm} style={{ marginTop: space.md }}>
+                    <Button
+                      title="Accept"
+                      loading={accept.isPending}
+                      onPress={() => accept.mutate(o.errand_id)}
+                      style={{ flex: 1 }}
+                    />
+                    <Button
+                      title="Skip"
+                      variant="outline"
+                      onPress={() =>
+                        setOffers((prev) => prev.filter((x) => x.errand_id !== o.errand_id))
+                      }
+                      style={{ flex: 1 }}
+                    />
+                  </Row>
+                </Card>
+              ))}
+            </View>
+          </>
         ) : null}
-        <Row justify="space-between">
-          <View style={{ flex: 1 }}>
-            <Row gap={space.sm}>
-              <View style={[s.dot, { backgroundColor: available ? colors.success : colors.textFaint }]} />
-              <Body style={{ fontWeight: font.bold }}>
-                {available ? "You're online" : "You're offline"}
-              </Body>
-            </Row>
-            <Caption style={{ marginTop: 3 }}>
-              {available
-                ? "Nearby errands will ping you instantly."
-                : "Go online to start receiving offers."}
-            </Caption>
-          </View>
-          <Switch
-            value={available}
-            onValueChange={toggle}
-            disabled={toggling}
-            trackColor={{ false: colors.surfacePressed, true: "rgba(47,217,143,0.5)" }}
-            thumbColor={available ? colors.success : colors.textFaint}
-          />
-        </Row>
 
-        <Row gap={space.xl} style={s.stats}>
-          <View>
-            <Text style={s.statValue}>{rupees(earnings?.balance ?? 0)}</Text>
-            <Caption>balance</Caption>
-          </View>
-          <View>
-            <Text style={s.statValue}>{rupees(earnings?.week_total ?? 0)}</Text>
-            <Caption>this week</Caption>
-          </View>
-          <View>
-            <Text style={s.statValue}>{earnings?.week_runs ?? 0}</Text>
-            <Caption>runs</Caption>
-          </View>
-        </Row>
-      </Card>
+        {/* Active runs */}
+        {activeRuns.length > 0 ? (
+          <>
+            <Heading style={{ marginTop: space.xxl }}>Your active runs</Heading>
+            <View style={{ gap: space.md, marginTop: space.lg }}>
+              {activeRuns.map((e) => (
+                <ErrandCard key={e.id} errand={e} onPress={() => router.push(`/errand/${e.id}`)} />
+              ))}
+            </View>
+          </>
+        ) : null}
 
-      {/* Live offers */}
-      {offers.length > 0 ? (
-        <>
-          <Label style={{ marginTop: space.xl, marginBottom: space.sm }}>
-            ⚡ Live offers for you
-          </Label>
-          <View style={{ gap: space.sm }}>
-            {offers.map((o) => (
-              <Card key={o.errand_id} style={s.offer} glow={colors.brand}>
-                <Row justify="space-between" gap={space.md}>
-                  <View style={{ flex: 1 }}>
-                    <Body numberOfLines={1} style={{ fontWeight: font.bold }}>
-                      {o.title}
-                    </Body>
-                    <Caption style={{ marginTop: 2 }}>
-                      {o.distance_m != null ? `${metres(o.distance_m)} away` : "Nearby"}
-                    </Caption>
-                  </View>
-                  <Text style={s.offerReward}>{rupees(o.reward)}</Text>
-                </Row>
-                <Row gap={space.sm} style={{ marginTop: space.md }}>
-                  <Button
-                    title="Accept"
-                    size="md"
-                    loading={accept.isPending}
-                    onPress={() => accept.mutate(o.errand_id)}
-                    style={{ flex: 1 }}
-                  />
-                  <Button
-                    title="Skip"
-                    variant="surface"
-                    onPress={() =>
-                      setOffers((prev) => prev.filter((x) => x.errand_id !== o.errand_id))
-                    }
-                    style={{ flex: 1 }}
-                  />
-                </Row>
-              </Card>
-            ))}
-          </View>
-        </>
-      ) : null}
-
-      {/* Active runs */}
-      {activeRuns.length > 0 ? (
-        <>
-          <Label style={{ marginTop: space.xl, marginBottom: space.sm }}>Your active runs</Label>
-          <View style={{ gap: space.md }}>
-            {activeRuns.map((e) => (
-              <ErrandCard key={e.id} errand={e} onPress={() => router.push(`/errand/${e.id}`)} />
-            ))}
-          </View>
-        </>
-      ) : null}
-
-      {/* Nearby feed */}
-      <Label style={{ marginTop: space.xl, marginBottom: space.sm }}>Nearby errands</Label>
-      {!available ? (
-        <Card style={s.offlineBox}>
+        {/* Nearby feed */}
+        <Heading style={{ marginTop: space.xxl, marginBottom: space.lg }}>Nearby errands</Heading>
+        {!available ? (
           <EmptyState
             emoji="🛵"
             title="You're offline"
             body="Flip the switch above to see errands around you and get live offers."
           />
-        </Card>
-      ) : nearby.length === 0 ? (
-        <Card style={s.offlineBox}>
+        ) : nearby.length === 0 ? (
           <EmptyState
             emoji="🌙"
             title="Nothing nearby yet"
             body="New errands appear here the moment someone posts one."
           />
-        </Card>
-      ) : (
-        <View style={{ gap: space.md }}>
-          {nearby.map((e: Errand) => (
-            <ErrandCard
-              key={e.id}
-              errand={e}
-              showStatus={false}
-              onPress={() => router.push(`/errand/${e.id}`)}
-              footer={
-                <Button
-                  title="Accept this run"
-                  loading={accept.isPending && accept.variables === e.id}
-                  onPress={() => accept.mutate(e.id)}
-                />
-              }
-            />
-          ))}
-        </View>
-      )}
+        ) : (
+          <View style={{ gap: space.md }}>
+            {nearby.map((e: Errand) => (
+              <ErrandCard
+                key={e.id}
+                errand={e}
+                showStatus={false}
+                onPress={() => router.push(`/errand/${e.id}`)}
+                footer={
+                  <Button
+                    title="Accept this run"
+                    loading={accept.isPending && accept.variables === e.id}
+                    onPress={() => accept.mutate(e.id)}
+                  />
+                }
+              />
+            ))}
+          </View>
+        )}
+      </View>
     </Screen>
   );
 }
@@ -313,12 +295,10 @@ const s = StyleSheet.create({
     marginTop: space.lg,
     paddingTop: space.lg,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.line,
   },
-  statValue: { color: colors.text, fontSize: font.h3, fontWeight: font.black },
+  statValue: { color: colors.ink, fontSize: font.h3, fontFamily: font.black },
 
-  offer: { borderColor: colors.brandDeep, backgroundColor: colors.surfaceHigh },
-  offerReward: { color: colors.gold, fontSize: font.h2, fontWeight: font.black },
-
-  offlineBox: { height: 230, padding: 0, justifyContent: "center" },
+  offer: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
+  offerReward: { color: colors.brand, fontSize: font.h2, fontFamily: font.black },
 });

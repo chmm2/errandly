@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { LinearGradient } from "expo-linear-gradient";
 import { useCallback } from "react";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { fetchEarnings } from "../../src/api/ledger";
 import { fetchNotifications, markAllRead } from "../../src/api/notifications";
@@ -12,14 +11,15 @@ import {
   Caption,
   Card,
   Divider,
+  Footer,
   Heading,
-  Label,
+  Hero,
   Row,
   Screen,
 } from "../../src/components/ui";
 import { useSocket } from "../../src/lib/ws";
 import { useAuth } from "../../src/stores/auth";
-import { colors, font, rupees, shadow, space, timeAgo } from "../../src/theme";
+import { colors, font, radius, rupees, space, timeAgo } from "../../src/theme";
 
 export default function Profile() {
   const queryClient = useQueryClient();
@@ -49,148 +49,141 @@ export default function Profile() {
     .toUpperCase();
 
   function confirmLogout() {
-    Alert.alert("Sign out?", "You'll need to sign in again to post or run errands.", [
+    Alert.alert("Log out?", "You'll need to log in again to post or run errands.", [
       { text: "Cancel", style: "cancel" },
-      { text: "Sign out", style: "destructive", onPress: logout },
+      { text: "Log out", style: "destructive", onPress: logout },
     ]);
   }
 
   return (
-    <Screen scroll>
-      {/* Identity header */}
-      <LinearGradient
-        colors={["rgba(124,92,255,0.28)", "transparent"]}
-        style={s.headerWash}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
+    <Screen scroll padded={false}>
+      <Hero compact title="Your profile" />
 
-      <Row gap={space.lg} style={{ paddingTop: space.xl }}>
-        <View style={[s.avatar, shadow.glow(colors.brand)]}>
-          <LinearGradient
-            colors={colors.brandGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[StyleSheet.absoluteFill, { borderRadius: 34 }]}
-          />
-          <Text style={s.initials}>{initials}</Text>
-        </View>
-
-        <View style={{ flex: 1 }}>
-          <Heading numberOfLines={1}>{user?.display_name ?? "—"}</Heading>
-          <Caption numberOfLines={1}>{user?.email}</Caption>
-          <Row gap={space.sm} style={{ marginTop: space.sm }}>
-            <Text style={s.stars}>
-              ⭐ {(user?.reputation_score ?? 5).toFixed(2)}
-            </Text>
-            {user?.student_id ? <Caption>· {user.student_id}</Caption> : null}
-          </Row>
-        </View>
-      </Row>
-
-      {/* Earnings */}
-      <Card style={{ marginTop: space.xl }}>
-        <Label>Earnings</Label>
-        <Row gap={space.xl} style={{ marginTop: space.md }}>
-          <View>
-            <Text style={s.big}>{rupees(earnings?.balance ?? 0)}</Text>
-            <Caption>balance</Caption>
-          </View>
-          <View>
-            <Text style={s.big}>{rupees(earnings?.week_total ?? 0)}</Text>
-            <Caption>this week</Caption>
-          </View>
-          <View>
-            <Text style={s.big}>{earnings?.week_runs ?? 0}</Text>
-            <Caption>runs</Caption>
-          </View>
-        </Row>
-      </Card>
-
-      {/* Notifications */}
-      <Row justify="space-between" style={{ marginTop: space.xxl, marginBottom: space.sm }}>
-        <Label>
-          Notifications{notifications?.unread ? ` · ${notifications.unread} new` : ""}
-        </Label>
-        {notifications?.unread ? (
-          <Text
-            style={s.link}
-            onPress={async () => {
-              await markAllRead();
-              queryClient.invalidateQueries({ queryKey: ["notifications"] });
-            }}
-          >
-            Mark all read
-          </Text>
-        ) : null}
-      </Row>
-
-      <Card style={{ padding: 0 }}>
-        {(notifications?.items ?? []).length === 0 ? (
-          <View style={{ padding: space.xl, alignItems: "center" }}>
-            <Text style={{ fontSize: 28, marginBottom: space.sm }}>🔔</Text>
-            <Caption>Nothing yet — updates land here live.</Caption>
-          </View>
-        ) : (
-          notifications!.items.slice(0, 12).map((n, i) => (
-            <View key={n.id}>
-              {i > 0 ? <Divider /> : null}
-              <View style={s.notif}>
-                <View style={[s.unreadDot, { opacity: n.read_at ? 0 : 1 }]} />
-                <View style={{ flex: 1 }}>
-                  <Body style={{ fontWeight: n.read_at ? font.regular : font.bold }}>
-                    {n.title}
-                  </Body>
-                  {n.body ? (
-                    <Caption style={{ marginTop: 2 }} numberOfLines={2}>
-                      {n.body}
-                    </Caption>
-                  ) : null}
-                </View>
-                <Caption>{timeAgo(n.created_at)}</Caption>
-              </View>
+      <View style={{ paddingHorizontal: space.lg }}>
+        {/* Identity card, pulled up over the hero edge */}
+        <Card raised style={s.idCard}>
+          <Row gap={space.lg}>
+            <View style={s.avatar}>
+              <Text style={s.initials}>{initials}</Text>
             </View>
-          ))
-        )}
-      </Card>
+            <View style={{ flex: 1 }}>
+              <Body numberOfLines={1} style={{ fontFamily: font.black, fontSize: font.h3 }}>
+                {user?.display_name ?? "—"}
+              </Body>
+              <Caption numberOfLines={1}>{user?.email}</Caption>
+              <Row gap={space.sm} style={{ marginTop: 5 }}>
+                <Text style={s.stars}>★ {(user?.reputation_score ?? 5).toFixed(2)}</Text>
+                {user?.student_id ? <Caption>· {user.student_id}</Caption> : null}
+              </Row>
+            </View>
+          </Row>
+        </Card>
 
-      {/* Backend address — editable, because a release build otherwise has it
-          frozen in and any tunnel change would need a full rebuild. */}
-      <Label style={{ marginTop: space.xxl, marginBottom: space.sm }}>Backend</Label>
-      <BackendSetting />
+        {/* Earnings */}
+        <Heading style={{ marginTop: space.xxl, marginBottom: space.md }}>Earnings</Heading>
+        <Card raised>
+          <Row gap={space.xxl}>
+            <View>
+              <Text style={s.big}>{rupees(earnings?.balance ?? 0)}</Text>
+              <Caption>balance</Caption>
+            </View>
+            <View>
+              <Text style={s.big}>{rupees(earnings?.week_total ?? 0)}</Text>
+              <Caption>this week</Caption>
+            </View>
+            <View>
+              <Text style={s.big}>{earnings?.week_runs ?? 0}</Text>
+              <Caption>runs</Caption>
+            </View>
+          </Row>
+        </Card>
 
-      <Button
-        title="Sign out"
-        variant="danger"
-        onPress={confirmLogout}
-        style={{ marginTop: space.xxl }}
-      />
+        {/* Notifications */}
+        <Row justify="space-between" style={{ marginTop: space.xxl, marginBottom: space.md }}>
+          <Heading>
+            Notifications{notifications?.unread ? ` · ${notifications.unread}` : ""}
+          </Heading>
+          {notifications?.unread ? (
+            <Pressable
+              hitSlop={8}
+              onPress={async () => {
+                await markAllRead();
+                queryClient.invalidateQueries({ queryKey: ["notifications"] });
+              }}
+            >
+              <Text style={s.link}>Mark all read</Text>
+            </Pressable>
+          ) : null}
+        </Row>
+
+        <Card raised style={{ padding: 0 }}>
+          {(notifications?.items ?? []).length === 0 ? (
+            <View style={{ padding: space.xxl, alignItems: "center" }}>
+              <Text style={{ fontSize: 26, marginBottom: space.sm }}>🔔</Text>
+              <Caption>Nothing yet — updates land here live.</Caption>
+            </View>
+          ) : (
+            notifications!.items.slice(0, 12).map((n, i) => (
+              <View key={n.id}>
+                {i > 0 ? <Divider /> : null}
+                <View style={s.notif}>
+                  <View style={[s.unreadDot, { opacity: n.read_at ? 0 : 1 }]} />
+                  <View style={{ flex: 1 }}>
+                    <Body style={{ fontFamily: n.read_at ? font.regular : font.bold }}>
+                      {n.title}
+                    </Body>
+                    {n.body ? (
+                      <Caption style={{ marginTop: 2 }} numberOfLines={2}>
+                        {n.body}
+                      </Caption>
+                    ) : null}
+                  </View>
+                  <Caption>{timeAgo(n.created_at)}</Caption>
+                </View>
+              </View>
+            ))
+          )}
+        </Card>
+
+        {/* Server address — editable so a moved backend doesn't need a rebuild */}
+        <Heading style={{ marginTop: space.xxl, marginBottom: space.md }}>Server</Heading>
+        <BackendSetting />
+
+        <Button
+          title="Log out"
+          variant="outline"
+          onPress={confirmLogout}
+          style={{ marginTop: space.xxl }}
+        />
+
+        <Footer />
+      </View>
     </Screen>
   );
 }
 
 const s = StyleSheet.create({
-  headerWash: { position: "absolute", top: 0, left: 0, right: 0, height: 200 },
+  idCard: { marginTop: -space.xl },
   avatar: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.brandSoft,
     alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden",
   },
-  initials: { color: "#fff", fontSize: 24, fontWeight: font.black, letterSpacing: 0.5 },
-  stars: { color: colors.gold, fontSize: font.small, fontWeight: font.bold },
+  initials: { color: colors.brandDark, fontSize: 21, fontFamily: font.black },
+  stars: { color: colors.brand, fontSize: font.small, fontFamily: font.bold },
 
-  big: { color: colors.text, fontSize: font.h2, fontWeight: font.black },
-  link: { color: colors.brandBright, fontSize: font.small, fontWeight: font.bold },
+  big: { color: colors.ink, fontSize: font.h2, fontFamily: font.black },
+  link: { color: colors.brand, fontSize: font.small, fontFamily: font.bold },
 
   notif: { flexDirection: "row", gap: space.md, alignItems: "flex-start", padding: space.lg },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.brandBright,
+    backgroundColor: colors.brand,
     marginTop: 6,
   },
 });

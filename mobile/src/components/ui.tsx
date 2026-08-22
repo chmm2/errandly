@@ -27,16 +27,18 @@ export function Screen({
   padded = true,
   refreshControl,
   edges = ["top"],
+  bg = colors.bg,
 }: {
   children: ReactNode;
   scroll?: boolean;
   padded?: boolean;
   refreshControl?: React.ReactElement<RefreshControlProps>;
   edges?: ("top" | "bottom")[];
+  bg?: string;
 }) {
   const inner = padded ? { paddingHorizontal: space.lg } : undefined;
   return (
-    <SafeAreaView style={s.screen} edges={edges}>
+    <SafeAreaView style={[s.screen, { backgroundColor: bg }]} edges={edges}>
       {scroll ? (
         <ScrollView
           style={s.flex}
@@ -51,6 +53,35 @@ export function Screen({
         <View style={[s.flex, inner]}>{children}</View>
       )}
     </SafeAreaView>
+  );
+}
+
+/**
+ * The orange hero band the web app opens almost every page with
+ * (`bg-gradient-to-br from-brand to-brand-dark`).
+ */
+export function Hero({
+  title,
+  subtitle,
+  children,
+  compact = false,
+}: {
+  title: string;
+  subtitle?: string;
+  children?: ReactNode;
+  compact?: boolean;
+}) {
+  return (
+    <LinearGradient
+      colors={colors.brandGradient}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[s.hero, compact && { paddingVertical: space.xl }]}
+    >
+      <Text style={s.heroTitle}>{title}</Text>
+      {subtitle ? <Text style={s.heroSub}>{subtitle}</Text> : null}
+      {children}
+    </LinearGradient>
   );
 }
 
@@ -89,13 +120,13 @@ export function Row({
 
 /* -------------------------------------------------------------------- text */
 
-/** Shared shape for the text primitives. */
 type TextProps = {
   children: ReactNode;
   style?: StyleProp<TextStyle>;
   numberOfLines?: number;
 };
 
+/** `text-3xl font-extrabold` */
 export function Title({ children, style, numberOfLines }: TextProps) {
   return (
     <Text numberOfLines={numberOfLines} style={[s.title, style]}>
@@ -104,6 +135,7 @@ export function Title({ children, style, numberOfLines }: TextProps) {
   );
 }
 
+/** `text-2xl font-extrabold` — section headings */
 export function Heading({ children, style, numberOfLines }: TextProps) {
   return (
     <Text numberOfLines={numberOfLines} style={[s.heading, style]}>
@@ -112,14 +144,15 @@ export function Heading({ children, style, numberOfLines }: TextProps) {
   );
 }
 
-export function Body({ children, dim, style, numberOfLines }: TextProps & { dim?: boolean }) {
+export function Body({ children, muted, style, numberOfLines }: TextProps & { muted?: boolean }) {
   return (
-    <Text numberOfLines={numberOfLines} style={[s.body, dim && { color: colors.textDim }, style]}>
+    <Text numberOfLines={numberOfLines} style={[s.body, muted && { color: colors.muted }, style]}>
       {children}
     </Text>
   );
 }
 
+/** `text-sm text-muted` */
 export function Caption({ children, style, numberOfLines }: TextProps) {
   return (
     <Text numberOfLines={numberOfLines} style={[s.caption, style]}>
@@ -128,7 +161,7 @@ export function Caption({ children, style, numberOfLines }: TextProps) {
   );
 }
 
-/** Small uppercase section label with letter-spacing. */
+/** `text-sm font-semibold` form label */
 export function Label({ children, style, numberOfLines }: TextProps) {
   return (
     <Text numberOfLines={numberOfLines} style={[s.label, style]}>
@@ -139,20 +172,19 @@ export function Label({ children, style, numberOfLines }: TextProps) {
 
 /* ------------------------------------------------------------------ chrome */
 
+/** `rounded-2xl border border-line p-5` */
 export function Card({
   children,
   style,
   onPress,
-  glow,
+  raised = false,
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
-  glow?: string;
+  raised?: boolean;
 }) {
-  const body = (
-    <View style={[s.card, glow ? shadow.glow(glow) : shadow.card, style]}>{children}</View>
-  );
+  const body = <View style={[s.card, raised && shadow.card, style]}>{children}</View>;
   if (!onPress) return body;
   return (
     <Pressable onPress={onPress} style={({ pressed }) => pressed && s.pressed}>
@@ -161,21 +193,33 @@ export function Card({
   );
 }
 
-export function Chip({
+/** The soft-orange rounded square holding a category emoji. */
+export function IconTile({ emoji, size = 48 }: { emoji: string; size?: number }) {
+  return (
+    <View
+      style={[
+        s.iconTile,
+        { width: size, height: size, borderRadius: size >= 56 ? radius.xl : radius.lg },
+      ]}
+    >
+      <Text style={{ fontSize: size * 0.5 }}>{emoji}</Text>
+    </View>
+  );
+}
+
+/** `rounded-full px-3 py-1.5 text-xs font-bold` pastel pill */
+export function Pill({
   label,
-  color = colors.textDim,
-  tint = colors.surfaceHigh,
-  icon,
+  bg = colors.grayBg,
+  color = colors.muted,
 }: {
   label: string;
+  bg?: string;
   color?: string;
-  tint?: string;
-  icon?: string;
 }) {
   return (
-    <View style={[s.chip, { backgroundColor: tint }]}>
-      {icon ? <Text style={s.chipIcon}>{icon}</Text> : null}
-      <Text style={[s.chipText, { color }]}>{label}</Text>
+    <View style={[s.pill, { backgroundColor: bg }]}>
+      <Text style={[s.pillText, { color }]}>{label}</Text>
     </View>
   );
 }
@@ -188,84 +232,63 @@ export function Divider({ style }: { style?: StyleProp<ViewStyle> }) {
 
 type ButtonProps = PressableProps & {
   title: string;
-  variant?: "primary" | "gold" | "surface" | "danger" | "ghost";
+  /** brand = filled orange · white = white-on-orange (hero CTA) · outline · ghost · success */
+  variant?: "brand" | "white" | "outline" | "ghost" | "success";
   size?: "md" | "lg";
   loading?: boolean;
-  icon?: string;
   full?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
 export function Button({
   title,
-  variant = "primary",
+  variant = "brand",
   size = "md",
   loading = false,
-  icon,
   full = true,
   style,
   disabled,
   ...rest
 }: ButtonProps) {
-  const isGradient = variant === "primary" || variant === "gold";
-  const height = size === "lg" ? 56 : 48;
+  const height = size === "lg" ? 54 : 46;
   const off = disabled || loading;
 
-  const content = (
-    <Row gap={space.sm} justify="center">
-      {loading ? (
-        <ActivityIndicator color={variant === "ghost" ? colors.brandBright : colors.textOnBrand} />
-      ) : (
-        <>
-          {icon ? <Text style={{ fontSize: 17 }}>{icon}</Text> : null}
-          <Text
-            style={[
-              s.btnText,
-              size === "lg" && { fontSize: font.h3 },
-              variant === "ghost" && { color: colors.brandBright },
-              variant === "surface" && { color: colors.text },
-            ]}
-          >
-            {title}
-          </Text>
-        </>
-      )}
-    </Row>
-  );
-
-  const base: StyleProp<ViewStyle> = [
-    s.btn,
-    { height, borderRadius: radius.lg },
-    full && { alignSelf: "stretch" },
-    off && { opacity: 0.45 },
-    style,
-  ];
-
-  if (isGradient) {
-    const grad = variant === "gold" ? colors.goldGradient : colors.brandGradient;
-    return (
-      <Pressable disabled={off} {...rest} style={({ pressed }) => [base, pressed && s.pressed]}>
-        <LinearGradient
-          colors={grad}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[StyleSheet.absoluteFill, { borderRadius: radius.lg }]}
-        />
-        {content}
-      </Pressable>
-    );
-  }
-
-  const flat =
-    variant === "danger"
-      ? { backgroundColor: colors.dangerDeep, borderColor: colors.danger, borderWidth: 1 }
-      : variant === "ghost"
-        ? { backgroundColor: "transparent" }
-        : { backgroundColor: colors.surfaceHigh, borderColor: colors.border, borderWidth: 1 };
+  const palette: Record<string, { bg: string; fg: string; border?: string }> = {
+    brand: { bg: colors.brand, fg: colors.white },
+    white: { bg: colors.white, fg: colors.brand },
+    outline: { bg: colors.white, fg: colors.brand, border: colors.brand },
+    ghost: { bg: "transparent", fg: colors.muted },
+    success: { bg: colors.emerald, fg: colors.white },
+  };
+  const p = palette[variant];
 
   return (
-    <Pressable disabled={off} {...rest} style={({ pressed }) => [base, flat, pressed && s.pressed]}>
-      {content}
+    <Pressable
+      disabled={off}
+      {...rest}
+      style={({ pressed }) => [
+        s.btn,
+        {
+          height,
+          backgroundColor: p.bg,
+          borderRadius: radius.lg,
+          borderWidth: p.border ? 1 : 0,
+          borderColor: p.border,
+        },
+        full && { alignSelf: "stretch" },
+        variant === "brand" && !off && shadow.brand,
+        off && { opacity: 0.5 },
+        pressed && s.pressed,
+        style,
+      ]}
+    >
+      {loading ? (
+        <ActivityIndicator color={p.fg} />
+      ) : (
+        <Text style={[s.btnText, { color: p.fg }, size === "lg" && { fontSize: font.h3 }]}>
+          {title}
+        </Text>
+      )}
     </Pressable>
   );
 }
@@ -280,15 +303,15 @@ export function Field({
   ...rest
 }: TextInputProps & { label?: string; error?: string | null; hint?: string }) {
   return (
-    <View style={{ gap: space.xs }}>
+    <View style={{ gap: 6 }}>
       {label ? <Label>{label}</Label> : null}
       <TextInput
-        placeholderTextColor={colors.textFaint}
-        style={[s.input, !!error && { borderColor: colors.danger }, style]}
+        placeholderTextColor={colors.muted}
+        style={[s.input, !!error && { borderColor: colors.redText }, style]}
         {...rest}
       />
       {error ? (
-        <Caption style={{ color: colors.danger }}>{error}</Caption>
+        <Caption style={{ color: colors.redText }}>{error}</Caption>
       ) : hint ? (
         <Caption>{hint}</Caption>
       ) : null}
@@ -301,43 +324,59 @@ export function Field({
 export function Loading({ label }: { label?: string }) {
   return (
     <View style={s.center}>
-      <ActivityIndicator size="large" color={colors.brandBright} />
-      {label ? <Body dim style={{ marginTop: space.md }}>{label}</Body> : null}
+      <ActivityIndicator size="large" color={colors.brand} />
+      {label ? (
+        <Body muted style={{ marginTop: space.md }}>
+          {label}
+        </Body>
+      ) : null}
     </View>
   );
 }
 
+/** `rounded-2xl border-2 border-dashed border-line p-12 text-center text-muted` */
 export function EmptyState({
   emoji,
   title,
   body,
   action,
 }: {
-  emoji: string;
+  emoji?: string;
   title: string;
   body?: string;
   action?: ReactNode;
 }) {
   return (
-    <View style={s.center}>
-      <Text style={{ fontSize: 44, marginBottom: space.md }}>{emoji}</Text>
-      <Heading style={{ textAlign: "center" }}>{title}</Heading>
+    <View style={s.empty}>
+      {emoji ? <Text style={{ fontSize: 36, marginBottom: space.sm }}>{emoji}</Text> : null}
+      <Body style={{ fontFamily: font.bold, textAlign: "center" }}>{title}</Body>
       {body ? (
-        <Body dim style={{ textAlign: "center", marginTop: space.xs, maxWidth: 280 }}>
+        <Caption style={{ textAlign: "center", marginTop: space.xs, maxWidth: 280 }}>
           {body}
-        </Body>
+        </Caption>
       ) : null}
       {action ? <View style={{ marginTop: space.lg, alignSelf: "stretch" }}>{action}</View> : null}
     </View>
   );
 }
 
+/** `rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700` */
 export function ErrorNote({ children }: { children: ReactNode }) {
   if (!children) return null;
   return (
     <View style={s.errorNote}>
-      <Text style={{ fontSize: 14 }}>⚠️</Text>
       <Text style={s.errorText}>{children}</Text>
+    </View>
+  );
+}
+
+/** The web footer line, kept so both clients sign off the same way. */
+export function Footer() {
+  return (
+    <View style={s.footer}>
+      <Caption style={{ textAlign: "center" }}>
+        errandly · built by students, for students · VIT Vellore
+      </Caption>
     </View>
   );
 }
@@ -345,72 +384,99 @@ export function ErrorNote({ children }: { children: ReactNode }) {
 /* ------------------------------------------------------------------ styles */
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1 },
   flex: { flex: 1 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: space.xl },
-  pressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
+  pressed: { opacity: 0.85 },
 
-  title: { color: colors.text, fontSize: font.display, fontWeight: font.black, letterSpacing: -0.5 },
-  heading: { color: colors.text, fontSize: font.h2, fontWeight: font.bold, letterSpacing: -0.2 },
-  body: { color: colors.text, fontSize: font.body, lineHeight: 21 },
-  caption: { color: colors.textFaint, fontSize: font.small, lineHeight: 18 },
-  label: {
-    color: colors.textDim,
-    fontSize: font.tiny,
-    fontWeight: font.bold,
-    letterSpacing: 1.1,
-    textTransform: "uppercase",
+  hero: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.xxl,
+    paddingBottom: space.xxl,
   },
+  heroTitle: {
+    color: colors.white,
+    fontSize: font.display,
+    fontFamily: font.black,
+    lineHeight: 38,
+  },
+  heroSub: {
+    color: "rgba(255,255,255,0.92)",
+    fontSize: font.body,
+    fontFamily: font.regular,
+    marginTop: space.sm,
+    lineHeight: 21,
+  },
+
+  title: { color: colors.ink, fontSize: font.display, fontFamily: font.black, lineHeight: 38 },
+  heading: { color: colors.ink, fontSize: font.h2, fontFamily: font.black },
+  body: { color: colors.ink, fontSize: font.body, fontFamily: font.regular, lineHeight: 21 },
+  caption: { color: colors.muted, fontSize: font.small, fontFamily: font.regular, lineHeight: 18 },
+  label: { color: colors.ink, fontSize: font.small, fontFamily: font.semi },
 
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: space.lg,
+    borderColor: colors.line,
+    padding: space.xl,
   },
 
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: space.md - 2,
-    paddingVertical: 5,
-    borderRadius: radius.pill,
-  },
-  chipIcon: { fontSize: 12 },
-  chipText: { fontSize: font.tiny, fontWeight: font.bold, letterSpacing: 0.3 },
-
-  divider: { height: 1, backgroundColor: colors.border },
-
-  btn: {
+  iconTile: {
+    backgroundColor: colors.brandSoft,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: space.xl,
-    overflow: "hidden",
   },
-  btnText: { color: colors.textOnBrand, fontSize: font.body, fontWeight: font.bold },
+
+  pill: {
+    paddingHorizontal: space.md,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    alignSelf: "flex-start",
+  },
+  pillText: { fontSize: font.tiny, fontFamily: font.bold },
+
+  divider: { height: 1, backgroundColor: colors.line },
+
+  btn: { alignItems: "center", justifyContent: "center", paddingHorizontal: space.xl },
+  btnText: { fontSize: font.body, fontFamily: font.bold },
 
   input: {
-    backgroundColor: colors.surfaceHigh,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
     paddingHorizontal: space.lg,
     paddingVertical: space.md + 2,
-    color: colors.text,
+    color: colors.ink,
     fontSize: font.body,
+    fontFamily: font.regular,
+  },
+
+  empty: {
+    borderRadius: radius.xl,
+    borderWidth: 2,
+    borderColor: colors.line,
+    borderStyle: "dashed",
+    paddingVertical: space.xxxl,
+    paddingHorizontal: space.xl,
+    alignItems: "center",
   },
 
   errorNote: {
-    flexDirection: "row",
-    gap: space.sm,
-    alignItems: "flex-start",
-    backgroundColor: "rgba(255,95,90,0.10)",
-    borderColor: "rgba(255,95,90,0.4)",
+    backgroundColor: colors.redBg,
+    borderColor: colors.redBorder,
     borderWidth: 1,
-    borderRadius: radius.md,
-    padding: space.md,
+    borderRadius: radius.lg,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
   },
-  errorText: { color: "#FFB3B0", fontSize: font.small, flex: 1, lineHeight: 19 },
+  errorText: { color: colors.redText, fontSize: font.small, fontFamily: font.regular, lineHeight: 19 },
+
+  footer: {
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    paddingVertical: space.xxl,
+    marginTop: space.xxl,
+  },
 });

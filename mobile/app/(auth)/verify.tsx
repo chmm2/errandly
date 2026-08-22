@@ -16,7 +16,7 @@ import {
 } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
 import { useAuth } from "../../src/stores/auth";
-import { colors, font, space } from "../../src/theme";
+import { colors, font, radius, space } from "../../src/theme";
 
 export default function Verify() {
   const router = useRouter();
@@ -67,19 +67,19 @@ export default function Verify() {
         <Text style={s.backGlyph}>←</Text>
       </Pressable>
 
-      <Text style={s.mailGlyph}>📬</Text>
+      <Text style={s.mail}>📬</Text>
       <Title>Check your email</Title>
-      <Body dim style={{ marginTop: space.xs }}>
+      <Body muted style={{ marginTop: space.xs }}>
         We sent a 6-digit code to{"\n"}
-        <Text style={{ color: colors.text, fontWeight: font.bold }}>{email}</Text>
+        <Text style={{ color: colors.ink, fontFamily: font.bold }}>{email}</Text>
       </Body>
 
       {devOtp ? (
-        <Card style={s.devCard} glow={colors.warning}>
+        <Card style={s.devCard}>
           <Row gap={space.sm} align="flex-start">
             <Text style={{ fontSize: 16 }}>🛠️</Text>
             <View style={{ flex: 1 }}>
-              <Caption style={{ color: colors.warning, fontWeight: font.bold }}>
+              <Caption style={{ color: colors.amberText, fontFamily: font.bold }}>
                 DEV MODE — EMAIL NOT SENT
               </Caption>
               <Text style={s.devCode}>{devOtp}</Text>
@@ -89,7 +89,7 @@ export default function Verify() {
         </Card>
       ) : null}
 
-      <View style={{ gap: space.md, marginTop: space.xl }}>
+      <View style={{ gap: space.lg, marginTop: space.xxl }}>
         <Field
           label="Verification code"
           placeholder="000000"
@@ -111,7 +111,6 @@ export default function Verify() {
           disabled={code.trim().length < 4}
           onPress={submit}
         />
-
         <Button
           title={resending ? "Sending…" : "Resend code"}
           variant="ghost"
@@ -127,34 +126,33 @@ const s = StyleSheet.create({
   back: {
     width: 42,
     height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.surfaceHigh,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brandSoft,
     alignItems: "center",
     justifyContent: "center",
+    marginTop: space.sm,
     marginBottom: space.xl,
   },
-  backGlyph: { color: colors.text, fontSize: 20, fontWeight: font.bold },
-  mailGlyph: { fontSize: 46, marginBottom: space.md },
+  backGlyph: { color: colors.brandDark, fontSize: 19, fontFamily: font.bold },
+  mail: { fontSize: 42, marginBottom: space.md },
 
   devCard: {
     marginTop: space.xl,
-    backgroundColor: "rgba(255,176,32,0.08)",
-    borderColor: "rgba(255,176,32,0.45)",
+    backgroundColor: colors.amberBg,
+    borderColor: "#FDE68A",
   },
   devCode: {
-    color: colors.text,
-    fontSize: 30,
-    fontWeight: font.black,
-    letterSpacing: 8,
+    color: colors.ink,
+    fontSize: 28,
+    fontFamily: font.black,
+    letterSpacing: 7,
     marginVertical: space.xs,
   },
 
   codeInput: {
-    fontSize: 26,
-    fontWeight: font.black,
-    letterSpacing: 10,
+    fontSize: 24,
+    fontFamily: font.black,
+    letterSpacing: 9,
     textAlign: "center",
   },
 });

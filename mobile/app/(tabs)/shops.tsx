@@ -1,105 +1,146 @@
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
-import { RefreshControl, StyleSheet, Text, View } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useMemo, useState } from "react";
+import { Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { fetchVendors, type Vendor } from "../../src/api/vendors";
 import {
   Body,
   Caption,
-  Card,
-  Chip,
   EmptyState,
-  Heading,
+  Hero,
   Loading,
+  Pill,
   Row,
   Screen,
 } from "../../src/components/ui";
-import { categoryStyle, colors, font, radius, space } from "../../src/theme";
+import { categoryIcon, colors, font, radius, space } from "../../src/theme";
 
 export default function Shops() {
   const router = useRouter();
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const params = useLocalSearchParams<{ category?: string }>();
+  const foodMode = params.category === "FOOD";
+  const [search, setSearch] = useState("");
+
+  const { data: vendors, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["vendors"],
     queryFn: fetchVendors,
   });
 
+  const filtered = useMemo(() => {
+    let list = vendors ?? [];
+    if (foodMode) list = list.filter((v) => v.category === "FOOD");
+    const q = search.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (v) =>
+          v.name.toLowerCase().includes(q) ||
+          (v.description ?? "").toLowerCase().includes(q),
+      );
+    }
+    return list;
+  }, [vendors, foodMode, search]);
+
   return (
     <Screen
       scroll
+      padded={false}
       refreshControl={
-        <RefreshControl
-          refreshing={isRefetching}
-          onRefresh={refetch}
-          tintColor={colors.brandBright}
-        />
+        <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.brand} />
       }
     >
-      <Heading style={{ paddingTop: space.md }}>Campus shops</Heading>
-      <Caption style={{ marginTop: 2, marginBottom: space.lg }}>
-        Order from a store and a runner brings it over.
-      </Caption>
+      <Hero
+        compact
+        title={foodMode ? "Food on campus 🍔" : "Campus stores 🏪"}
+        subtitle={
+          foodMode
+            ? "Every canteen, food court and night mess on campus. Order off the menu — a runner brings it to you."
+            : "Order straight off the menu — a runner picks it up and brings it to you."
+        }
+      >
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder={foodMode ? "🔍 Search canteens & food spots" : "🔍 Search stores"}
+          placeholderTextColor={colors.muted}
+          style={s.search}
+        />
+      </Hero>
 
-      {isLoading ? (
-        <View style={{ height: 240 }}>
-          <Loading />
-        </View>
-      ) : (data?.length ?? 0) === 0 ? (
-        <Card style={{ height: 240, padding: 0, justifyContent: "center" }}>
+      <View style={{ paddingHorizontal: space.lg, paddingTop: space.xl }}>
+        {isLoading ? (
+          <View style={{ height: 220 }}>
+            <Loading />
+          </View>
+        ) : filtered.length === 0 ? (
           <EmptyState
             emoji="🏪"
-            title="No shops yet"
-            body="Campus stores appear here once an admin onboards them."
+            title={
+              (vendors ?? []).length === 0
+                ? "No stores onboarded yet"
+                : `No matches for "${search}"`
+            }
+            body={
+              (vendors ?? []).length === 0
+                ? "Campus stores appear here once an admin adds them."
+                : undefined
+            }
           />
-        </Card>
-      ) : (
-        <View style={{ gap: space.md }}>
-          {data!.map((v: Vendor) => {
-            const cat = categoryStyle[v.category];
-            return (
-              <Card key={v.id} onPress={() => router.push(`/vendor/${v.id}`)}>
-                <Row gap={space.md} align="flex-start">
-                  <View style={[s.avatar, { backgroundColor: cat.tint }]}>
-                    <Text style={{ fontSize: 24 }}>{cat.emoji}</Text>
-                  </View>
-
-                  <View style={{ flex: 1 }}>
-                    <Row justify="space-between" gap={space.sm}>
-                      <Body style={{ fontWeight: font.bold, flex: 1 }} numberOfLines={1}>
-                        {v.name}
-                      </Body>
-                      <Chip
-                        label={v.is_open ? "Open" : "Closed"}
-                        color={v.is_open ? colors.success : colors.textFaint}
-                        tint={v.is_open ? "rgba(47,217,143,0.14)" : colors.surfaceHigh}
-                      />
-                    </Row>
-
-                    {v.description ? (
-                      <Caption numberOfLines={2} style={{ marginTop: 3 }}>
-                        {v.description}
-                      </Caption>
-                    ) : null}
-
-                    <Row gap={space.sm} style={{ marginTop: space.sm }}>
-                      <Chip label={cat.label} icon={cat.emoji} color={cat.color} tint={cat.tint} />
-                    </Row>
-                  </View>
-                </Row>
-              </Card>
-            );
-          })}
-        </View>
-      )}
+        ) : (
+          <Row gap={space.md} wrap align="stretch">
+            {filtered.map((v: Vendor) => (
+              <Pressable
+                key={v.id}
+                onPress={() => router.push(`/vendor/${v.id}`)}
+                style={({ pressed }) => [
+                  s.card,
+                  !v.is_open && { opacity: 0.6 },
+                  pressed && { borderColor: colors.brand },
+                ]}
+              >
+                <Text style={{ fontSize: 30 }}>{categoryIcon[v.category] ?? "🏪"}</Text>
+                <Body numberOfLines={1} style={{ fontFamily: font.bold, marginTop: space.sm }}>
+                  {v.name}
+                </Body>
+                {v.description ? (
+                  <Caption numberOfLines={2} style={{ marginTop: 2 }}>
+                    {v.description}
+                  </Caption>
+                ) : null}
+                <View style={{ marginTop: space.sm }}>
+                  <Pill
+                    label={v.is_open ? "● Open" : "Closed"}
+                    bg={v.is_open ? colors.greenBg : colors.grayBg}
+                    color={v.is_open ? colors.greenText : colors.muted}
+                  />
+                </View>
+              </Pressable>
+            ))}
+          </Row>
+        )}
+      </View>
     </Screen>
   );
 }
 
 const s = StyleSheet.create({
-  avatar: {
-    width: 54,
-    height: 54,
+  search: {
+    marginTop: space.lg,
+    backgroundColor: "rgba(255,255,255,0.95)",
     borderRadius: radius.lg,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md + 1,
+    color: colors.ink,
+    fontSize: font.body,
+    fontFamily: font.regular,
+  },
+  card: {
+    width: "48%",
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.white,
+    padding: space.lg,
+    minHeight: 150,
   },
 });
