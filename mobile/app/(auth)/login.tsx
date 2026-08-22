@@ -6,6 +6,7 @@ import {
   Easing,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { fetchMe, login } from "../../src/api/auth";
+import { BackendSetting } from "../../src/components/BackendSetting";
 import { Body, Button, Caption, ErrorNote, Field, Row } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
 import { useAuth } from "../../src/stores/auth";
@@ -28,6 +30,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showServer, setShowServer] = useState(false);
 
   // Entrance: the wordmark and card lift in together on first paint.
   const rise = useRef(new Animated.Value(0)).current;
@@ -148,6 +151,25 @@ export default function Login() {
                   Create an account
                 </Link>
               </Row>
+
+              {/* Escape hatch: if the compiled-in server address is dead you
+                  can't sign in, so the fix has to live on THIS side of the
+                  login wall — not buried in Profile. */}
+              <Pressable
+                onPress={() => setShowServer((v) => !v)}
+                hitSlop={10}
+                style={{ marginTop: space.xl }}
+              >
+                <Text style={s.serverToggle}>
+                  {showServer ? "Hide server settings" : "Can't connect? Change server"}
+                </Text>
+              </Pressable>
+
+              {showServer ? (
+                <View style={{ marginTop: space.md }}>
+                  <BackendSetting compact />
+                </View>
+              ) : null}
             </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -210,4 +232,10 @@ const s = StyleSheet.create({
   cardTitle: { color: colors.text, fontSize: font.h2, fontWeight: font.bold },
 
   link: { color: colors.brandBright, fontSize: font.body, fontWeight: font.bold },
+  serverToggle: {
+    color: colors.textFaint,
+    fontSize: font.small,
+    fontWeight: font.semi,
+    textAlign: "center",
+  },
 });
