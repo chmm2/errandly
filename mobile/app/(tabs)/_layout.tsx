@@ -1,32 +1,29 @@
 import { Tabs } from "expo-router";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors, font, radius } from "../../src/theme";
+import { colors, font } from "../../src/theme";
 
-function TabIcon({ glyph, focused }: { glyph: string; focused: boolean }) {
-  return (
-    <View style={[s.icon, focused && s.iconOn]}>
-      <Text style={{ fontSize: 18, opacity: focused ? 1 : 0.5 }}>{glyph}</Text>
-    </View>
-  );
-}
-
+/**
+ * Three tabs, matching the two roles the product actually has plus your
+ * account. Shops isn't here — you reach it from Order → Food, the way the web
+ * app does it.
+ */
 export default function TabsLayout() {
-  // Size the bar from the real bottom inset rather than a hardcoded guess —
-  // a fixed 26pt gap clipped the labels on anything without a home indicator.
+  // Size from the real inset; a hardcoded gap clipped the labels on anything
+  // without a home indicator.
   const insets = useSafeAreaInsets();
-  const bottomInset = Platform.OS === "web" ? 8 : Math.max(insets.bottom, 8);
+  const bottomInset = Platform.OS === "web" ? 6 : Math.max(insets.bottom, 6);
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: [s.bar, { height: 58 + bottomInset, paddingBottom: bottomInset }],
+        tabBarStyle: [s.bar, { height: 62 + bottomInset, paddingBottom: bottomInset }],
         tabBarActiveTintColor: colors.brand,
         tabBarInactiveTintColor: colors.muted,
         tabBarLabelStyle: s.label,
-        tabBarItemStyle: { paddingTop: 5 },
+        tabBarIconStyle: s.icon,
         sceneStyle: { backgroundColor: colors.bg },
       }}
     >
@@ -34,28 +31,27 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: "Order",
-          tabBarIcon: ({ focused }) => <TabIcon glyph="🧑" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="shops"
-        options={{
-          title: "Shops",
-          tabBarIcon: ({ focused }) => <TabIcon glyph="🏪" focused={focused} />,
+          tabBarIcon: ({ focused }) => (
+            <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.55 }}>🧑</Text>
+          ),
         }}
       />
       <Tabs.Screen
         name="runner"
         options={{
           title: "Run",
-          tabBarIcon: ({ focused }) => <TabIcon glyph="🛵" focused={focused} />,
+          tabBarIcon: ({ focused }) => (
+            <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.55 }}>🛵</Text>
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ focused }) => <TabIcon glyph="👤" focused={focused} />,
+          tabBarIcon: ({ focused }) => (
+            <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.55 }}>👤</Text>
+          ),
         }}
       />
     </Tabs>
@@ -67,15 +63,9 @@ const s = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopColor: colors.line,
     borderTopWidth: 1,
-    paddingTop: 4,
+    paddingTop: 8,
   },
-  label: { fontSize: 10, fontFamily: font.bold, marginTop: 1 },
-  icon: {
-    width: 38,
-    height: 26,
-    borderRadius: radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  iconOn: { backgroundColor: colors.brandSoft },
+  // Generous line height so descenders in "Profile" can't be clipped.
+  label: { fontSize: 11, lineHeight: 15, fontFamily: font.bold, marginTop: 3 },
+  icon: { height: 24 },
 });

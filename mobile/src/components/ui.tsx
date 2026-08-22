@@ -22,10 +22,10 @@ import { colors, font, radius, shadow, space } from "../theme";
 /* ------------------------------------------------------------------ layout */
 
 /**
- * Clearance so the last row of a scrolling screen isn't hidden behind the tab
- * bar. Screens outside the tab group pass `tabBarClearance={false}`.
+ * Just enough clearance that the last row clears the tab bar — no more, or the
+ * page scrolls into dead space past the footer.
  */
-const TAB_BAR_CLEARANCE = 96;
+const TAB_BAR_CLEARANCE = 24;
 
 export function Screen({
   children,
@@ -74,19 +74,28 @@ export function Hero({
   subtitle,
   children,
   compact = false,
+  eyebrow,
 }: {
   title: string;
   subtitle?: string;
   children?: ReactNode;
   compact?: boolean;
+  /** Small uppercase line above the title — gives the band a second level. */
+  eyebrow?: string;
 }) {
   return (
     <LinearGradient
       colors={colors.brandGradient}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={[s.hero, compact && { paddingVertical: space.xl }]}
+      style={[s.hero, compact && { paddingTop: space.xl, paddingBottom: space.xl }]}
     >
+      {/* Depth: two translucent discs behind the copy, so the band reads as a
+          surface rather than a flat colour fill. */}
+      <View style={s.heroDiscLarge} pointerEvents="none" />
+      <View style={s.heroDiscSmall} pointerEvents="none" />
+
+      {eyebrow ? <Text style={s.heroEyebrow}>{eyebrow}</Text> : null}
       <Text style={s.heroTitle}>{title}</Text>
       {subtitle ? <Text style={s.heroSub}>{subtitle}</Text> : null}
       {children}
@@ -402,12 +411,40 @@ const s = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingTop: space.xxl,
     paddingBottom: space.xxl,
+    overflow: "hidden",
+  },
+  heroDiscLarge: {
+    position: "absolute",
+    top: -70,
+    right: -60,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "rgba(255,255,255,0.10)",
+  },
+  heroDiscSmall: {
+    position: "absolute",
+    bottom: -50,
+    left: -30,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  heroEyebrow: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: font.tiny,
+    fontFamily: font.bold,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    marginBottom: space.xs,
   },
   heroTitle: {
     color: colors.white,
     fontSize: font.display,
     fontFamily: font.black,
     lineHeight: 38,
+    letterSpacing: -0.6,
   },
   heroSub: {
     color: "rgba(255,255,255,0.92)",
@@ -485,7 +522,8 @@ const s = StyleSheet.create({
   footer: {
     borderTopWidth: 1,
     borderTopColor: colors.line,
-    paddingVertical: space.xxl,
+    paddingTop: space.xl,
+    paddingBottom: space.sm,
     marginTop: space.xxl,
   },
 });

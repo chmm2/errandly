@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { fetchVendors, type Vendor } from "../../src/api/vendors";
+import { fetchVendors, type Vendor } from "../src/api/vendors";
 import {
   Body,
   Caption,
@@ -13,8 +13,8 @@ import {
   Pill,
   Row,
   Screen,
-} from "../../src/components/ui";
-import { categoryIcon, colors, font, radius, space } from "../../src/theme";
+} from "../src/components/ui";
+import { categoryIcon, colors, font, radius, space } from "../src/theme";
 
 export default function Shops() {
   const router = useRouter();
@@ -45,6 +45,7 @@ export default function Shops() {
     <Screen
       scroll
       padded={false}
+      tabBarClearance={false}
       refreshControl={
         <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.brand} />
       }

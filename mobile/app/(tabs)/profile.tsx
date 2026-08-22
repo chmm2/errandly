@@ -239,24 +239,11 @@ export default function Profile() {
           )}
         </Card>
 
-        {/* ---------------------------------------------------------- account */}
-        <Heading style={{ marginTop: space.xxl, marginBottom: space.md }}>Account</Heading>
-        <Card raised style={{ padding: 0 }}>
-          <Pressable
-            onPress={() => router.push("/notifications")}
-            style={({ pressed }) => [s.link, pressed && s.pressed]}
-          >
-            <Text style={{ fontSize: 16 }}>🔔</Text>
-            <Body style={{ flex: 1 }}>Notifications</Body>
-            <Caption>›</Caption>
-          </Pressable>
-        </Card>
-
         <Button
           title="Log out"
           variant="outline"
           onPress={confirmLogout}
-          style={{ marginTop: space.xl }}
+          style={{ marginTop: space.xxl }}
         />
 
         <Footer />

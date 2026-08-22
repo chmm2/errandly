@@ -84,7 +84,7 @@ export const startOptions = [
     icon: "🍔",
     name: "Food",
     desc: "Canteens, food court, night mess",
-    route: "/(tabs)/shops" as const,
+    route: "/shops" as const,
     params: { category: "FOOD" },
   },
   {
