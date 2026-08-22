@@ -52,6 +52,7 @@ export default function Shops() {
     >
       <Hero
         compact
+        onBack={() => router.back()}
         title={foodMode ? "Food on campus 🍔" : "Campus stores 🏪"}
         subtitle={
           foodMode

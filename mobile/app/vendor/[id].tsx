@@ -106,7 +106,7 @@ export default function VendorMenu() {
     <Screen padded={false}>
       <View style={{ flex: 1 }}>
         <Screen scroll padded={false} edges={[]}>
-          <Hero compact title={data.vendor.name} subtitle={data.vendor.description ?? undefined}>
+          <Hero compact onBack={() => router.back()} title={data.vendor.name} subtitle={data.vendor.description ?? undefined}>
             <View style={{ marginTop: space.md, alignSelf: "flex-start" }}>
               <Pill
                 label={data.vendor.is_open ? "● Open now" : "Closed"}
@@ -117,10 +117,6 @@ export default function VendorMenu() {
           </Hero>
 
           <View style={{ paddingHorizontal: space.lg, paddingTop: space.lg }}>
-            <Pressable onPress={() => router.back()} hitSlop={12}>
-              <Caption style={{ fontFamily: font.bold, color: colors.brand }}>← Back</Caption>
-            </Pressable>
-
             {data.stale ? (
               <Card style={s.stale}>
                 <Caption style={{ color: colors.amberText }}>

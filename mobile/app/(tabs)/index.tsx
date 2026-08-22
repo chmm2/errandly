@@ -218,15 +218,7 @@ export default function Home() {
               🛵 Finish the run you're on before posting your own errand.
             </Text>
           </View>
-        ) : (
-          <Button
-            title="Post an errand  →"
-            variant="white"
-            full={false}
-            onPress={() => router.push("/errand/new")}
-            style={{ marginTop: space.xl, alignSelf: "flex-start" }}
-          />
-        )}
+        ) : null}
       </Hero>
 
       {/* Bell sits over the hero, same position the web navbar puts it. */}
@@ -240,24 +232,9 @@ export default function Home() {
       </Pressable>
 
       <View style={{ paddingHorizontal: space.lg }}>
-        {/* Active errands first — the moment something's in flight, it's the
-            top thing you want to see. */}
-        {isLoading ? (
-          <View style={{ height: 150 }}>
-            <Loading />
-          </View>
-        ) : active.length > 0 ? (
-          <View style={{ paddingTop: space.xxl }}>
-            <Heading>Your active errands</Heading>
-            <View style={{ gap: space.md, marginTop: space.lg }}>
-              {active.map((e) => (
-                <ErrandRow key={e.id} errand={e} onRate={(id) => router.push(`/errand/${id}`)} />
-              ))}
-            </View>
-          </View>
-        ) : null}
-
-        {/* Start an errand */}
+        {/* Starting an errand is why you opened the app, so it leads. The
+            category tiles double as the primary action — a separate "post an
+            errand" button above them was the same journey twice. */}
         <View style={{ paddingTop: space.xxl }}>
           <Heading>What can we get you?</Heading>
           <Row gap={space.md} wrap style={{ marginTop: space.lg }}>
@@ -278,14 +255,28 @@ export default function Home() {
               </Pressable>
             ))}
           </Row>
-
-          {active.length === 0 && !isLoading ? (
-            <Caption style={{ marginTop: space.lg }}>
-              Nothing in flight right now — pick a category above to post your first errand. Past
-              errands live in your profile.
-            </Caption>
-          ) : null}
         </View>
+
+        {/* Anything in flight, underneath */}
+        {isLoading ? (
+          <View style={{ height: 150 }}>
+            <Loading />
+          </View>
+        ) : active.length > 0 ? (
+          <View style={{ paddingTop: space.xxl }}>
+            <Heading>Your active errands</Heading>
+            <View style={{ gap: space.md, marginTop: space.lg }}>
+              {active.map((e) => (
+                <ErrandRow key={e.id} errand={e} onRate={(id) => router.push(`/errand/${id}`)} />
+              ))}
+            </View>
+          </View>
+        ) : (
+          <Caption style={{ marginTop: space.xl }}>
+            Nothing in flight right now — pick a category above to post your first errand. Past
+            errands live in your profile.
+          </Caption>
+        )}
 
         <Footer />
       </View>

@@ -62,6 +62,7 @@ export default function Notifications() {
     >
       <Hero
         compact
+        onBack={() => router.back()}
         title="Notifications"
         subtitle={
           data?.unread ? `${data.unread} unread` : "Updates on your errands land here."
@@ -70,9 +71,7 @@ export default function Notifications() {
 
       <View style={{ paddingHorizontal: space.lg, paddingTop: space.lg }}>
         <Row justify="space-between" style={{ marginBottom: space.md }}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Caption style={{ fontFamily: font.bold, color: colors.brand }}>← Back</Caption>
-          </Pressable>
+          <View />
           {data?.unread ? (
             <Pressable
               hitSlop={8}

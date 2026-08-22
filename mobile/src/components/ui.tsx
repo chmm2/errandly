@@ -75,6 +75,7 @@ export function Hero({
   children,
   compact = false,
   eyebrow,
+  onBack,
 }: {
   title: string;
   subtitle?: string;
@@ -82,6 +83,8 @@ export function Hero({
   compact?: boolean;
   /** Small uppercase line above the title — gives the band a second level. */
   eyebrow?: string;
+  /** Show a back control. Any screen pushed onto the stack should pass this. */
+  onBack?: () => void;
 }) {
   return (
     <LinearGradient
@@ -94,6 +97,18 @@ export function Hero({
           surface rather than a flat colour fill. */}
       <View style={s.heroDiscLarge} pointerEvents="none" />
       <View style={s.heroDiscSmall} pointerEvents="none" />
+
+      {onBack ? (
+        <Pressable
+          onPress={onBack}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          style={({ pressed }) => [s.heroBack, pressed && { opacity: 0.6 }]}
+        >
+          <Text style={s.heroBackGlyph}>←</Text>
+        </Pressable>
+      ) : null}
 
       {eyebrow ? <Text style={s.heroEyebrow}>{eyebrow}</Text> : null}
       <Text style={s.heroTitle}>{title}</Text>
@@ -431,6 +446,16 @@ const s = StyleSheet.create({
     borderRadius: 65,
     backgroundColor: "rgba(255,255,255,0.08)",
   },
+  heroBack: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: space.md,
+  },
+  heroBackGlyph: { color: colors.white, fontSize: 19, fontFamily: font.bold, marginTop: -2 },
   heroEyebrow: {
     color: "rgba(255,255,255,0.85)",
     fontSize: font.tiny,

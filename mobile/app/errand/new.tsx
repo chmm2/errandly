@@ -28,14 +28,34 @@ import {
 import { apiErrorMessage } from "../../src/lib/api";
 import { categoryIcon, colors, font, radius, space } from "../../src/theme";
 
-const CATEGORIES: { value: Category; label: string }[] = [
-  { value: "FOOD", label: "Food" },
+/**
+ * The only flow that asks for a category is the shopping list — "groceries,
+ * stationery, medicines" is one journey with three shelves. Every other entry
+ * point already told us what it is by being tapped, so re-asking is a step for
+ * nothing.
+ */
+const SHOPPING_CATEGORIES: { value: Category; label: string }[] = [
   { value: "GROCERY", label: "Grocery" },
   { value: "STATIONERY", label: "Stationery" },
   { value: "PHARMACY", label: "Pharmacy" },
-  { value: "PARCEL", label: "Parcel" },
-  { value: "CUSTOM", label: "Main gate" },
 ];
+
+/** Screen title and lead-in per entry point. */
+const FLOW_COPY: Record<string, { title: string; blurb: string }> = {
+  shopping: {
+    title: "Shopping list",
+    blurb: "List what you need and a runner picks it up off the shelf.",
+  },
+  PARCEL: {
+    title: "Parcel pickup",
+    blurb: "Someone collects your parcel from the campus collection point.",
+  },
+  CUSTOM: {
+    title: "Main gate",
+    blurb: "Someone collects a delivery waiting for you at the gate.",
+  },
+  FOOD: { title: "New errand", blurb: "Tell a runner what you need and what it's worth." },
+};
 
 /** Backend derives fulfillment from category; these two need handoff details. */
 const PICKUP_CATEGORIES: Category[] = ["CUSTOM", "PARCEL"];
@@ -47,9 +67,11 @@ export default function NewErrand() {
   const queryClient = useQueryClient();
   const params = useLocalSearchParams<{ category?: Category; mode?: string }>();
 
+  const isShopping = params.mode === "shopping";
   const [category, setCategory] = useState<Category>(
-    params.category ?? (params.mode === "shopping" ? "GROCERY" : "FOOD"),
+    params.category ?? (isShopping ? "GROCERY" : "FOOD"),
   );
+  const copy = FLOW_COPY[isShopping ? "shopping" : (params.category ?? "FOOD")] ?? FLOW_COPY.FOOD;
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [pickup, setPickup] = useState("");
@@ -134,36 +156,44 @@ export default function NewErrand() {
             </Pressable>
           </Row>
 
-          <Title style={{ marginTop: space.sm }}>New errand</Title>
+          <Row gap={space.sm} align="center" style={{ marginTop: space.sm }}>
+            <Text style={{ fontSize: 26 }}>{categoryIcon[category] ?? "✨"}</Text>
+            <Title>{copy.title}</Title>
+          </Row>
           <Body muted style={{ marginTop: space.xs }}>
-            Tell a runner what you need and what it's worth.
+            {copy.blurb}
           </Body>
 
-          {/* Category */}
-          <Label style={{ marginTop: space.xxl, marginBottom: space.md }}>Category</Label>
-          <Row gap={space.sm} wrap>
-            {CATEGORIES.map((c) => {
-              const on = c.value === category;
-              return (
-                <Pressable
-                  key={c.value}
-                  onPress={() => setCategory(c.value)}
-                  style={[s.cat, on && s.catOn]}
-                >
-                  <Text style={{ fontSize: 18 }}>{categoryIcon[c.value]}</Text>
-                  <Caption
-                    style={{
-                      color: on ? colors.brandDark : colors.muted,
-                      fontFamily: font.semi,
-                      marginTop: 2,
-                    }}
-                  >
-                    {c.label}
-                  </Caption>
-                </Pressable>
-              );
-            })}
-          </Row>
+          {/* Only the shopping-list flow needs a choice — every other entry
+              point already picked the category by being tapped. */}
+          {isShopping ? (
+            <>
+              <Label style={{ marginTop: space.xxl, marginBottom: space.md }}>What kind?</Label>
+              <Row gap={space.sm}>
+                {SHOPPING_CATEGORIES.map((c) => {
+                  const on = c.value === category;
+                  return (
+                    <Pressable
+                      key={c.value}
+                      onPress={() => setCategory(c.value)}
+                      style={[s.cat, on && s.catOn]}
+                    >
+                      <Text style={{ fontSize: 18 }}>{categoryIcon[c.value]}</Text>
+                      <Caption
+                        style={{
+                          color: on ? colors.brandDark : colors.muted,
+                          fontFamily: font.semi,
+                          marginTop: 2,
+                        }}
+                      >
+                        {c.label}
+                      </Caption>
+                    </Pressable>
+                  );
+                })}
+              </Row>
+            </>
+          ) : null}
 
           <View style={{ gap: space.lg, marginTop: space.xxl }}>
             <Field

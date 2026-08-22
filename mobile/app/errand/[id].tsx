@@ -172,7 +172,7 @@ export default function ErrandDetail() {
 
   return (
     <Screen scroll padded={false}>
-      <Hero compact title={errand.title}>
+      <Hero compact onBack={() => router.back()} title={errand.title}>
         <Row gap={space.md} style={{ marginTop: space.md }} wrap>
           <Text style={s.reward}>{rupees(errand.reward)}</Text>
           <Text style={s.rewardLabel}>reward</Text>
@@ -183,10 +183,7 @@ export default function ErrandDetail() {
       </Hero>
 
       <View style={{ paddingHorizontal: space.lg, paddingTop: space.xl }}>
-        <Row justify="space-between">
-          <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Caption style={{ fontFamily: font.bold, color: colors.brand }}>← Back</Caption>
-          </Pressable>
+        <Row justify="flex-end">
           <Pill label={status.label} bg={status.bg} color={status.text} />
         </Row>
 
