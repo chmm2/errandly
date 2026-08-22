@@ -1,4 +1,5 @@
 import Constants from "expo-constants";
+import { Platform } from "react-native";
 
 import { useSettings } from "../stores/settings";
 
@@ -34,6 +35,14 @@ export function defaultApiBase(): string {
 
   const lanIp = hostUri?.split(":")[0];
   if (lanIp) return `http://${lanIp}:${BACKEND_PORT}`;
+
+  // Running in a browser: hostUri is undefined there, so without this the web
+  // build fell through to the emulator alias below and could never reach the
+  // API. The page is served by the dev machine, so the backend is on the same
+  // host with the port swapped.
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    return `http://${window.location.hostname}:${BACKEND_PORT}`;
+  }
 
   // Last resort: Android emulator's alias for the host machine's loopback.
   return `http://10.0.2.2:${BACKEND_PORT}`;

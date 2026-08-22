@@ -159,6 +159,10 @@ export default function Login() {
                   disabled={!email.trim() || !password}
                   onPress={submit}
                 />
+
+                <Link href="/(auth)/forgot" style={s.forgot}>
+                  Forgot password?
+                </Link>
               </View>
 
               <View style={s.newHere}>
@@ -244,5 +248,11 @@ const s = StyleSheet.create({
     marginTop: space.xl,
   },
   link: { color: colors.brand, fontSize: font.small, fontFamily: font.bold },
+  forgot: {
+    color: colors.muted,
+    fontSize: font.small,
+    fontFamily: font.semi,
+    textAlign: "center",
+  },
 
 });

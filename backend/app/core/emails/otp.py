@@ -1,4 +1,4 @@
-"""The verification-code email.
+"""The one-time-code email, shared by email verification and password reset.
 
 Inline styles and a table layout on purpose — mail clients strip <style>
 blocks and have no useful flexbox support, so this is the one place in the
@@ -14,19 +14,62 @@ MUTED = "#686B78"
 LINE = "#E9E9EB"
 
 
-def otp_email(display_name: str, code: str, ttl_minutes: int) -> tuple[str, str]:
-    """Return (plain_text, html) for a verification email.
+# Per-purpose copy. Everything else about the message is identical, so the
+# layout below stays a single template.
+_COPY = {
+    "verify": {
+        "subject": "Verify your Errandly email",
+        "lead": "Use this code to verify your email and finish setting up your Errandly account.",
+        "noun": "verification code",
+        "disclaimer": (
+            "If you didn't sign up for Errandly, you can safely ignore this email "
+            "&mdash; nothing will happen to your address."
+        ),
+        "disclaimer_text": "If you didn't sign up for Errandly, you can ignore this email.",
+    },
+    "reset": {
+        "subject": "Reset your Errandly password",
+        "lead": "Use this code to set a new password on your Errandly account.",
+        "noun": "password reset code",
+        "disclaimer": (
+            "If you didn't ask to reset your password, you can safely ignore this email "
+            "&mdash; your current password still works."
+        ),
+        "disclaimer_text": (
+            "If you didn't ask to reset your password, you can ignore this email — "
+            "your current password still works."
+        ),
+    },
+}
+
+
+def otp_subject(purpose: str = "verify") -> str:
+    """Subject line for a one-time-code email.
+
+    Deliberately free of the code itself. The subject is the one part of an
+    email that surfaces on a lock screen and in notification shades, so a code
+    placed there is readable by anyone who can see the phone — no unlock
+    required.
+    """
+    return _COPY[purpose]["subject"]
+
+
+def otp_email(
+    display_name: str, code: str, ttl_minutes: int, purpose: str = "verify"
+) -> tuple[str, str]:
+    """Return (plain_text, html) for a one-time-code email.
 
     Both parts are sent: clients that refuse HTML still get a usable message,
     and spam filters treat multipart mail more kindly than HTML alone.
     """
     first = (display_name or "there").split(" ")[0]
+    copy = _COPY[purpose]
 
     text = (
         f"Hi {first},\n\n"
-        f"Your Errandly verification code is: {code}\n\n"
+        f"Your Errandly {copy['noun']} is: {code}\n\n"
         f"It expires in {ttl_minutes} minutes.\n\n"
-        "If you didn't sign up for Errandly, you can ignore this email.\n\n"
+        f"{copy['disclaimer_text']}\n\n"
         "— Errandly · built by students, for students"
     )
 
@@ -57,7 +100,7 @@ def otp_email(display_name: str, code: str, ttl_minutes: int) -> tuple[str, str]
           <td style="padding:32px;">
             <p style="margin:0 0 6px;color:{INK};font-size:20px;font-weight:700;">Hi {first},</p>
             <p style="margin:0 0 24px;color:{MUTED};font-size:15px;line-height:22px;">
-              Use this code to verify your email and finish setting up your Errandly account.
+              {copy["lead"]}
             </p>
 
             <!-- Code -->
@@ -78,8 +121,7 @@ def otp_email(display_name: str, code: str, ttl_minutes: int) -> tuple[str, str]
             </table>
 
             <p style="margin:24px 0 0;color:{MUTED};font-size:13px;line-height:20px;">
-              If you didn't sign up for Errandly, you can safely ignore this email &mdash;
-              nothing will happen to your address.
+              {copy["disclaimer"]}
             </p>
           </td>
         </tr>

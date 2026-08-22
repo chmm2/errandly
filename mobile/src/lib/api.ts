@@ -21,7 +21,13 @@ api.interceptors.request.use((config) => {
 });
 
 // Endpoints where a 401 means "bad credentials", not "expired session".
-const NO_REFRESH = ["/auth/login", "/auth/register", "/auth/refresh"];
+const NO_REFRESH = [
+  "/auth/login",
+  "/auth/register",
+  "/auth/refresh",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+];
 
 let refreshInFlight: Promise<string | null> | null = null;
 

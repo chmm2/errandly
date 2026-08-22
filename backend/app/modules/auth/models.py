@@ -110,6 +110,28 @@ class EmailOtp(Base):
     )
 
 
+class PasswordResetOtp(Base):
+    """One active password-reset OTP per user.
+
+    Deliberately a separate table from EmailOtp rather than a `purpose` column
+    on it: both codes can legitimately be outstanding at once (a PENDING user
+    who forgets their password before verifying), and sharing one row keyed by
+    user_id would let either flow silently invalidate the other's code.
+    """
+
+    __tablename__ = "password_reset_otps"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    code_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=False
+    )
+
+
 class RefreshToken(Base):
     """Server-side record of issued refresh tokens (hashed) for revocation."""
 

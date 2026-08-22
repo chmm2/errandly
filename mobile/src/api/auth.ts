@@ -34,6 +34,27 @@ export async function resendOtp(email: string): Promise<string | null> {
   return res.headers["x-dev-otp"] ?? null;
 }
 
+/**
+ * Ask for a password-reset code.
+ *
+ * Resolves even when no account exists for the address — the backend answers
+ * 202 either way so the endpoint can't be used to discover who's registered.
+ * The UI must therefore never claim the email "was sent", only that it will
+ * arrive if the account exists.
+ */
+export async function forgotPassword(email: string): Promise<string | null> {
+  const res = await api.post("/auth/forgot-password", { email });
+  return res.headers["x-dev-otp"] ?? null;
+}
+
+export async function resetPassword(
+  email: string,
+  code: string,
+  new_password: string,
+): Promise<void> {
+  await api.post("/auth/reset-password", { email, code, new_password });
+}
+
 export async function login(email: string, password: string): Promise<TokenPair> {
   const { data } = await api.post<TokenPair>("/auth/login", { email, password });
   return data;

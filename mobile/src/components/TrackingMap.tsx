@@ -1,37 +1,28 @@
-import Constants from "expo-constants";
 import { useMemo, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
 
-import { colors, font, radius, space } from "../theme";
 import { buildMapHtml } from "../lib/mapHtml";
-import { NativeTrackingMap } from "./NativeTrackingMap";
+import { colors, font, radius, space } from "../theme";
 import { Caption } from "./ui";
 
 /**
- * Live tracking map — native Google Maps when a key is configured, Leaflet
- * otherwise.
+ * Live tracking map (native builds).
  *
- * Both paths exist on purpose. Native is the better map: smoother, styleable,
- * and what a delivery app is expected to feel like. But it needs a Google
- * Cloud key on Android, and a build without one should still ship a working
- * tracking screen rather than a blank rectangle — hence the WebView fallback,
- * which needs no key at all and matches the web client's tiles and markers.
+ * Leaflet in a WebView rather than a native map component, for one practical
+ * reason: react-native-maps and expo-maps both require a Google Cloud project
+ * and a billable API key on Android, and OpenStreetMap tiles need neither. It
+ * also matches the web client exactly — same library, same tiles, same emoji
+ * markers — so tracking looks like one product on both.
+ *
+ * The trade is performance: a WebView map is heavier than a native one. At
+ * campus scale, with two markers, that isn't the constraint.
+ *
+ * See TrackingMap.web.tsx for the browser build — react-native-webview has no
+ * web implementation, so the web bundle renders the same Leaflet page in an
+ * iframe instead.
  */
-/** True when a Maps API key was present at build time (see app.config.js). */
-const GOOGLE_MAPS_READY = !!Constants.expoConfig?.extra?.googleMapsConfigured;
-
-export function TrackingMap(props: {
-  drop: { lat: number; lng: number };
-  runner?: { lat: number; lng: number } | null;
-  height?: number;
-}) {
-  // Native map when we have a key; the keyless Leaflet view otherwise, so a
-  // missing key costs one screen's polish rather than the whole feature.
-  return GOOGLE_MAPS_READY ? <NativeTrackingMap {...props} /> : <LeafletTrackingMap {...props} />;
-}
-
-function LeafletTrackingMap({
+export function TrackingMap({
   drop,
   runner,
   height = 240,
@@ -65,19 +56,14 @@ function LeafletTrackingMap({
         // Tiles come from OSM's CDN; without this Android blocks them.
         mixedContentMode="always"
       />
-      {!runner ? (
-        <View style={s.badge}>
-          <Caption style={s.badgeText}>📍 Drop-off point</Caption>
-        </View>
-      ) : (
-        <View style={s.badge}>
-          <Caption style={s.badgeText}>🛵 Runner is on the move</Caption>
-        </View>
-      )}
+      <View style={s.badge}>
+        <Caption style={s.badgeText}>
+          {runner ? "🛵 Runner is on the move" : "📍 Drop-off point"}
+        </Caption>
+      </View>
     </View>
   );
 }
-
 
 const s = StyleSheet.create({
   wrap: {

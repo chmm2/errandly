@@ -3,19 +3,25 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from redis.asyncio import Redis
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.email import send_email
-from app.core.emails.otp import otp_email
+from app.core.emails.otp import otp_email, otp_subject
 from app.core.security import (
     create_access_token,
     create_refresh_token,
     hash_password,
     verify_password,
 )
-from app.modules.auth.models import AuthCredential, EmailOtp, RefreshToken, User
+from app.modules.auth.models import (
+    AuthCredential,
+    EmailOtp,
+    PasswordResetOtp,
+    RefreshToken,
+    User,
+)
 from app.modules.auth.schemas import RegisterRequest, TokenPair
 
 BLACKLIST_PREFIX = "jwt:blacklist:"
@@ -43,12 +49,7 @@ async def _issue_email_otp(db: AsyncSession, user: User) -> str | None:
     await db.commit()
 
     text, html = otp_email(user.display_name, code, settings.otp_ttl_minutes)
-    sent = await send_email(
-        user.email,
-        f"{code} is your Errandly verification code",
-        text,
-        html=html,
-    )
+    sent = await send_email(user.email, otp_subject("verify"), text, html=html)
     return None if sent else code  # dev mode surfaces the code to the caller
 
 
@@ -134,6 +135,87 @@ async def resend_otp(db: AsyncSession, email: str) -> str | None:
     if user.email_verified_at is not None:
         raise AuthError("This email is already verified — just log in.", 409)
     return await _issue_email_otp(db, user)
+
+
+async def request_password_reset(db: AsyncSession, email: str) -> str | None:
+    """Email a password-reset code, if that address has an account.
+
+    Never signals whether the account exists — the router returns 202 either
+    way. A "no account found" here would turn this endpoint into a free
+    membership oracle: anyone could test addresses against it and learn which
+    students are registered.
+    """
+    user = await db.scalar(select(User).where(User.email == email, User.deleted_at.is_(None)))
+    if user is None:
+        return None
+    if user.account_status == "BANNED":
+        return None  # nothing to reset into
+
+    code = _new_otp()
+    expires = datetime.now(UTC) + timedelta(minutes=settings.otp_ttl_minutes)
+    row = await db.get(PasswordResetOtp, user.id)
+    if row is None:
+        db.add(
+            PasswordResetOtp(
+                user_id=user.id, code_hash=hash_password(code), expires_at=expires
+            )
+        )
+    else:
+        row.code_hash = hash_password(code)
+        row.expires_at = expires
+        row.attempts = 0
+    await db.commit()
+
+    text, html = otp_email(user.display_name, code, settings.otp_ttl_minutes, "reset")
+    sent = await send_email(user.email, otp_subject("reset"), text, html=html)
+    return None if sent else code
+
+
+async def reset_password(db: AsyncSession, email: str, code: str, new_password: str) -> None:
+    """Verify the reset code and set a new password.
+
+    On success every existing session is revoked. Password reset is the lever
+    someone pulls when they think their account is compromised, so leaving the
+    attacker's refresh tokens alive would defeat the point of the reset.
+    """
+    user = await db.scalar(select(User).where(User.email == email, User.deleted_at.is_(None)))
+    if user is None:
+        raise AuthError("That code didn't work.", 400)
+
+    row = await db.get(PasswordResetOtp, user.id)
+    if row is None:
+        raise AuthError("No reset code pending. Request a new one.", 400)
+    if row.expires_at < datetime.now(UTC):
+        raise AuthError("That code has expired. Request a new one.", 400)
+    if row.attempts >= settings.otp_max_attempts:
+        raise AuthError("Too many attempts. Request a new code.", 429)
+
+    if not verify_password(code, row.code_hash):
+        row.attempts += 1
+        await db.commit()
+        raise AuthError("Incorrect code.", 400)
+
+    cred = await db.get(AuthCredential, user.id)
+    cred.password_hash = hash_password(new_password)
+    cred.failed_attempts = 0
+    cred.locked_until = None  # a correct code clears an existing lockout
+
+    # Receiving mail at the address is the same proof signup asks for, so a
+    # user who resets before verifying comes out activated rather than stuck.
+    if user.email_verified_at is None:
+        user.email_verified_at = datetime.now(UTC)
+    if user.account_status == "PENDING":
+        user.account_status = "ACTIVE"
+
+    now = datetime.now(UTC)
+    await db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=now)
+    )
+
+    await db.delete(row)
+    await db.commit()
 
 
 async def _issue_tokens(db: AsyncSession, user: User) -> TokenPair:
