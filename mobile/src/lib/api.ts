@@ -1,15 +1,20 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 
 import { useAuth } from "../stores/auth";
-import { API_BASE } from "./config";
+import { apiBase } from "./config";
 
 /**
  * On web this pointed at "/api" and Vite proxied it. There's no proxy on a
- * phone, so we talk to the backend's LAN address directly.
+ * phone, so we talk to the backend's real address directly.
+ *
+ * baseURL is set per-request rather than at creation: the user can retype the
+ * backend host at runtime, and a baseURL fixed here would keep pointing at the
+ * old one until the app restarted.
  */
-export const api = axios.create({ baseURL: API_BASE, timeout: 15000 });
+export const api = axios.create({ timeout: 15000 });
 
 api.interceptors.request.use((config) => {
+  config.baseURL = apiBase();
   const token = useAuth.getState().accessToken;
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
@@ -25,7 +30,7 @@ async function rotateTokens(): Promise<string | null> {
   if (!refreshToken) return null;
   try {
     // Bare axios: must not recurse through this interceptor.
-    const { data } = await axios.post(`${API_BASE}/auth/refresh`, {
+    const { data } = await axios.post(`${apiBase()}/auth/refresh`, {
       refresh_token: refreshToken,
     });
     setTokens(data.access_token, data.refresh_token);
@@ -64,7 +69,7 @@ export function apiErrorMessage(err: unknown, fallback = "Something went wrong."
   if (axios.isAxiosError(err)) {
     if (err.code === "ECONNABORTED") return "The server took too long to respond.";
     if (!err.response) {
-      return `Can't reach the server at ${API_BASE}. Is the backend running, and is your phone on the same Wi-Fi?`;
+      return `Can't reach the server at ${apiBase()}. Check it's running, and that the backend address in Profile is correct.`;
     }
     const detail = (err.response.data as { detail?: unknown })?.detail;
     if (typeof detail === "string") return detail;

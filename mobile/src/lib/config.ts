@@ -1,21 +1,31 @@
 import Constants from "expo-constants";
 
+import { useSettings } from "../stores/settings";
+
 /**
  * Where the FastAPI backend lives, as seen *from the phone*.
  *
- * A phone can't reach `localhost` — that resolves to the phone itself. But the
- * Expo dev server is already running on the dev machine's LAN IP, and the phone
- * had to reach it to load this bundle at all. So we reuse that host and just
- * swap the port: Metro on :8081 -> FastAPI on :8000.
+ * Resolved in three tiers, most specific first:
+ *   1. A host the user typed in Profile → Backend (survives reinstalls of the
+ *      tunnel, not of the app).
+ *   2. EXPO_PUBLIC_API_HOST, inlined at build time by EAS.
+ *   3. The Expo dev server's own LAN IP with the port swapped — Metro on :8081
+ *      means the backend is almost certainly on :8000 of the same machine.
  *
- * Override with EXPO_PUBLIC_API_HOST when the backend runs elsewhere (a tunnel,
- * a deployed staging box). That env var is inlined at build time by Expo.
+ * Tier 1 is the important one for release builds: without it the address is
+ * frozen inside the APK, so any tunnel change bricks the installed app until
+ * it's rebuilt and reinstalled.
+ *
+ * These are functions, not constants, because tier 1 can change while the app
+ * is running — anything reading a module-level const would keep using the old
+ * host until a restart.
  */
 const BACKEND_PORT = 8000;
 
-function inferHost(): string {
-  const override = process.env.EXPO_PUBLIC_API_HOST;
-  if (override) return override.replace(/\/+$/, "");
+/** The address compiled into this build — tiers 2 and 3, no user override. */
+export function defaultApiBase(): string {
+  const buildTime = process.env.EXPO_PUBLIC_API_HOST;
+  if (buildTime) return buildTime.replace(/\/+$/, "");
 
   // e.g. "192.168.1.42:8081" in dev; undefined in a production build.
   const hostUri =
@@ -29,7 +39,12 @@ function inferHost(): string {
   return `http://10.0.2.2:${BACKEND_PORT}`;
 }
 
-export const API_BASE = inferHost();
+/** The address to actually use right now, user override included. */
+export function apiBase(): string {
+  return useSettings.getState().apiHostOverride ?? defaultApiBase();
+}
 
-/** ws:// or wss:// origin for the same backend. */
-export const WS_BASE = API_BASE.replace(/^http/, "ws");
+/** ws:// or wss:// origin matching {@link apiBase}. */
+export function wsBase(): string {
+  return apiBase().replace(/^http/, "ws");
+}

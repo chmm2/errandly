@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 
 import { useAuth } from "../stores/auth";
-import { WS_BASE } from "./config";
+import { wsBase } from "./config";
 
 /**
  * Authenticated socket to the backend.
@@ -13,7 +13,9 @@ import { WS_BASE } from "./config";
 function openSocket(path: string): WebSocket | null {
   const token = useAuth.getState().accessToken;
   if (!token) return null;
-  return new WebSocket(`${WS_BASE}${path}?token=${encodeURIComponent(token)}`);
+  // Resolved per connection, so retyping the backend host takes effect on the
+  // next reconnect rather than needing an app restart.
+  return new WebSocket(`${wsBase()}${path}?token=${encodeURIComponent(token)}`);
 }
 
 /**

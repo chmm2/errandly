@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LinearGradient } from "expo-linear-gradient";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Alert, StyleSheet, Text, View } from "react-native";
 
 import { fetchEarnings } from "../../src/api/ledger";
@@ -11,14 +11,16 @@ import {
   Caption,
   Card,
   Divider,
+  Field,
   Heading,
   Label,
   Row,
   Screen,
 } from "../../src/components/ui";
-import { API_BASE } from "../../src/lib/config";
+import { apiBase } from "../../src/lib/config";
 import { useSocket } from "../../src/lib/ws";
 import { useAuth } from "../../src/stores/auth";
+import { useSettings } from "../../src/stores/settings";
 import { colors, font, radius, rupees, shadow, space, timeAgo } from "../../src/theme";
 
 export default function Profile() {
@@ -154,12 +156,10 @@ export default function Profile() {
         )}
       </Card>
 
-      {/* Debug / connection info — genuinely useful while testing on device */}
-      <Label style={{ marginTop: space.xxl, marginBottom: space.sm }}>Connection</Label>
-      <Card>
-        <Caption>Backend</Caption>
-        <Body style={{ fontSize: font.small, marginTop: 2 }}>{API_BASE}</Body>
-      </Card>
+      {/* Backend address — editable, because a release build otherwise has it
+          frozen in and any tunnel change would need a full rebuild. */}
+      <Label style={{ marginTop: space.xxl, marginBottom: space.sm }}>Backend</Label>
+      <BackendSetting />
 
       <Button
         title="Sign out"
@@ -168,6 +168,99 @@ export default function Profile() {
         style={{ marginTop: space.xxl }}
       />
     </Screen>
+  );
+}
+
+/**
+ * Lets the backend address be retyped on-device. A release build compiles its
+ * host in, so without this a tunnel change means rebuilding and reinstalling
+ * the whole app just to point it somewhere else.
+ */
+function BackendSetting() {
+  const override = useSettings((s) => s.apiHostOverride);
+  const setOverride = useSettings((s) => s.setApiHostOverride);
+
+  const [draft, setDraft] = useState(override ?? "");
+  const [checking, setChecking] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const active = apiBase();
+  const usingDefault = override === null;
+
+  /** Prove the address works before committing to it. */
+  async function testAndSave() {
+    const candidate = draft.trim().replace(/\/+$/, "");
+    if (!candidate) return;
+    setChecking(true);
+    setResult(null);
+    try {
+      const res = await fetch(`${candidate}/health`, { method: "GET" });
+      const body = (await res.json()) as { status?: string };
+      if (res.ok && body.status) {
+        setOverride(candidate);
+        setResult({ ok: true, text: `Connected — backend reports "${body.status}".` });
+      } else {
+        setResult({ ok: false, text: `Reached it, but /health returned ${res.status}.` });
+      }
+    } catch {
+      setResult({ ok: false, text: "Couldn't reach that address. Check the URL and that it's running." });
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  return (
+    <Card style={{ gap: space.md }}>
+      <View>
+        <Caption>Currently using</Caption>
+        <Body style={{ fontSize: font.small, marginTop: 2 }} numberOfLines={2}>
+          {active}
+        </Body>
+        <Caption style={{ marginTop: 2, color: usingDefault ? colors.textFaint : colors.brandBright }}>
+          {usingDefault ? "built-in default" : "custom override"}
+        </Caption>
+      </View>
+
+      <Field
+        label="Change backend address"
+        placeholder="https://api.errandsly.in"
+        value={draft}
+        onChangeText={setDraft}
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="url"
+        hint="Paste a new tunnel URL here if the app stops connecting."
+      />
+
+      {result ? (
+        <Caption style={{ color: result.ok ? colors.success : colors.danger }}>
+          {result.ok ? "✓ " : "✕ "}
+          {result.text}
+        </Caption>
+      ) : null}
+
+      <Row gap={space.sm}>
+        <Button
+          title={checking ? "Testing…" : "Test & save"}
+          loading={checking}
+          disabled={!draft.trim()}
+          onPress={testAndSave}
+          style={{ flex: 1 }}
+        />
+        {!usingDefault ? (
+          <Button
+            title="Reset"
+            variant="surface"
+            onPress={() => {
+              setOverride(null);
+              setDraft("");
+              setResult(null);
+            }}
+            style={{ flex: 1 }}
+          />
+        ) : null}
+      </Row>
+    </Card>
   );
 }
 
