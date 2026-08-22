@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -36,6 +37,9 @@ import {
 } from "../../src/theme";
 
 const DONE = ["COMPLETED", "CANCELLED", "EXPIRED"];
+
+/** Avatar render size is ~62pt; 512px covers the densest screens with room spare. */
+const AVATAR_PX = 512;
 
 /** A finished errand or run, in the compact history style. */
 function HistoryRow({ errand, onPress }: { errand: Errand; onPress: () => void }) {
@@ -98,7 +102,14 @@ export default function Profile() {
     onError: (err) => notify("Couldn't update photo", apiErrorMessage(err)),
   });
 
-  /** Pick a square avatar and send it as a data URL, matching the web client. */
+  /**
+   * Pick a square avatar, shrink it, and send it as a data URL.
+   *
+   * The photo travels inside the JSON body as base64, which inflates it by a
+   * third, so a straight-from-camera shot blows the field's 300k limit every
+   * time. Downscaling first is what the web client does too — an avatar is
+   * never rendered above ~64pt, so 512px is already generous.
+   */
   async function pickPhoto() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
@@ -109,20 +120,27 @@ export default function Profile() {
       mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.5,
-      base64: true,
     });
-    if (res.canceled || !res.assets[0]?.base64) return;
+    if (res.canceled || !res.assets[0]?.uri) return;
 
     setUploading(true);
     try {
-      // The column caps at ~300k characters, so keep the payload small.
-      const dataUrl = `data:image/jpeg;base64,${res.assets[0].base64}`;
-      if (dataUrl.length > 290_000) {
-        notify("Image too large", "Pick a smaller photo — try cropping it tighter.");
+      const context = ImageManipulator.manipulate(res.assets[0].uri);
+      context.resize({ width: AVATAR_PX, height: AVATAR_PX });
+      const rendered = await context.renderAsync();
+      const out = await rendered.saveAsync({
+        format: SaveFormat.JPEG,
+        compress: 0.7,
+        base64: true,
+      });
+
+      if (!out.base64) {
+        notify("Couldn't read that image", "Try a different photo.");
         return;
       }
-      await savePhoto.mutateAsync(dataUrl);
+      await savePhoto.mutateAsync(`data:image/jpeg;base64,${out.base64}`);
+    } catch (err) {
+      notify("Couldn't update photo", apiErrorMessage(err, "That image couldn't be processed."));
     } finally {
       setUploading(false);
     }
