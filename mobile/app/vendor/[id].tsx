@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { createErrand } from "../../src/api/errands";
 import { fetchMenu, type MenuItem } from "../../src/api/vendors";
@@ -19,6 +19,7 @@ import {
   Screen,
 } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
+import { confirm, notify } from "../../src/lib/dialog";
 import { colors, font, radius, rupees, shadow, space } from "../../src/theme";
 
 const DEFAULT_REWARD = 20;
@@ -63,7 +64,7 @@ export default function VendorMenu() {
       queryClient.invalidateQueries({ queryKey: ["my-errands"] });
       router.replace(`/errand/${errand.id}`);
     },
-    onError: (err) => Alert.alert("Couldn't post order", apiErrorMessage(err)),
+    onError: (err) => notify("Couldn't post order", apiErrorMessage(err)),
   });
 
   async function checkout() {
@@ -72,7 +73,7 @@ export default function VendorMenu() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Location needed", "We need your location so the runner knows where to bring it.");
+        notify("Location needed", "We need your location so the runner knows where to bring it.");
         return;
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });

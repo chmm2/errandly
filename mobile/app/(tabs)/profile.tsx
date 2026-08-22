@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, Image, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 
 import { fetchMe, setPhoto } from "../../src/api/auth";
 import { type Errand, fetchMyErrands } from "../../src/api/errands";
@@ -21,6 +21,7 @@ import {
   Screen,
 } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
+import { confirm, notify } from "../../src/lib/dialog";
 import { useAuth } from "../../src/stores/auth";
 import {
   categoryIcon,
@@ -93,14 +94,14 @@ export default function Profile() {
       setUser(await fetchMe());
       queryClient.invalidateQueries({ queryKey: ["me"] });
     },
-    onError: (err) => Alert.alert("Couldn't update photo", apiErrorMessage(err)),
+    onError: (err) => notify("Couldn't update photo", apiErrorMessage(err)),
   });
 
   /** Pick a square avatar and send it as a data URL, matching the web client. */
   async function pickPhoto() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert("Permission needed", "Allow photo access to set a profile picture.");
+      notify("Permission needed", "Allow photo access to set a profile picture.");
       return;
     }
     const res = await ImagePicker.launchImageLibraryAsync({
@@ -117,7 +118,7 @@ export default function Profile() {
       // The column caps at ~300k characters, so keep the payload small.
       const dataUrl = `data:image/jpeg;base64,${res.assets[0].base64}`;
       if (dataUrl.length > 290_000) {
-        Alert.alert("Image too large", "Pick a smaller photo — try cropping it tighter.");
+        notify("Image too large", "Pick a smaller photo — try cropping it tighter.");
         return;
       }
       await savePhoto.mutateAsync(dataUrl);
@@ -133,11 +134,12 @@ export default function Profile() {
     .join("")
     .toUpperCase();
 
-  function confirmLogout() {
-    Alert.alert("Log out?", "You'll need to log in again to post or run errands.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Log out", style: "destructive", onPress: logout },
-    ]);
+  async function confirmLogout() {
+    const ok = await confirm("Log out?", "You'll need to log in again to post or run errands.", {
+      confirmLabel: "Log out",
+      destructive: true,
+    });
+    if (ok) logout();
   }
 
   return (

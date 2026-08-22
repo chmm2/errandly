@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import {
   cancelErrand,
@@ -32,6 +32,7 @@ import {
   Screen,
 } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
+import { confirm, notify } from "../../src/lib/dialog";
 import { useSocket } from "../../src/lib/ws";
 import { useAuth } from "../../src/stores/auth";
 import {
@@ -103,38 +104,38 @@ export default function ErrandDetail() {
   const pickup = useMutation({
     mutationFn: () => pickupErrand(id!),
     onSuccess: invalidate,
-    onError: (err) => Alert.alert("Couldn't mark picked up", apiErrorMessage(err)),
+    onError: (err) => notify("Couldn't mark picked up", apiErrorMessage(err)),
   });
   const deliver = useMutation({
     mutationFn: () => deliverErrand(id!),
     onSuccess: invalidate,
-    onError: (err) => Alert.alert("Couldn't mark delivered", apiErrorMessage(err)),
+    onError: (err) => notify("Couldn't mark delivered", apiErrorMessage(err)),
   });
   const complete = useMutation({
     mutationFn: () => completeErrand(id!),
     onSuccess: invalidate,
-    onError: (err) => Alert.alert("Couldn't confirm", apiErrorMessage(err)),
+    onError: (err) => notify("Couldn't confirm", apiErrorMessage(err)),
   });
   const release = useMutation({
     mutationFn: () => releaseErrand(id!),
     onSuccess: invalidate,
-    onError: (err) => Alert.alert("Couldn't release", apiErrorMessage(err)),
+    onError: (err) => notify("Couldn't release", apiErrorMessage(err)),
   });
   const cancel = useMutation({
     mutationFn: (reason?: string) => cancelErrand(id!, reason),
     onSuccess: invalidate,
-    onError: (err) => Alert.alert("Couldn't cancel", apiErrorMessage(err)),
+    onError: (err) => notify("Couldn't cancel", apiErrorMessage(err)),
   });
   const toggleItem = useMutation({
     mutationFn: (v: { itemId: string; available: boolean }) =>
       setItemAvailability(id!, v.itemId, v.available),
     onSuccess: invalidate,
-    onError: (err) => Alert.alert("Couldn't update item", apiErrorMessage(err)),
+    onError: (err) => notify("Couldn't update item", apiErrorMessage(err)),
   });
   const rate = useMutation({
     mutationFn: (n: number) => rateErrand(id!, n),
     onSuccess: invalidate,
-    onError: (err) => Alert.alert("Couldn't submit rating", apiErrorMessage(err)),
+    onError: (err) => notify("Couldn't submit rating", apiErrorMessage(err)),
   });
 
   if (isLoading || !errand) {
@@ -155,7 +156,7 @@ export default function ErrandDetail() {
     try {
       setSecret(await fetchHandoffSecret(id!));
     } catch (err) {
-      Alert.alert("Couldn't reveal code", apiErrorMessage(err));
+      notify("Couldn't reveal code", apiErrorMessage(err));
     }
   }
 
@@ -386,14 +387,13 @@ export default function ErrandDetail() {
               variant="ghost"
               loading={cancel.isPending}
               onPress={() =>
-                Alert.alert("Cancel this errand?", "The runner will be told it's off.", [
-                  { text: "Keep it", style: "cancel" },
-                  {
-                    text: "Cancel errand",
-                    style: "destructive",
-                    onPress: () => cancel.mutate(undefined),
-                  },
-                ])
+                confirm("Cancel this errand?", "The runner will be told it's off.", {
+                  confirmLabel: "Cancel errand",
+                  cancelLabel: "Keep it",
+                  destructive: true,
+                }).then((ok) => {
+                  if (ok) cancel.mutate(undefined);
+                })
               }
             />
           ) : null}

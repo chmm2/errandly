@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, RefreshControl, StyleSheet, Switch, Text, View } from "react-native";
+import { RefreshControl, StyleSheet, Switch, Text, View } from "react-native";
 
 import { acceptErrand, type Errand, fetchFeed, fetchMyErrands } from "../../src/api/errands";
 import { fetchEarnings } from "../../src/api/ledger";
@@ -21,6 +21,7 @@ import {
   Screen,
 } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
+import { confirm, notify } from "../../src/lib/dialog";
 import { useSocket } from "../../src/lib/ws";
 import { colors, font, metres, radius, rupees, space } from "../../src/theme";
 
@@ -109,7 +110,7 @@ export default function Runner() {
       } else {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") {
-          Alert.alert(
+          notify(
             "Location needed",
             "Errandly matches you with errands near you, so run mode needs location access.",
           );
@@ -122,7 +123,7 @@ export default function Runner() {
       }
       await queryClient.invalidateQueries({ queryKey: ["runner-profile"] });
     } catch (err) {
-      Alert.alert("Couldn't update", apiErrorMessage(err));
+      notify("Couldn't update", apiErrorMessage(err));
     } finally {
       setToggling(false);
     }
@@ -136,7 +137,7 @@ export default function Runner() {
       queryClient.invalidateQueries({ queryKey: ["runner-feed"] });
       router.push(`/errand/${errand.id}`);
     },
-    onError: (err) => Alert.alert("Couldn't accept", apiErrorMessage(err)),
+    onError: (err) => notify("Couldn't accept", apiErrorMessage(err)),
   });
 
   const nearby = (feed?.items ?? []).filter((e) => !activeRuns.some((r) => r.id === e.id));
