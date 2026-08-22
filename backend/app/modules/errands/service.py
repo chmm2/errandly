@@ -47,6 +47,29 @@ ALLOWED_TRANSITIONS = {
 # How long after accepting a runner can hand an errand back to the queue.
 RELEASE_WINDOW_SECONDS = 300  # 5 minutes
 
+# After releasing an errand, that runner is locked out of re-accepting THAT
+# errand for a while. Stops one person cycling accept/release to keep an errand
+# out of everyone else's reach. Scoped per (errand, runner): other runners are
+# unaffected, and the errand itself goes straight back into the open feed.
+#
+# Redis rather than a column because the state is inherently temporary — the
+# TTL is the expiry mechanism, so there's nothing to sweep up later.
+RELEASE_COOLDOWN_PREFIX = "errand:released:"
+RELEASE_COOLDOWN_SECONDS = 300  # 5 minutes
+
+
+def _cooldown_key(errand_id: uuid.UUID, runner_id: uuid.UUID) -> str:
+    return f"{RELEASE_COOLDOWN_PREFIX}{errand_id}:{runner_id}"
+
+
+async def _cooldown_remaining(redis: Redis, errand_id: uuid.UUID, runner_id: uuid.UUID) -> int:
+    """Seconds left before this runner may retake this errand. 0 if free."""
+    try:
+        ttl = await redis.ttl(_cooldown_key(errand_id, runner_id))
+    except Exception:
+        return 0  # fail open: Redis being down shouldn't block accepting work
+    return ttl if ttl and ttl > 0 else 0
+
 
 class ErrandError(Exception):
     def __init__(self, message: str, status_code: int = 400):
@@ -124,11 +147,20 @@ async def publish_status(redis: Redis, errand: Errand) -> None:
     )
 
 
-async def _offer_to_nearby_runners(db: AsyncSession, redis: Redis, errand: Errand) -> int:
+async def _offer_to_nearby_runners(
+    db: AsyncSession,
+    redis: Redis,
+    errand: Errand,
+    exclude_runner: uuid.UUID | None = None,
+) -> int:
     """Push an offer to the nearest available runners (Redis GEO + pub/sub).
 
     Uses the drop point as the anchor — 'a runner already heading that way'.
     Best-effort: if Redis GEO is empty the errand still sits in the feed.
+
+    `exclude_runner` skips someone who just handed this errand back: they've
+    said they don't want it, so re-offering would be noise. It still appears in
+    their nearby list, so they can change their mind once the cooldown lapses.
     """
     nearby = await runners_service.nearest_available_runners(
         redis,
@@ -136,9 +168,11 @@ async def _offer_to_nearby_runners(db: AsyncSession, redis: Redis, errand: Erran
         lat=float(errand.drop_lat),
         lng=float(errand.drop_lng),
         radius_m=OFFER_RADIUS_M,
-        limit=OFFER_FANOUT,
+        limit=OFFER_FANOUT + (1 if exclude_runner else 0),
         exclude=errand.requester_id,
     )
+    if exclude_runner:
+        nearby = [(rid, dist) for rid, dist in nearby if rid != exclude_runner][:OFFER_FANOUT]
     payload = {
         "type": "offer",
         "errand_id": str(errand.id),
@@ -241,6 +275,15 @@ async def _attach_items(db: AsyncSession, errands: list[Errand]) -> None:
 
 
 async def create_errand(db: AsyncSession, redis: Redis, user: User, data: ErrandCreate) -> Errand:
+    # You can't order while you're mid-delivery for someone else. The web
+    # client enforces this by locking the Order/Run toggle; enforce it here so
+    # every client gets the same rule.
+    running = await runners_service.active_load(db, user.id)
+    if running:
+        raise ErrandError(
+            "Finish the run you're on before posting your own errand.", 409
+        )
+
     order_items = await _validate_order_items(db, user, data) if data.items else []
 
     errand = Errand(
@@ -470,6 +513,15 @@ async def accept_errand(
         raise ErrandError("Someone else is accepting this errand. Try another one.", 409)
 
     try:
+        # Cooldown: you handed this one back recently, so it's someone else's
+        # turn for a few minutes.
+        cooling = await _cooldown_remaining(redis, errand_id, user.id)
+        if cooling:
+            mins = max(1, round(cooling / 60))
+            raise ErrandError(
+                f"You handed this errand back — you can take it again in {mins} min.", 409
+            )
+
         # Load cap: don't let one runner hoard errands they can't deliver.
         profile = await runners_service.get_or_create_profile(db, user)
         load = await runners_service.active_load(db, user.id)
@@ -620,8 +672,17 @@ async def release_errand(
     await db.refresh(errand)
     await publish_status(redis, errand)
 
-    # Straight back into matching for the next nearby runner.
-    offered = await _offer_to_nearby_runners(db, redis, errand)
+    # Lock this runner out of retaking it for a while, so accept/release can't
+    # be cycled to sit on an errand nobody else can reach.
+    try:
+        await redis.set(
+            _cooldown_key(errand.id, user.id), "1", ex=RELEASE_COOLDOWN_SECONDS
+        )
+    except Exception:
+        pass  # best-effort; the accept path fails open if Redis is unavailable
+
+    # Straight back into matching — but not to the runner who just dropped it.
+    offered = await _offer_to_nearby_runners(db, redis, errand, exclude_runner=user.id)
     if offered:
         _record(db, errand, None, "OFFERED", {"runners": offered})
         await db.commit()

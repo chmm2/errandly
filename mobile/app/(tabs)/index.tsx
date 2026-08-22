@@ -192,6 +192,12 @@ export default function Home() {
     (e) => !["COMPLETED", "CANCELLED", "EXPIRED"].includes(e.status),
   );
 
+  // You can't order while mid-delivery for someone else — the backend rejects
+  // it, so don't offer the button. Same rule the web's Order/Run lock enforces.
+  const onActiveRun = (mine?.running ?? []).some((e) =>
+    ["ACCEPTED", "IN_PROGRESS"].includes(e.status),
+  );
+
   const firstName = user?.display_name?.split(" ")[0] ?? "there";
 
   return (
@@ -206,13 +212,21 @@ export default function Home() {
         title={`Hey ${firstName}, what do you need today?`}
         subtitle="A verified student runner is minutes away. Post an errand or pick one up on your way back to the hostel."
       >
-        <Button
-          title="Post an errand  →"
-          variant="white"
-          full={false}
-          onPress={() => router.push("/errand/new")}
-          style={{ marginTop: space.xl, alignSelf: "flex-start" }}
-        />
+        {onActiveRun ? (
+          <View style={s.lockNote}>
+            <Text style={s.lockText}>
+              🛵 Finish the run you're on before posting your own errand.
+            </Text>
+          </View>
+        ) : (
+          <Button
+            title="Post an errand  →"
+            variant="white"
+            full={false}
+            onPress={() => router.push("/errand/new")}
+            style={{ marginTop: space.xl, alignSelf: "flex-start" }}
+          />
+        )}
       </Hero>
 
       {/* Bell sits over the hero, same position the web navbar puts it. */}
@@ -250,8 +264,13 @@ export default function Home() {
             {startOptions.map((c) => (
               <Pressable
                 key={c.name}
+                disabled={onActiveRun}
                 onPress={() => router.push({ pathname: c.route, params: c.params } as never)}
-                style={({ pressed }) => [s.startCard, pressed && s.startCardOn]}
+                style={({ pressed }) => [
+                  s.startCard,
+                  pressed && s.startCardOn,
+                  onActiveRun && { opacity: 0.45 },
+                ]}
               >
                 <Text style={{ fontSize: 30 }}>{c.icon}</Text>
                 <Body style={{ fontFamily: font.bold, marginTop: space.sm }}>{c.name}</Body>
@@ -275,6 +294,16 @@ export default function Home() {
 }
 
 const s = StyleSheet.create({
+  lockNote: {
+    marginTop: space.xl,
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: radius.lg,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
+  },
+  lockText: { color: colors.white, fontSize: font.small, fontFamily: font.semi },
+
   bell: {
     position: "absolute",
     top: space.xl,

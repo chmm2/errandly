@@ -18,6 +18,7 @@ import {
   setItemAvailability,
 } from "../../src/api/errands";
 import { ChatPanel } from "../../src/components/ChatPanel";
+import { FindingRunner } from "../../src/components/CountdownRing";
 import {
   Body,
   Button,
@@ -46,7 +47,16 @@ import {
   timeAgo,
 } from "../../src/theme";
 
-const LIVE: Errand["status"][] = ["ACCEPTED", "IN_PROGRESS", "DELIVERED"];
+/**
+ * Statuses worth holding a socket open for. OPEN belongs here: waiting for a
+ * runner is exactly when you want the accept to land without a refresh, and
+ * leaving it out meant the one state that most needed live updates was the one
+ * state that never subscribed.
+ */
+const LIVE: Errand["status"][] = ["OPEN", "ACCEPTED", "IN_PROGRESS", "DELIVERED"];
+
+/** Runner is assigned and moving — show their card and position. */
+const ASSIGNED: Errand["status"][] = ["ACCEPTED", "IN_PROGRESS", "DELIVERED"];
 
 /** The happy path, in order — drives the progress rail. */
 const STEPS: { status: Errand["status"]; label: string }[] = [
@@ -195,6 +205,12 @@ export default function ErrandDetail() {
           </View>
         </Row>
 
+        {/* Waiting for a runner — the countdown to the poster's deadline is
+            the most useful thing on screen at this point. */}
+        {errand.status === "OPEN" && errand.expires_at ? (
+          <FindingRunner createdAt={errand.created_at} expiresAt={errand.expires_at} />
+        ) : null}
+
         {/* Progress rail */}
         {!terminal ? (
           <Card raised style={{ marginTop: space.xl }}>
@@ -319,7 +335,7 @@ export default function ErrandDetail() {
         ) : null}
 
         {/* Handoff secret — runner only */}
-        {isRunner && errand.has_handoff_secret && LIVE.includes(errand.status) ? (
+        {isRunner && errand.has_handoff_secret && ASSIGNED.includes(errand.status) ? (
           <Card raised style={{ marginTop: space.lg, backgroundColor: colors.brandSoft }}>
             <Body style={{ fontFamily: font.bold }}>🔐 Handoff details</Body>
             {secret ? (
