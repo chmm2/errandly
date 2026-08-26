@@ -80,8 +80,8 @@ async def submit_claims(
     if flagged:
         names = ", ".join(c.raw_name for c in flagged)
         message = (
-            f"₹{withheld} is on hold: {names} came in above the campus reference price. "
-            "You will be paid the reference amount now; an admin reviews the rest."
+            f"₹{withheld:.0f} is on hold: {names} came in above the campus reference "
+            "price. You will be paid the reference amount now; an admin reviews the rest."
         )
 
     return ClaimResult(
