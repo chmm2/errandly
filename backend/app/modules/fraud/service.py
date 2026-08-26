@@ -29,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.auth.models import User
 from app.modules.errands.models import Errand
-from app.modules.fraud import collusion, estimator
+from app.modules.fraud import collusion, estimator, semantics
 from app.modules.fraud.models import (
     STRIKE_ACTIONS,
     FraudFlag,
@@ -554,6 +554,13 @@ async def sweep_collusion_rings(db: AsyncSession) -> list[FraudFlag]:
         # stack a fresh accusation on every tick for the same finding.
         signature = "-".join(sorted(str(m)[:8] for m in members))
 
+        # Read what these people actually asked each other for. Structure and
+        # money flow are identical for a real friend group and a farming ring;
+        # the errand text is the only place they differ. Advisory: it annotates
+        # the flag for the admin and never changes what happens automatically.
+        verdict = await semantics.assess_cluster(db, members)
+        semantic = semantics.verdict_details(verdict)
+
         for member in members:
             already = await db.scalar(
                 select(func.count())
@@ -581,6 +588,7 @@ async def sweep_collusion_rings(db: AsyncSession) -> list[FraudFlag]:
                     "total_value": round(ring.total_value, 2),
                     "min_leg_value": round(ring.min_leg_value, 2),
                     "closure": round(ring.closure, 3),
+                    **semantic,
                 },
             )
             db.add(flag)

@@ -23,6 +23,9 @@ dependencies = [
     "httpx==0.28.1",
     # Social graph (derived read model; see modules/social).
     "neo4j==5.27.0",
+    # Semantic fraud channel (modules/fraud/semantics.py). Optional at runtime:
+    # with no API key configured the fraud system behaves exactly as before.
+    "anthropic>=1.0.0",
 ]
 
 [project.optional-dependencies]

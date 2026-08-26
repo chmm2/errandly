@@ -51,6 +51,11 @@ class Settings(BaseSettings):
     # Self-registration is restricted to this email domain (student-only).
     student_email_domain: str = "vitstudent.ac.in"
 
+    # Semantic fraud channel (modules/fraud/semantics.py). Optional in every
+    # sense: with no key the fraud system behaves exactly as it does today.
+    anthropic_api_key: str = ""
+    semantic_analysis_enabled: bool = True
+
     # App
     environment: str = "development"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
