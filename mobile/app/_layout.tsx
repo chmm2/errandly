@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { DialogHost } from "../src/components/DialogHost";
 import { Loading } from "../src/components/ui";
 import { usePushNotifications } from "../src/lib/push";
 import { useAuth } from "../src/stores/auth";
@@ -108,6 +109,8 @@ export default function RootLayout() {
               <Loading />
             </View>
           )}
+          {/* Last child so it paints above every screen. */}
+          <DialogHost />
         </QueryClientProvider>
       </SafeAreaProvider>
     </PhoneFrame>

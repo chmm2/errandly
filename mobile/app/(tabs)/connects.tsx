@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 
 import {
   blockUser,
@@ -47,14 +47,26 @@ export default function Connects() {
     qc.invalidateQueries({ queryKey: ["friend-requests"] });
   }
 
+
+  const refreshing = friends.isRefetching || requests.isRefetching;
+
   return (
-    <Screen scroll>
+    // padded={false} + an inner padded View, matching every other tab: the Hero
+    // has to run full-bleed or its band stops short of the screen edges.
+    <Screen
+      scroll
+      padded={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.brand} />
+      }
+    >
       <Hero
         eyebrow="Your circle"
         title="Connects"
         subtitle="Errands go to people you know first — friends, then friends of friends, before anyone else."
       />
 
+      <View style={{ paddingHorizontal: space.lg }}>
       <Row gap={space.sm} style={{ marginTop: space.xl }}>
         <TabButton label="Friends" count={friends.data?.length} active={tab === "friends"} onPress={() => setTab("friends")} />
         <TabButton label="Requests" count={pendingCount} active={tab === "requests"} onPress={() => setTab("requests")} highlight={pendingCount > 0} />
@@ -69,6 +81,7 @@ export default function Connects() {
         ) : (
           <FindStudents onChanged={refresh} />
         )}
+      </View>
       </View>
     </Screen>
   );
