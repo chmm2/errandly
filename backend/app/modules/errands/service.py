@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 from geoalchemy2 import WKTElement
 from redis.asyncio import Redis
@@ -18,6 +19,7 @@ from app.modules.errands.models import (
     Rating,
 )
 from app.modules.errands.schemas import ErrandCreate
+from app.modules.ledger import service as ledger
 from app.modules.outbox import service as outbox
 from app.modules.runners import service as runners_service
 from app.modules.runners.models import RunnerProfile
@@ -279,6 +281,30 @@ async def create_errand(db: AsyncSession, redis: Redis, user: User, data: Errand
                 note=(li.note.strip()[:200] if li.note and li.note.strip() else None),
             )
         )
+
+    # Escrow the requester's money BEFORE the errand is offered to anyone. A
+    # runner who fronts cash at the counter is relying on this hold existing —
+    # an unfunded order must never reach the feed.
+    #
+    # Only catalog lines carry a price; hand-typed list lines are deliberately
+    # priceless, and collect_amount is what covers those. It is already part of
+    # the hold, so a shopping-list errand is still fully funded up front.
+    items_total = sum(
+        Decimal(str(i.unit_price_snapshot)) * i.quantity for i in order_items
+    )
+    try:
+        await ledger.place_hold(
+            db,
+            errand_id=errand.id,
+            requester_id=user.id,
+            items_total=items_total,
+            reward=Decimal(str(data.reward)),
+            collect_amount=Decimal(str(data.collect_amount)),
+        )
+    except ledger.LedgerError as e:
+        await db.rollback()
+        raise ErrandError(e.message, e.status_code) from e
+
     if data.otp:
         db.add(ErrandHandoffSecret(errand_id=errand.id, otp_ciphertext=encrypt_str(data.otp)))
     _record(db, errand, user, "CREATED", {"category": data.category, "reward": data.reward})
@@ -686,6 +712,10 @@ async def cancel_errand(
 
     _transition(errand, "CANCELLED")
     errand.cancelled_at = datetime.now(UTC)
+    # Escrow returns to the requester in the same transaction as the state
+    # change — a cancelled order that quietly keeps someone's money is the
+    # bug this ordering exists to make impossible.
+    await ledger.refund_hold(db, errand_id=errand.id, memo="Order cancelled")
     _record(db, errand, user, "CANCELLED", {"reason": reason} if reason else None)
     _emit_order_event(db, errand, "CANCELLED")
     # The ORDER_CANCELLED event notifies the runner; when the RUNNER is the one

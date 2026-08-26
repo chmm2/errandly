@@ -17,6 +17,7 @@ import json
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 from aiokafka import AIOKafkaConsumer
 from sqlalchemy import select
@@ -29,8 +30,10 @@ from app.core.database import SessionLocal
 from app.core.redis import redis_client
 from app.core.resilience import retry_with_backoff
 from app.modules.analytics.models import DailyStat
+from app.modules.campus.models import Campus
 from app.modules.errands.models import Errand, ErrandEvent
-from app.modules.ledger.models import LedgerEntry
+from app.modules.fraud import service as fraud
+from app.modules.ledger import service as ledger
 from app.modules.notifications import service as notifications
 from app.modules.outbox.models import ProcessedEvent
 from app.modules.runners import service as runners_service
@@ -119,8 +122,17 @@ async def handle_analytics(db: AsyncSession, event: dict) -> None:
 # ------------------------------------------------------------------ settlement
 
 async def handle_settlement(db: AsyncSession, event: dict) -> None:
-    """Money moves ONLY here, only on ORDER_COMPLETED, and only once — the
-    processed_events gate makes a Kafka redelivery pay nobody twice."""
+    """Money moves ONLY here, only on ORDER_COMPLETED, and only once.
+
+    Two gates make a Kafka redelivery harmless: processed_events at the consumer
+    level, and a unique (errand, user, entry_type) in the ledger itself. Either
+    alone would do; both means a bug in one is not a payout bug.
+
+    Reimbursement is drawn from the runner's JUDGED claims, never from the
+    amount they asked for. A claim flagged as above the campus reference pays
+    out at the reference and the excess stays in escrow for admin review — so
+    inflating a price delays money rather than producing it.
+    """
     if event["event_type"] != "ORDER_COMPLETED":
         return
     payload = event["payload"]
@@ -128,33 +140,46 @@ async def handle_settlement(db: AsyncSession, event: dict) -> None:
         return
     runner_id = uuid.UUID(payload["runner_id"])
     errand_id = uuid.UUID(payload["errand_id"])
-    db.add(
-        LedgerEntry(
-            user_id=runner_id, errand_id=errand_id,
-            entry_type="REWARD", amount=payload["reward"],
+    reward = Decimal(str(payload["reward"]))
+
+    eligible, withheld = await fraud.eligible_reimbursement(db, errand_id)
+    if eligible == 0 and withheld == 0:
+        # No claims filed (a non-catalog run, or a runner who skipped the
+        # step): fall back to the amount the requester agreed to up front.
+        eligible = Decimal(str(payload.get("collect_amount", 0) or 0))
+
+    try:
+        await ledger.release_hold(
+            db,
+            errand_id=errand_id,
+            runner_id=runner_id,
+            reward=reward,
+            reimbursement=eligible,
+            withheld=withheld,
+            memo=f"Delivery reward for {payload['title']}",
         )
-    )
-    if payload.get("collect_amount", 0) > 0:
-        db.add(
-            LedgerEntry(
-                user_id=runner_id, errand_id=errand_id,
-                entry_type="REIMBURSEMENT", amount=payload["collect_amount"],
-            )
+    except ledger.LedgerError:
+        logger.exception("settlement failed for errand %s", errand_id)
+        raise
+
+    body = f"₹{reward:.0f} reward"
+    if eligible > 0:
+        body += f" + ₹{eligible:.0f} reimbursed"
+    body += f" for {payload['title']}."
+    if withheld > 0:
+        body += (
+            f" ₹{withheld:.0f} is held pending review — your reported price was "
+            "above the campus reference."
         )
+
     await notifications.create_and_push(
         db,
         redis_client,
         runner_id,
         "SETTLEMENT",
-        "Paid out 💰",
-        f"₹{payload['reward']:.0f} reward"
-        + (
-            f" + ₹{payload['collect_amount']:.0f} reimbursed"
-            if payload.get("collect_amount", 0) > 0
-            else ""
-        )
-        + f" for {payload['title']}.",
-        {"errand_id": payload["errand_id"]},
+        "Paid out 💰" if withheld == 0 else "Paid out — part held",
+        body,
+        {"errand_id": payload["errand_id"], "withheld": float(withheld)},
     )
 
 
@@ -307,8 +332,33 @@ async def expire_stale_open_errands() -> None:
             await errands_service.publish_status(redis_client, errand)
 
 
+# Reference prices move on the order of days, not seconds — re-estimating
+# every enforcer tick would be wasted work. Once an hour is plenty.
+REFERENCE_REFRESH_INTERVAL = 3600
+
+
+async def refresh_reference_prices() -> None:
+    """Re-estimate every campus's reference prices from recent honest claims.
+
+    The estimator only ever moves a price INSIDE its admin-approved band; when
+    the evidence points outside, it files a proposal instead. So this job can
+    run unattended without any risk of it widening its own bounds.
+    """
+    async with SessionLocal() as db:
+        campus_ids = list(await db.scalars(select(Campus.id)))
+        for campus_id in campus_ids:
+            try:
+                count = await fraud.refresh_all_references(db, campus_id)
+                await db.commit()
+                logger.info("refreshed %d reference price(s) for campus %s", count, campus_id)
+            except Exception:
+                await db.rollback()
+                logger.exception("reference refresh failed for campus %s", campus_id)
+
+
 async def scheduler() -> None:
     logger.info("scheduler up (interval %ss)", SCHEDULER_INTERVAL)
+    last_reference_refresh = 0.0
     while True:
         try:
             await broaden_stale_offers()
@@ -318,6 +368,15 @@ async def scheduler() -> None:
             await expire_stale_open_errands()
         except Exception:
             logger.exception("errand expiry sweep failed")
+
+        now = asyncio.get_running_loop().time()
+        if now - last_reference_refresh >= REFERENCE_REFRESH_INTERVAL:
+            last_reference_refresh = now
+            try:
+                await refresh_reference_prices()
+            except Exception:
+                logger.exception("reference price refresh failed")
+
         await asyncio.sleep(SCHEDULER_INTERVAL)
 
 
