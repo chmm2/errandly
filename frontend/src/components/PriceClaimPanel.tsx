@@ -60,18 +60,23 @@ export default function PriceClaimPanel({ errandId }: { errandId: string }) {
             <li key={c.id} className="flex flex-wrap items-center justify-between gap-x-3">
               <span className="text-ink">
                 {c.raw_name} × {c.quantity}
-                {c.verdict === "FLAGGED" && c.reference_snapshot != null && (
-                  <span className="ml-1 text-xs text-muted">
-                    (campus reference ₹{Number(c.reference_snapshot).toFixed(0)})
-                  </span>
-                )}
+                {(c.verdict === "FLAGGED" || c.verdict === "ELEVATED") &&
+                  c.reference_snapshot != null && (
+                    <span className="ml-1 text-xs text-muted">
+                      (campus reference ₹{Number(c.reference_snapshot).toFixed(0)})
+                    </span>
+                  )}
                 {c.verdict === "NO_REFERENCE" && (
                   <span className="ml-1 text-xs text-muted">(not priced yet)</span>
                 )}
               </span>
               <span
                 className={`font-semibold ${
-                  c.verdict === "FLAGGED" ? "text-amber-700" : "text-emerald-700"
+                  c.verdict === "FLAGGED"
+                    ? "text-amber-700"
+                    : c.verdict === "ELEVATED"
+                      ? "text-ink"
+                      : "text-emerald-700"
                 }`}
               >
                 ₹{(Number(c.claimed_unit_price) * c.quantity).toFixed(0)}

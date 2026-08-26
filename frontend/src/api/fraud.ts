@@ -1,6 +1,8 @@
 import { api } from "../lib/api";
 
-export type Verdict = "OK" | "FLAGGED" | "NO_REFERENCE";
+// ELEVATED: above the reference but under the rupee line — paid in full,
+// but counted toward the "walking the line" pattern check.
+export type Verdict = "OK" | "ELEVATED" | "FLAGGED" | "NO_REFERENCE";
 
 export interface Claim {
   id: string;
@@ -10,7 +12,9 @@ export interface Claim {
   claimed_unit_price: number;
   quantity: number;
   reference_snapshot: number | null;
+  threshold_snapshot: number | null;
   delta_pct: number | null;
+  delta_abs: number | null;
   verdict: Verdict;
   eligible_amount: number;
   created_at: string;
@@ -56,7 +60,7 @@ export interface ReferencePrice {
   reference_price: number;
   band_min: number;
   band_max: number;
-  tolerance_pct: number;
+  tolerance_abs: number;
   source: "ADMIN" | "AUTO";
   sample_count: number;
   last_estimated_at: string | null;
@@ -84,10 +88,17 @@ export interface Flag {
   rule: string;
   severity: number;
   details: {
+    // CLAIM_ABOVE_REFERENCE
     item?: string | null;
     claimed?: number | null;
     reference?: number | null;
     delta_pct?: number | null;
+    // PERSISTENT_NEAR_THRESHOLD — the evidence is a distribution, not a price
+    near_line_claims?: number;
+    judged_claims?: number;
+    share?: number;
+    avg_rupees_over?: number;
+    window_days?: number;
   } | null;
   status: "OPEN" | "UPHELD" | "DISMISSED";
   created_at: string;
@@ -118,7 +129,7 @@ export async function createReference(body: {
   reference_price: number;
   band_min: number;
   band_max: number;
-  tolerance_pct: number;
+  tolerance_abs: number;
 }): Promise<ReferencePrice> {
   return (await api.post<ReferencePrice>("/fraud/references", body)).data;
 }
@@ -130,7 +141,7 @@ export async function updateReference(
     reference_price: number;
     band_min: number;
     band_max: number;
-    tolerance_pct: number;
+    tolerance_abs: number;
   }>,
 ): Promise<ReferencePrice> {
   return (await api.patch<ReferencePrice>(`/fraud/references/${id}`, body)).data;

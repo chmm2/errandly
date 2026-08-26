@@ -57,7 +57,7 @@ async def make_admin(client, make_user):
 
 
 async def price_item(
-    client, admin_headers, name="Chicken Puff", price=20, lo=15, hi=30, tolerance=15
+    client, admin_headers, name="Chicken Puff", price=20, lo=15, hi=30, tolerance=20
 ):
     """Set a reference price, whether or not one already exists.
 
@@ -71,7 +71,7 @@ async def price_item(
         "reference_price": price,
         "band_min": lo,
         "band_max": hi,
-        "tolerance_pct": tolerance,
+        "tolerance_abs": tolerance,
     }
     resp = await client.post("/fraud/references", json=body, headers=admin_headers)
     if resp.status_code == 201:
@@ -257,16 +257,34 @@ async def test_unspent_hold_is_returned_to_the_requester(client, campus, make_us
 # -------------------------------------------------------------------- fraud
 
 
+async def test_a_claim_at_the_reference_is_clean(client, campus, make_user):
+    _, run_headers = await make_user("Runner")
+    _, r_headers = await make_user("Requester")
+    _, a_headers = await make_admin(client, make_user)
+    await price_item(client, a_headers, price=20, lo=15, hi=30, tolerance=20)
+
+    errand = (await place_order(client, r_headers)).json()
+    await accept(client, errand["id"], run_headers)
+    resp = await client.post(
+        f"/fraud/errands/{errand['id']}/claims",
+        json={"lines": [{"name": "Chicken Puff", "unit_price": 20, "quantity": 1}]},
+        headers=run_headers,
+    )
+    assert resp.json()["claims"][0]["verdict"] == "OK"
+
+
 async def test_a_claim_within_tolerance_passes(client, campus, make_user):
     _, run_headers = await make_user("Runner")
     requester_id, r_headers = await make_user("Requester")
     _, a_headers = await make_admin(client, make_user)
-    await price_item(client, a_headers, price=20, lo=15, hi=30, tolerance=15)
+    await price_item(client, a_headers, price=20, lo=15, hi=30, tolerance=20)
 
     errand = (await place_order(client, r_headers)).json()
     await accept(client, errand["id"], run_headers)
 
-    # 22 is 10% over a 20 reference, inside the 15% tolerance.
+    # ₹22 on a ₹20 reference is ₹2 over — inside the ₹20 line, so it is paid in
+    # full. It is recorded as ELEVATED rather than OK, because where a runner
+    # sits inside the allowance is what the pattern rule later reads.
     resp = await client.post(
         f"/fraud/errands/{errand['id']}/claims",
         json={"lines": [{"name": "chicken puffs", "unit_price": 22, "quantity": 1}]},
@@ -274,8 +292,9 @@ async def test_a_claim_within_tolerance_passes(client, campus, make_user):
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["claims"][0]["verdict"] == "OK"
-    assert body["withheld"] == 0.0
+    assert body["claims"][0]["verdict"] == "ELEVATED"
+    assert body["claims"][0]["delta_abs"] == 2.0
+    assert body["withheld"] == 0.0, "under the line is paid in full"
 
 
 async def test_an_inflated_claim_is_flagged_and_capped(client, campus, make_user):
@@ -287,7 +306,7 @@ async def test_an_inflated_claim_is_flagged_and_capped(client, campus, make_user
     runner_id, run_headers = await make_user("Runner")
     requester_id, r_headers = await make_user("Requester")
     _, a_headers = await make_admin(client, make_user)
-    await price_item(client, a_headers, price=20, lo=15, hi=30, tolerance=15)
+    await price_item(client, a_headers, price=20, lo=15, hi=30, tolerance=20)
     await set_balance(runner_id, "0")
 
     errand = (await place_order(client, r_headers, reward=30, collect=100)).json()
@@ -295,7 +314,7 @@ async def test_an_inflated_claim_is_flagged_and_capped(client, campus, make_user
 
     resp = await client.post(
         f"/fraud/errands/{errand['id']}/claims",
-        json={"lines": [{"name": "Chicken Puffs", "unit_price": 40, "quantity": 2}]},
+        json={"lines": [{"name": "Chicken Puffs", "unit_price": 45, "quantity": 2}]},
         headers=run_headers,
     )
     assert resp.status_code == 200, resp.text
@@ -304,10 +323,10 @@ async def test_an_inflated_claim_is_flagged_and_capped(client, campus, make_user
 
     assert claim["verdict"] == "FLAGGED"
     assert claim["item_key"] == "chicken puff"
-    assert claim["delta_pct"] == 100.0
-    assert body["total_claimed"] == 80.0
+    assert claim["delta_abs"] == 25.0  # ₹25 over a ₹20 line
+    assert body["total_claimed"] == 90.0
     assert body["total_eligible"] == 40.0  # reference 20 x 2
-    assert body["withheld"] == 40.0
+    assert body["withheld"] == 50.0
     assert "on hold" in body["message"]
 
     async with SessionLocal() as db:
@@ -319,7 +338,7 @@ async def test_an_inflated_claim_is_flagged_and_capped(client, campus, make_user
 
     # Only the eligible amount reaches the runner; the excess stays in escrow.
     await settle(errand["id"], runner_id, reward=30, collect=100)
-    assert await balance_of(runner_id) == Decimal("70.00")  # 30 + 40, not 30 + 80
+    assert await balance_of(runner_id) == Decimal("70.00")  # 30 + 40, not 30 + 90
 
     async with SessionLocal() as db:
         hold = await db.get(EscrowHold, uuid.UUID(errand["id"]))
@@ -353,7 +372,7 @@ async def test_misspellings_are_judged_against_the_same_reference(
     _, run_headers = await make_user("Runner")
     _, r_headers = await make_user("Requester")
     _, a_headers = await make_admin(client, make_user)
-    await price_item(client, a_headers, price=20, lo=15, hi=30, tolerance=15)
+    await price_item(client, a_headers, price=20, lo=15, hi=30, tolerance=20)
 
     errand = (await place_order(client, r_headers)).json()
     await accept(client, errand["id"], run_headers)
@@ -385,6 +404,107 @@ async def test_only_the_assigned_runner_may_report_prices(client, campus, make_u
     assert resp.status_code == 403
 
 
+async def test_the_rupee_line_is_absolute_not_proportional(client, campus, make_user):
+    """₹21 over is flagged; ₹19 over is not — regardless of item price."""
+    _, run_headers = await make_user("Runner")
+    _, r_headers = await make_user("Requester")
+    _, a_headers = await make_admin(client, make_user)
+    await price_item(client, a_headers, "Masala Tea", 10, 6, 18, tolerance=20)
+
+    errand = (await place_order(client, r_headers, collect=200)).json()
+    await accept(client, errand["id"], run_headers)
+    resp = await client.post(
+        f"/fraud/errands/{errand['id']}/claims",
+        json={"lines": [{"name": "Masala Tea", "unit_price": 31, "quantity": 1}]},
+        headers=run_headers,
+    )
+    claim = resp.json()["claims"][0]
+    assert claim["verdict"] == "FLAGGED", "₹21 over the ₹10 reference crosses the line"
+    assert claim["delta_abs"] == 21.0
+    assert resp.json()["withheld"] == 21.0
+
+
+async def test_walking_the_line_is_flagged_as_a_pattern(client, campus, make_user):
+    """The rule that makes a flat threshold hard to game.
+
+    Every claim here is legal — ₹18 over a ₹20 line, never once crossing it.
+    No money is withheld and no individual claim is fraud. But the runner's
+    claims cluster against the line, which is not what real prices do, and the
+    pattern gets raised for a human to look at.
+    """
+    runner_id, run_headers = await make_user("Runner")
+    _, r_headers = await make_user("Requester")
+    _, a_headers = await make_admin(client, make_user)
+    for item in ("Chicken Puff", "Veg Puff", "Samosa", "Masala Tea", "Cold Coffee"):
+        await price_item(client, a_headers, item, 20, 15, 30, tolerance=20)
+
+    for item in ("Chicken Puff", "Veg Puff", "Samosa", "Masala Tea"):
+        errand = (await place_order(client, r_headers, collect=200)).json()
+        await accept(client, errand["id"], run_headers)
+        resp = await client.post(
+            f"/fraud/errands/{errand['id']}/claims",
+            json={"lines": [{"name": item, "unit_price": 38, "quantity": 1}]},
+            headers=run_headers,
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["claims"][0]["verdict"] == "ELEVATED"
+        assert body["withheld"] == 0.0, "nothing is withheld — no rule was broken"
+        await finish_run(client, errand["id"], run_headers, r_headers)
+
+    async with SessionLocal() as db:
+        flags = list(
+            await db.scalars(
+                select(FraudFlag).where(
+                    FraudFlag.user_id == runner_id,
+                    FraudFlag.rule == "PERSISTENT_NEAR_THRESHOLD",
+                )
+            )
+        )
+    assert len(flags) == 1, "the pattern should be raised exactly once"
+    assert flags[0].details["near_line_claims"] == 4
+    assert flags[0].details["avg_rupees_over"] == 18.0
+
+
+async def test_an_honest_runner_near_the_line_once_is_not_flagged(
+    client, campus, make_user
+):
+    """The guard against punishing ordinary price variation: a runner who is
+    occasionally a bit over, but usually not, has a low ratio and stays clear."""
+    runner_id, run_headers = await make_user("Runner")
+    _, r_headers = await make_user("Requester")
+    _, a_headers = await make_admin(client, make_user)
+    for item in ("Chicken Puff", "Veg Puff", "Samosa", "Masala Tea"):
+        await price_item(client, a_headers, item, 20, 15, 30, tolerance=20)
+
+    # One near the line, three at the reference.
+    for item, price in [
+        ("Chicken Puff", 38),
+        ("Veg Puff", 20),
+        ("Samosa", 20),
+        ("Masala Tea", 21),
+    ]:
+        errand = (await place_order(client, r_headers, collect=200)).json()
+        await accept(client, errand["id"], run_headers)
+        await client.post(
+            f"/fraud/errands/{errand['id']}/claims",
+            json={"lines": [{"name": item, "unit_price": price, "quantity": 1}]},
+            headers=run_headers,
+        )
+        await finish_run(client, errand["id"], run_headers, r_headers)
+
+    async with SessionLocal() as db:
+        flags = list(
+            await db.scalars(
+                select(FraudFlag).where(
+                    FraudFlag.user_id == runner_id,
+                    FraudFlag.rule == "PERSISTENT_NEAR_THRESHOLD",
+                )
+            )
+        )
+    assert flags == [], "occasional variation is not a pattern"
+
+
 # --------------------------------------------------------------- escalation
 
 
@@ -393,13 +513,13 @@ async def test_one_bad_claim_is_not_punished(client, campus, make_user):
     runner_id, run_headers = await make_user("Runner")
     _, r_headers = await make_user("Requester")
     _, a_headers = await make_admin(client, make_user)
-    await price_item(client, a_headers, price=20, lo=15, hi=30, tolerance=15)
+    await price_item(client, a_headers, price=20, lo=15, hi=30, tolerance=20)
 
     errand = (await place_order(client, r_headers)).json()
     await accept(client, errand["id"], run_headers)
     await client.post(
         f"/fraud/errands/{errand['id']}/claims",
-        json={"lines": [{"name": "Chicken Puff", "unit_price": 40, "quantity": 1}]},
+        json={"lines": [{"name": "Chicken Puff", "unit_price": 45, "quantity": 1}]},
         headers=run_headers,
     )
 
@@ -450,14 +570,14 @@ async def test_repeated_overcharging_escalates_to_a_strike(client, campus, make_
     runner_id, run_headers = await make_user("Runner")
     _, r_headers = await make_user("Requester")
     _, a_headers = await make_admin(client, make_user)
-    await price_item(client, a_headers, price=20, lo=15, hi=30, tolerance=15)
+    await price_item(client, a_headers, price=20, lo=15, hi=30, tolerance=20)
 
     for _ in range(3):
         errand = (await place_order(client, r_headers)).json()
         await accept(client, errand["id"], run_headers)
         resp = await client.post(
             f"/fraud/errands/{errand['id']}/claims",
-            json={"lines": [{"name": "Chicken Puff", "unit_price": 40, "quantity": 1}]},
+            json={"lines": [{"name": "Chicken Puff", "unit_price": 45, "quantity": 1}]},
             headers=run_headers,
         )
         assert resp.status_code == 200, resp.text
@@ -516,14 +636,14 @@ async def test_dismissing_a_flag_pays_the_runner_the_withheld_money(
     runner_id, run_headers = await make_user("Runner")
     requester_id, r_headers = await make_user("Requester")
     _, a_headers = await make_admin(client, make_user)
-    await price_item(client, a_headers, price=20, lo=15, hi=30, tolerance=15)
+    await price_item(client, a_headers, price=20, lo=15, hi=30, tolerance=20)
     await set_balance(runner_id, "0")
 
     errand = (await place_order(client, r_headers, reward=30, collect=100)).json()
     await accept(client, errand["id"], run_headers)
     await client.post(
         f"/fraud/errands/{errand['id']}/claims",
-        json={"lines": [{"name": "Chicken Puff", "unit_price": 40, "quantity": 2}]},
+        json={"lines": [{"name": "Chicken Puff", "unit_price": 45, "quantity": 2}]},
         headers=run_headers,
     )
     await settle(errand["id"], runner_id, reward=30, collect=100)
@@ -540,8 +660,8 @@ async def test_dismissing_a_flag_pays_the_runner_the_withheld_money(
     assert resp.status_code == 200, resp.text
     assert resp.json()["status"] == "DISMISSED"
 
-    # The 40 that was held back is now theirs.
-    assert await balance_of(runner_id) == Decimal("110.00")
+    # The 50 that was held back is now theirs.
+    assert await balance_of(runner_id) == Decimal("120.00")
 
     # And the claim counts as honest evidence again.
     async with SessionLocal() as db:
@@ -559,7 +679,7 @@ async def test_upholding_a_flag_returns_the_money_to_the_requester(
     runner_id, run_headers = await make_user("Runner")
     requester_id, r_headers = await make_user("Requester")
     _, a_headers = await make_admin(client, make_user)
-    await price_item(client, a_headers, price=20, lo=15, hi=30, tolerance=15)
+    await price_item(client, a_headers, price=20, lo=15, hi=30, tolerance=20)
     await set_balance(requester_id, "500")
     await set_balance(runner_id, "0")
 
@@ -567,7 +687,7 @@ async def test_upholding_a_flag_returns_the_money_to_the_requester(
     await accept(client, errand["id"], run_headers)
     await client.post(
         f"/fraud/errands/{errand['id']}/claims",
-        json={"lines": [{"name": "Chicken Puff", "unit_price": 40, "quantity": 2}]},
+        json={"lines": [{"name": "Chicken Puff", "unit_price": 45, "quantity": 2}]},
         headers=run_headers,
     )
     await settle(errand["id"], runner_id, reward=30, collect=100)
@@ -579,7 +699,7 @@ async def test_upholding_a_flag_returns_the_money_to_the_requester(
         f"/fraud/flags/{flag['id']}/review", json={"uphold": True}, headers=a_headers
     )
 
-    assert await balance_of(requester_id) == before + Decimal("40.00")
+    assert await balance_of(requester_id) == before + Decimal("50.00")
     assert await balance_of(runner_id) == Decimal("70.00")
 
 

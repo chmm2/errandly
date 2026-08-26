@@ -60,6 +60,10 @@ REFERENCE_PRICES = [
     ("Cold Coffee", 40, 30, 60),
 ]
 
+# Rupees over the reference before a claim is flagged outright. One flat
+# number across every item, so a runner at a counter can hold it in their head.
+THRESHOLD_RUPEES = 20
+
 # Every student starts with wallet credit — orders escrow money up front, so a
 # demo account with an empty wallet cannot place a single errand.
 STARTING_BALANCE = Decimal("1000")
@@ -142,6 +146,7 @@ async def seed() -> None:
                         reference_price=Decimal(price),
                         band_min=Decimal(lo),
                         band_max=Decimal(hi),
+                        tolerance_abs=Decimal(THRESHOLD_RUPEES),
                         source="ADMIN",
                     )
                 )

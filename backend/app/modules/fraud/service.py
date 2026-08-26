@@ -20,6 +20,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import NamedTuple
 
 from redis.asyncio import Redis
 from sqlalchemy import func, select
@@ -58,8 +59,20 @@ REPUTATION_PENALTY = Decimal("0.50")
 # How long a fraud block keeps a runner from going online.
 RUNNER_BLOCK_DAYS = 7
 
-# Claim-vs-reference overshoot bands -> flag severity.
-SEVERITY_BANDS = ((Decimal("25"), 1), (Decimal("50"), 2))
+# Claim-vs-reference overshoot, in rupees over the line -> flag severity.
+SEVERITY_BANDS = ((Decimal("20"), 1), (Decimal("50"), 2))
+
+# --- "walking the line" detection -------------------------------------------
+# A flat rupee threshold is easy to understand and easy to game: quote ₹19 over
+# every time and never trip it once. So elevated-but-legal claims are counted
+# too, and a runner whose claims *cluster* just under the line gets flagged on
+# the pattern even though no single claim broke a rule.
+#
+# This deliberately does NOT withhold money — nothing was proven about any one
+# claim. It raises the pattern for an admin to look at.
+NEAR_THRESHOLD_SHARE = Decimal("0.60")   # >=60% of the way to the line = "near"
+NEAR_THRESHOLD_MIN_CLAIMS = 4            # near-line claims needed in the window
+NEAR_THRESHOLD_MIN_RATIO = Decimal("0.60")  # share of their judged claims
 
 
 class FraudError(Exception):
@@ -100,10 +113,23 @@ async def get_reference(
     )
 
 
+class Judgement(NamedTuple):
+    verdict: str
+    delta_abs: Decimal | None
+    delta_pct: Decimal | None
+    threshold: Decimal | None
+    eligible: Decimal
+
+
 def judge(
     claimed_unit_price: Decimal, quantity: int, reference: ReferencePrice | None
-) -> tuple[str, Decimal | None, Decimal]:
-    """Return (verdict, delta_pct, eligible_amount) for one claimed line.
+) -> Judgement:
+    """Judge one claimed line against the campus reference.
+
+    The rule is a flat rupee line: more than `tolerance_abs` over the reference
+    is flagged outright and the excess is withheld. Between the reference and
+    that line the claim is paid in full but recorded as ELEVATED, because the
+    pattern of where a runner sits inside the allowance is itself evidence.
 
     With no reference we cannot call anything fraud - an unpriced item is our
     gap, not the runner's. The claim is paid and becomes evidence toward the
@@ -113,20 +139,29 @@ def judge(
     claimed_total = _money(claimed_unit_price * quantity)
 
     if reference is None:
-        return "NO_REFERENCE", None, claimed_total
+        return Judgement("NO_REFERENCE", None, None, None, claimed_total)
 
     ref_unit = _money(reference.reference_price)
     if ref_unit <= 0:
-        return "NO_REFERENCE", None, claimed_total
+        return Judgement("NO_REFERENCE", None, None, None, claimed_total)
 
+    threshold = _money(reference.tolerance_abs)
+    delta_abs = _money(claimed_unit_price - ref_unit)
     delta_pct = ((claimed_unit_price - ref_unit) / ref_unit * 100).quantize(TWO_PLACES)
-    if delta_pct <= _money(reference.tolerance_pct):
-        return "OK", delta_pct, claimed_total
 
-    # Flagged: reimburse what the item is known to cost, withhold the excess.
-    # Refusing to pay an unproven excess is not a punishment - it is simply not
-    # paying for something nobody can show was spent.
-    return "FLAGGED", delta_pct, _money(ref_unit * quantity)
+    if delta_abs > threshold:
+        # Flagged: reimburse what the item is known to cost, withhold the
+        # excess. Refusing to pay an unproven excess is not a punishment - it
+        # is simply not paying for something nobody can show was spent.
+        return Judgement(
+            "FLAGGED", delta_abs, delta_pct, threshold, _money(ref_unit * quantity)
+        )
+
+    if delta_abs > 0:
+        # Paid in full. Counted, not punished.
+        return Judgement("ELEVATED", delta_abs, delta_pct, threshold, claimed_total)
+
+    return Judgement("OK", delta_abs, delta_pct, threshold, claimed_total)
 
 
 # ------------------------------------------------------------------ claims
@@ -161,7 +196,7 @@ async def submit_claims(
             raise FraudError(f"Could not read an item name from '{raw_name}'.", 422)
 
         reference = await get_reference(db, errand.campus_id, item_key)
-        verdict, delta_pct, eligible = judge(unit_price, quantity, reference)
+        j = judge(unit_price, quantity, reference)
 
         existing = await db.scalar(
             select(RunnerPriceClaim).where(
@@ -169,6 +204,7 @@ async def submit_claims(
                 RunnerPriceClaim.item_key == item_key,
             )
         )
+        ref_snapshot = _money(reference.reference_price) if reference else None
         if existing is None:
             claim = RunnerPriceClaim(
                 errand_id=errand.id,
@@ -178,10 +214,12 @@ async def submit_claims(
                 item_key=item_key,
                 claimed_unit_price=_money(unit_price),
                 quantity=quantity,
-                reference_snapshot=_money(reference.reference_price) if reference else None,
-                delta_pct=delta_pct,
-                verdict=verdict,
-                eligible_amount=eligible,
+                reference_snapshot=ref_snapshot,
+                threshold_snapshot=j.threshold,
+                delta_pct=j.delta_pct,
+                delta_abs=j.delta_abs,
+                verdict=j.verdict,
+                eligible_amount=j.eligible,
             )
             db.add(claim)
         else:
@@ -189,23 +227,30 @@ async def submit_claims(
             claim.raw_name = raw_name[:120]
             claim.claimed_unit_price = _money(unit_price)
             claim.quantity = quantity
-            claim.reference_snapshot = _money(reference.reference_price) if reference else None
-            claim.delta_pct = delta_pct
-            claim.verdict = verdict
-            claim.eligible_amount = eligible
+            claim.reference_snapshot = ref_snapshot
+            claim.threshold_snapshot = j.threshold
+            claim.delta_pct = j.delta_pct
+            claim.delta_abs = j.delta_abs
+            claim.verdict = j.verdict
+            claim.eligible_amount = j.eligible
 
         await db.flush()
         claims.append(claim)
 
-        if verdict == "FLAGGED":
+        if j.verdict == "FLAGGED":
             await raise_flag(
                 db,
                 user_id=runner.id,
                 errand_id=errand.id,
                 claim=claim,
                 rule="CLAIM_ABOVE_REFERENCE",
-                delta_pct=delta_pct or Decimal("0"),
+                delta_pct=j.delta_abs or Decimal("0"),
             )
+
+    # Someone whose claims cluster just under the line never trips the rule
+    # above, so check that separately - and check it whether or not anything
+    # was flagged today, since the whole point is that nothing ever is.
+    await evaluate_near_threshold(db, errand.campus_id, runner)
 
     # Judge the pattern once per submission, not once per line - three inflated
     # lines on one receipt is one bad errand, not three strikes.
@@ -258,6 +303,82 @@ async def raise_flag(
             if claim and claim.reference_snapshot
             else None,
             "delta_pct": float(delta_pct),
+        },
+    )
+    db.add(flag)
+    await db.flush()
+    return flag
+
+
+async def evaluate_near_threshold(
+    db: AsyncSession, campus_id: uuid.UUID, runner: User
+) -> FraudFlag | None:
+    """Flag a runner whose claims habitually sit just under the rupee line.
+
+    A flat threshold is honest and legible, but it is also a target: quote ₹19
+    over on a ₹20 line every single time and no individual claim ever breaks a
+    rule. What gives it away is the *distribution* - real prices scatter around
+    the reference, while someone working the allowance clusters against it.
+
+    So: count the claims in the window that landed in the top of the allowance,
+    and flag when they are both numerous and the runner's normal behaviour.
+    Requiring a high SHARE as well as a high COUNT is what keeps a busy honest
+    runner out of it - they accumulate elevated claims too, but they also
+    accumulate ordinary ones, and the ratio stays low.
+
+    Raises a flag only; no money is withheld, because nothing has been shown
+    about any single claim.
+    """
+    since = datetime.now(UTC) - timedelta(days=PATTERN_WINDOW_DAYS)
+
+    rows = await db.execute(
+        select(RunnerPriceClaim.delta_abs, RunnerPriceClaim.threshold_snapshot).where(
+            RunnerPriceClaim.runner_id == runner.id,
+            RunnerPriceClaim.campus_id == campus_id,
+            RunnerPriceClaim.created_at >= since,
+            RunnerPriceClaim.threshold_snapshot.is_not(None),
+            # A claim already flagged outright is counted by the other rule;
+            # counting it here too would punish one act twice.
+            RunnerPriceClaim.verdict != "FLAGGED",
+        )
+    )
+    judged = [(_money(d), _money(t)) for d, t in rows if t and _money(t) > 0]
+    if not judged:
+        return None
+
+    near = [d for d, t in judged if d >= (t * NEAR_THRESHOLD_SHARE)]
+    if len(near) < NEAR_THRESHOLD_MIN_CLAIMS:
+        return None
+
+    ratio = Decimal(len(near)) / Decimal(len(judged))
+    if ratio < NEAR_THRESHOLD_MIN_RATIO:
+        return None
+
+    # One open flag per runner for this rule at a time - the pattern is one
+    # ongoing observation, not a fresh accusation on every submission.
+    already = await db.scalar(
+        select(func.count())
+        .select_from(FraudFlag)
+        .where(
+            FraudFlag.user_id == runner.id,
+            FraudFlag.rule == "PERSISTENT_NEAR_THRESHOLD",
+            FraudFlag.status == "OPEN",
+        )
+    )
+    if already:
+        return None
+
+    avg_over = (sum(near) / Decimal(len(near))).quantize(TWO_PLACES)
+    flag = FraudFlag(
+        user_id=runner.id,
+        rule="PERSISTENT_NEAR_THRESHOLD",
+        severity=2,
+        details={
+            "near_line_claims": len(near),
+            "judged_claims": len(judged),
+            "share": float(ratio.quantize(TWO_PLACES)),
+            "avg_rupees_over": float(avg_over),
+            "window_days": PATTERN_WINDOW_DAYS,
         },
     )
     db.add(flag)
@@ -413,12 +534,25 @@ async def refresh_reference(
     reference = await get_reference(db, campus_id, item_key)
     since = datetime.now(UTC) - timedelta(days=PATTERN_WINDOW_DAYS)
 
+    # Runners under an open or upheld "walking the line" flag do not get a vote
+    # on where the line is. Their claims are legal individually, which is
+    # exactly why they would otherwise be the most effective way to drag a
+    # reference upward - never tripping a rule while always pushing.
+    suspect = select(FraudFlag.user_id).where(
+        FraudFlag.rule == "PERSISTENT_NEAR_THRESHOLD",
+        FraudFlag.status.in_(("OPEN", "UPHELD")),
+    )
+
     rows = await db.execute(
         select(RunnerPriceClaim.runner_id, RunnerPriceClaim.claimed_unit_price).where(
             RunnerPriceClaim.campus_id == campus_id,
             RunnerPriceClaim.item_key == item_key,
             RunnerPriceClaim.created_at >= since,
+            # FLAGGED claims are excluded outright; ELEVATED ones are kept on
+            # purpose, because a genuine price rise shows up first as everyone
+            # paying a little more, and the reference has to be able to follow.
             RunnerPriceClaim.verdict != "FLAGGED",
+            RunnerPriceClaim.runner_id.not_in(suspect),
         )
     )
     by_runner: dict[str, list[Decimal]] = {}

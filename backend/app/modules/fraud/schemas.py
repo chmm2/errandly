@@ -27,7 +27,9 @@ class ClaimOut(BaseModel):
     claimed_unit_price: float
     quantity: int
     reference_snapshot: float | None
+    threshold_snapshot: float | None
     delta_pct: float | None
+    delta_abs: float | None
     verdict: str
     eligible_amount: float
     created_at: datetime
@@ -54,7 +56,8 @@ class ReferencePriceIn(BaseModel):
     reference_price: float = Field(gt=0, le=10000)
     band_min: float = Field(gt=0, le=10000)
     band_max: float = Field(gt=0, le=10000)
-    tolerance_pct: float = Field(default=15.0, ge=0, le=200)
+    # Rupees over the reference before a claim is flagged outright.
+    tolerance_abs: float = Field(default=20.0, gt=0, le=1000)
 
     @model_validator(mode="after")
     def coherent_band(self):
@@ -70,7 +73,7 @@ class ReferencePriceUpdate(BaseModel):
     reference_price: float | None = Field(default=None, gt=0, le=10000)
     band_min: float | None = Field(default=None, gt=0, le=10000)
     band_max: float | None = Field(default=None, gt=0, le=10000)
-    tolerance_pct: float | None = Field(default=None, ge=0, le=200)
+    tolerance_abs: float | None = Field(default=None, gt=0, le=1000)
 
 
 class ReferencePriceOut(BaseModel):
@@ -82,7 +85,7 @@ class ReferencePriceOut(BaseModel):
     reference_price: float
     band_min: float
     band_max: float
-    tolerance_pct: float
+    tolerance_abs: float
     source: str
     sample_count: int
     last_estimated_at: datetime | None

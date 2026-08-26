@@ -25,7 +25,9 @@ from app.core.mixins import TimestampMixin
 #   AUTO  - the trimmed-median estimator moved it, INSIDE the admin band.
 PRICE_SOURCES = ("ADMIN", "AUTO")
 
-CLAIM_VERDICTS = ("OK", "FLAGGED", "NO_REFERENCE")
+# ELEVATED: above the reference but under the rupee line — paid in full, but
+# counted, because a habit of sitting just under the line is its own signal.
+CLAIM_VERDICTS = ("OK", "ELEVATED", "FLAGGED", "NO_REFERENCE")
 FLAG_STATUSES = ("OPEN", "UPHELD", "DISMISSED")
 PROPOSAL_STATUSES = ("PENDING", "APPROVED", "REJECTED")
 
@@ -55,7 +57,7 @@ class ReferencePrice(Base, TimestampMixin):
             "reference_price BETWEEN band_min AND band_max", name="ck_reference_in_band"
         ),
         CheckConstraint("source IN ('ADMIN','AUTO')", name="ck_reference_source"),
-        CheckConstraint("tolerance_pct >= 0", name="ck_reference_tolerance"),
+        CheckConstraint("tolerance_abs > 0", name="ck_reference_tolerance"),
         Index("ix_reference_campus", "campus_id"),
     )
 
@@ -73,9 +75,12 @@ class ReferencePrice(Base, TimestampMixin):
     reference_price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     band_min: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     band_max: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
-    # How far above reference a single claim may sit before it is flagged.
-    tolerance_pct: Mapped[float] = mapped_column(
-        Numeric(5, 2), nullable=False, server_default="15.00"
+    # How many rupees above the reference a single claim may sit before it is
+    # flagged outright. Absolute, not a percentage: a flat rupee line is the
+    # one a runner at a counter can actually hold in their head, and it is the
+    # one an admin can defend to a student without doing arithmetic.
+    tolerance_abs: Mapped[float] = mapped_column(
+        Numeric(10, 2), nullable=False, server_default="20.00"
     )
     source: Mapped[str] = mapped_column(String(8), nullable=False, server_default="ADMIN")
     sample_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
@@ -141,7 +146,9 @@ class RunnerPriceClaim(Base):
     __table_args__ = (
         CheckConstraint("claimed_unit_price >= 0", name="ck_claim_price"),
         CheckConstraint("quantity >= 1", name="ck_claim_quantity"),
-        CheckConstraint("verdict IN ('OK','FLAGGED','NO_REFERENCE')", name="ck_claim_verdict"),
+        CheckConstraint(
+            "verdict IN ('OK','ELEVATED','FLAGGED','NO_REFERENCE')", name="ck_claim_verdict"
+        ),
         # One claim per line per errand - resubmitting updates, never stacks.
         UniqueConstraint("errand_id", "item_key", name="uq_claim_errand_item"),
         Index("ix_claim_runner_created", "runner_id", "created_at"),
@@ -167,7 +174,12 @@ class RunnerPriceClaim(Base):
 
     # Snapshot of the judgement, frozen at claim time.
     reference_snapshot: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
+    # The rupee line this claim was judged against, frozen at judgement time.
+    threshold_snapshot: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
     delta_pct: Mapped[float | None] = mapped_column(Numeric(7, 2), nullable=True)
+    # Rupees over the reference. Stored rather than derived so the
+    # "walking the line" query needs no join and no live reference lookup.
+    delta_abs: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
     verdict: Mapped[str] = mapped_column(String(16), nullable=False, server_default="OK")
     # Amount actually eligible for reimbursement - capped at reference when
     # flagged. The payout path reads THIS, never claimed_unit_price.

@@ -24,7 +24,7 @@ const BLANK = {
   reference_price: 0,
   band_min: 0,
   band_max: 0,
-  tolerance_pct: 15,
+  tolerance_abs: 20,
 };
 
 function FlagCard({
@@ -37,23 +37,42 @@ function FlagCard({
   busy: boolean;
 }) {
   const d = flag.details ?? {};
+  const nearLine = flag.rule === "PERSISTENT_NEAR_THRESHOLD";
   return (
     <div className="rounded-2xl border border-line p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="font-extrabold text-ink">{d.item ?? flag.rule}</div>
-          <div className="mt-1 text-sm text-muted">
-            Claimed{" "}
-            <span className="font-bold text-amber-700">₹{Number(d.claimed ?? 0).toFixed(0)}</span>{" "}
-            against a reference of{" "}
-            <span className="font-bold text-ink">₹{Number(d.reference ?? 0).toFixed(0)}</span>
-            {d.delta_pct != null && (
-              <>
-                {" "}
-                · <span className="font-bold">+{Number(d.delta_pct).toFixed(0)}%</span>
-              </>
-            )}
+          <div className="font-extrabold text-ink">
+            {nearLine ? "Consistently just under the line" : (d.item ?? flag.rule)}
           </div>
+          {nearLine ? (
+            /* No single claim broke a rule here — the evidence is the shape of
+               the distribution, so show that rather than one price. */
+            <div className="mt-1 text-sm text-muted">
+              <span className="font-bold text-ink">{d.near_line_claims}</span> of{" "}
+              <span className="font-bold text-ink">{d.judged_claims}</span> priced claims
+              landed near the flag threshold over {d.window_days} days — averaging{" "}
+              <span className="font-bold text-amber-700">
+                ₹{Number(d.avg_rupees_over ?? 0).toFixed(0)}
+              </span>{" "}
+              over the reference each time. Nothing was withheld.
+            </div>
+          ) : (
+            <div className="mt-1 text-sm text-muted">
+              Claimed{" "}
+              <span className="font-bold text-amber-700">
+                ₹{Number(d.claimed ?? 0).toFixed(0)}
+              </span>{" "}
+              against a reference of{" "}
+              <span className="font-bold text-ink">₹{Number(d.reference ?? 0).toFixed(0)}</span>
+              {d.delta_pct != null && (
+                <>
+                  {" "}
+                  · <span className="font-bold">+{Number(d.delta_pct).toFixed(0)}%</span>
+                </>
+              )}
+            </div>
+          )}
         </div>
         <span
           className={`rounded-full px-2.5 py-1 text-xs font-bold ${
@@ -69,8 +88,9 @@ function FlagCard({
       </div>
 
       <p className="mt-3 text-xs text-muted">
-        Dismissing pays the runner the withheld amount and lets this claim count as
-        evidence again. Upholding returns it to the requester.
+        {nearLine
+          ? "No money is held on this one. Dismissing restores the runner's claims as evidence for reference prices; upholding keeps them excluded."
+          : "Dismissing pays the runner the withheld amount and lets this claim count as evidence again. Upholding returns it to the requester."}
       </p>
 
       <div className="mt-3 flex gap-2">
@@ -79,14 +99,14 @@ function FlagCard({
           disabled={busy}
           className="rounded-xl border-2 border-emerald-300 px-4 py-2 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
         >
-          Dismiss — runner was honest
+          {nearLine ? "Dismiss — normal variation" : "Dismiss — runner was honest"}
         </button>
         <button
           onClick={() => onReview(true)}
           disabled={busy}
           className="rounded-xl border-2 border-red-300 px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
         >
-          Uphold — overcharge
+          {nearLine ? "Uphold — gaming the threshold" : "Uphold — overcharge"}
         </button>
       </div>
     </div>
@@ -311,7 +331,7 @@ export default function FraudAdmin() {
                 hard limit — automatic updates can move the reference inside it, never
                 outside.
               </p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-5">
+              <div className="mt-3 grid gap-2 sm:grid-cols-6">
                 <input
                   value={draft.display_name}
                   onChange={(e) => setDraft({ ...draft, display_name: e.target.value })}
@@ -323,6 +343,7 @@ export default function FraudAdmin() {
                     ["reference_price", "₹ typical"],
                     ["band_min", "₹ min"],
                     ["band_max", "₹ max"],
+                    ["tolerance_abs", "₹ flag over"],
                   ] as const
                 ).map(([field, placeholder]) => (
                   <input
@@ -368,7 +389,7 @@ export default function FraudAdmin() {
                       <th className="px-4 py-2.5 font-bold">Item</th>
                       <th className="px-4 py-2.5 font-bold">Reference</th>
                       <th className="px-4 py-2.5 font-bold">Band</th>
-                      <th className="px-4 py-2.5 font-bold">Tolerance</th>
+                      <th className="px-4 py-2.5 font-bold">Flag over</th>
                       <th className="px-4 py-2.5 font-bold">Source</th>
                       <th className="px-4 py-2.5 font-bold">Samples</th>
                     </tr>
@@ -384,7 +405,7 @@ export default function FraudAdmin() {
                           ₹{Number(r.band_min).toFixed(0)}–₹{Number(r.band_max).toFixed(0)}
                         </td>
                         <td className="px-4 py-3 text-muted">
-                          +{Number(r.tolerance_pct).toFixed(0)}%
+                          +₹{Number(r.tolerance_abs).toFixed(0)}
                         </td>
                         <td className="px-4 py-3">
                           <span

@@ -156,7 +156,7 @@ async def create_reference(
         reference_price=Decimal(str(data.reference_price)),
         band_min=Decimal(str(data.band_min)),
         band_max=Decimal(str(data.band_max)),
-        tolerance_pct=Decimal(str(data.tolerance_pct)),
+        tolerance_abs=Decimal(str(data.tolerance_abs)),
         source="ADMIN",
         updated_by=admin.id,
     )
@@ -177,7 +177,7 @@ async def update_reference(
     if reference is None or reference.campus_id != admin.campus_id:
         raise HTTPException(404, "Reference price not found.")
 
-    for field in ("display_name", "reference_price", "band_min", "band_max", "tolerance_pct"):
+    for field in ("display_name", "reference_price", "band_min", "band_max", "tolerance_abs"):
         value = getattr(data, field)
         if value is not None:
             setattr(
