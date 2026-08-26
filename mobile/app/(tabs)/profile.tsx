@@ -8,7 +8,6 @@ import { Image, Pressable, RefreshControl, StyleSheet, Text, View } from "react-
 import { fetchMe, setPhoto } from "../../src/api/auth";
 import { type Errand, fetchMyErrands } from "../../src/api/errands";
 import { fetchEarnings } from "../../src/api/ledger";
-import { fetchFriends, fetchRequests } from "../../src/api/social";
 import {
   Body,
   Button,
@@ -24,6 +23,7 @@ import {
 } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
 import { notify } from "../../src/lib/dialog";
+import { PushStatus } from "../../src/components/PushStatus";
 import { unregisterForPush } from "../../src/lib/push";
 import { useAuth } from "../../src/stores/auth";
 import {
@@ -82,13 +82,6 @@ export default function Profile() {
   const [uploading, setUploading] = useState(false);
 
   const { data: earnings } = useQuery({ queryKey: ["earnings"], queryFn: fetchEarnings });
-  const { data: friends } = useQuery({ queryKey: ["friends"], queryFn: fetchFriends });
-  const { data: friendRequests } = useQuery({
-    queryKey: ["friend-requests"],
-    queryFn: fetchRequests,
-  });
-  const friendCount = friends?.length ?? null;
-  const requestCount = friendRequests?.length ?? 0;
   const { data: mine, refetch, isRefetching } = useQuery({
     queryKey: ["my-errands"],
     queryFn: fetchMyErrands,
@@ -205,30 +198,9 @@ export default function Profile() {
           <Caption style={{ marginTop: space.md }}>Tap your photo to change it.</Caption>
         </Card>
 
-        {/* Friends. Sits directly under identity because who you're connected
-            to now changes which errands reach you — it's part of how the app
-            works, not a social extra. */}
-        <Card raised onPress={() => router.push("/friends")} style={{ marginTop: space.lg }}>
-          <Row gap={space.md}>
-            <IconTile emoji="🤝" />
-            <View style={{ flex: 1 }}>
-              <Body style={{ fontFamily: font.bold }}>Friends</Body>
-              <Caption numberOfLines={2}>
-                {friendCount === null
-                  ? "Add classmates so your errands reach them first"
-                  : `${friendCount} connection${friendCount === 1 ? "" : "s"}` +
-                    (requestCount ? ` · ${requestCount} pending request${requestCount === 1 ? "" : "s"}` : "")}
-              </Caption>
-            </View>
-            {requestCount ? (
-              <View style={s.badgeDot}>
-                <Text style={s.badgeDotText}>{requestCount}</Text>
-              </View>
-            ) : (
-              <Text style={{ color: colors.muted, fontSize: 18 }}>›</Text>
-            )}
-          </Row>
-        </Card>
+        {/* Only renders when push is actually broken. */}
+        <PushStatus />
+
 
         {/* ---------------------------------------------------- as a customer */}
         <Heading style={{ marginTop: space.xxl, marginBottom: space.md }}>🧑 As a customer</Heading>

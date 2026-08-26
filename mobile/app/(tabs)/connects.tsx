@@ -1,5 +1,4 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -14,7 +13,7 @@ import {
   type Friend,
   type Relationship,
   type SearchResult,
-} from "../src/api/social";
+} from "../../src/api/social";
 import {
   Body,
   Button,
@@ -27,15 +26,14 @@ import {
   Row,
   Screen,
   Title,
-} from "../src/components/ui";
-import { apiErrorMessage } from "../src/lib/api";
-import { confirm, notify } from "../src/lib/dialog";
-import { colors, font, radius, space } from "../src/theme";
+} from "../../src/components/ui";
+import { apiErrorMessage } from "../../src/lib/api";
+import { confirm, notify } from "../../src/lib/dialog";
+import { colors, font, radius, space } from "../../src/theme";
 
 type Tab = "friends" | "requests" | "find";
 
-export default function Friends() {
-  const router = useRouter();
+export default function Connects() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>("friends");
 
@@ -53,9 +51,8 @@ export default function Friends() {
     <Screen scroll>
       <Hero
         eyebrow="Your circle"
-        title="Friends"
+        title="Connects"
         subtitle="Errands go to people you know first — friends, then friends of friends, before anyone else."
-        onBack={() => router.back()}
       />
 
       <Row gap={space.sm} style={{ marginTop: space.xl }}>

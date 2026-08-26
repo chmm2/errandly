@@ -37,7 +37,15 @@ module.exports = {
         backgroundImage: "./assets/android-icon-background.png",
         monochromeImage: "./assets/android-icon-monochrome.png",
       },
-      permissions: ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
+      // POST_NOTIFICATIONS is required from Android 13 (API 33). Without it in
+      // the manifest the runtime prompt never appears, requestPermissionsAsync
+      // resolves as denied, and push registration fails silently — which is
+      // exactly why no device had ever registered a token.
+      permissions: [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "POST_NOTIFICATIONS",
+      ],
       predictiveBackGestureEnabled: false,
     },
 

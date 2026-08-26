@@ -1,15 +1,30 @@
+import { useQuery } from "@tanstack/react-query";
 import { Tabs } from "expo-router";
 import { Platform, StyleSheet, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { fetchRequests } from "../../src/api/social";
+import { useAuth } from "../../src/stores/auth";
 import { colors, font } from "../../src/theme";
 
 /**
- * Three tabs, matching the two roles the product actually has plus your
+ * Four tabs: the two roles the product has, your connections, and your
  * account. Shops isn't here — you reach it from Order → Food, the way the web
  * app does it.
  */
 export default function TabsLayout() {
+  const signedIn = !!useAuth((s) => s.accessToken);
+
+  // Pending friend requests surface on the tab itself: a request nobody sees
+  // is a connection that never forms, and connections are what decide who
+  // your errands reach.
+  const { data: requests } = useQuery({
+    queryKey: ["friend-requests"],
+    queryFn: fetchRequests,
+    enabled: signedIn,
+    refetchInterval: 60_000,
+  });
+  const pending = requests?.length ?? 0;
   // Size from the real inset; a hardcoded gap clipped the labels on anything
   // without a home indicator.
   const insets = useSafeAreaInsets();
@@ -46,6 +61,17 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="connects"
+        options={{
+          title: "Connects",
+          tabBarIcon: ({ focused }) => (
+            <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.55 }}>🤝</Text>
+          ),
+          tabBarBadge: pending || undefined,
+          tabBarBadgeStyle: s.badge,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
@@ -68,4 +94,5 @@ const s = StyleSheet.create({
   // Generous line height so descenders in "Profile" can't be clipped.
   label: { fontSize: 11, lineHeight: 15, fontFamily: font.bold, marginTop: 3 },
   icon: { height: 24 },
+  badge: { backgroundColor: colors.brand, fontSize: 10, fontFamily: font.bold },
 });

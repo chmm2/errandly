@@ -28,6 +28,19 @@ Notifications.setNotificationHandler({
 /** Remembered so logout can unregister exactly this device. */
 let currentToken: string | null = null;
 
+/**
+ * Why registration last failed, if it did.
+ *
+ * Kept because the previous version swallowed every failure into `return null`,
+ * which made a dead push pipeline impossible to diagnose from the device — the
+ * app looked fine and simply never received anything.
+ */
+let lastFailure: string | null = null;
+
+export function getPushFailure(): string | null {
+  return lastFailure;
+}
+
 export function getCurrentPushToken(): string | null {
   return currentToken;
 }
@@ -39,8 +52,17 @@ export function getCurrentPushToken(): string | null {
  * who declined. None of those are errors — the app works fine without it.
  */
 export async function registerForPush(): Promise<string | null> {
+  lastFailure = null;
+
   // Push needs real hardware; emulators can't receive it.
-  if (!Device.isDevice || Platform.OS === "web") return null;
+  if (Platform.OS === "web") {
+    lastFailure = "Push isn't available in a browser.";
+    return null;
+  }
+  if (!Device.isDevice) {
+    lastFailure = "Push needs a physical device — emulators can't receive it.";
+    return null;
+  }
 
   try {
     // Android needs a channel before a banner will show while backgrounded.
@@ -59,7 +81,14 @@ export async function registerForPush(): Promise<string | null> {
     if (status !== "granted") {
       status = (await Notifications.requestPermissionsAsync()).status;
     }
-    if (status !== "granted") return null;
+    if (status !== "granted") {
+      lastFailure =
+        status === "denied"
+          ? "Notifications are turned off for Errandly in Android settings."
+          : `Notification permission was not granted (${status}).`;
+      console.warn("[push]", lastFailure);
+      return null;
+    }
 
     // EAS builds need the project id explicitly; it isn't inferred off-device.
     const projectId =
@@ -71,9 +100,12 @@ export async function registerForPush(): Promise<string | null> {
 
     await registerPushToken(token, Platform.OS);
     currentToken = token;
+    console.log("[push] registered", token.slice(0, 24) + "…");
     return token;
-  } catch {
-    // Never let push setup break sign-in.
+  } catch (err: any) {
+    // Still never lets push setup break sign-in — but it says why now.
+    lastFailure = err?.message ? String(err.message) : "Push registration failed.";
+    console.warn("[push] registration failed:", lastFailure, err);
     return null;
   }
 }
