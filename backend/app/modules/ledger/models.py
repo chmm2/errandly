@@ -27,6 +27,8 @@ ENTRY_TYPES = (
     "REFUND",         # CREDIT  escrow returned (cancel/expire/over-hold)
     "REWARD",         # CREDIT  runner's fee on completion
     "REIMBURSEMENT",  # CREDIT  runner repaid for cash fronted at pickup
+    "REVIEW_PAYOUT",  # CREDIT  withheld money released to a runner after review
+    "REVIEW_REFUND",  # CREDIT  withheld money returned to a requester after review
     "CLAWBACK",       # DEBIT   fraud adjustment against a runner
 )
 
@@ -38,6 +40,8 @@ ENTRY_DIRECTION = {
     "REFUND": "CREDIT",
     "REWARD": "CREDIT",
     "REIMBURSEMENT": "CREDIT",
+    "REVIEW_PAYOUT": "CREDIT",
+    "REVIEW_REFUND": "CREDIT",
     "CLAWBACK": "DEBIT",
 }
 
@@ -53,7 +57,8 @@ class LedgerEntry(Base):
     __tablename__ = "ledger_entries"
     __table_args__ = (
         CheckConstraint(
-            "entry_type IN ('TOPUP','HOLD','REFUND','REWARD','REIMBURSEMENT','CLAWBACK')",
+            "entry_type IN ('TOPUP','HOLD','REFUND','REWARD','REIMBURSEMENT',"
+            "'REVIEW_PAYOUT','REVIEW_REFUND','CLAWBACK')",
             name="ck_ledger_type",
         ),
         CheckConstraint("direction IN ('CREDIT','DEBIT')", name="ck_ledger_direction"),
@@ -61,13 +66,18 @@ class LedgerEntry(Base):
         # Type and direction can't disagree — HOLD is never a credit.
         CheckConstraint(
             "(entry_type IN ('HOLD','CLAWBACK') AND direction = 'DEBIT') OR "
-            "(entry_type IN ('TOPUP','REFUND','REWARD','REIMBURSEMENT') AND direction = 'CREDIT')",
+            "(entry_type IN ('TOPUP','REFUND','REWARD','REIMBURSEMENT',"
+            "'REVIEW_PAYOUT','REVIEW_REFUND') AND direction = 'CREDIT')",
             name="ck_ledger_type_direction",
         ),
         Index("ix_ledger_user_created", "user_id", "created_at"),
         Index("ix_ledger_errand", "errand_id"),
         # Idempotency: one entry per (errand, user, type). A Kafka redelivery
         # or a double-clicked button collides here instead of paying twice.
+        # This is why post-review money uses its OWN types: a review payout to
+        # a runner who was already reimbursed on the same errand is a second,
+        # legitimate payment, and reusing REIMBURSEMENT would have made the
+        # constraint swallow it silently.
         UniqueConstraint(
             "errand_id", "user_id", "entry_type", name="uq_ledger_errand_user_type"
         ),

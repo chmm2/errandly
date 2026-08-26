@@ -31,7 +31,8 @@ def upgrade() -> None:
     op.create_check_constraint(
         "ck_ledger_type",
         "ledger_entries",
-        "entry_type IN ('TOPUP','HOLD','REFUND','REWARD','REIMBURSEMENT','CLAWBACK')",
+        "entry_type IN ('TOPUP','HOLD','REFUND','REWARD','REIMBURSEMENT',"
+        "'REVIEW_PAYOUT','REVIEW_REFUND','CLAWBACK')",
     )
     op.create_check_constraint(
         "ck_ledger_direction", "ledger_entries", "direction IN ('CREDIT','DEBIT')"
@@ -40,7 +41,8 @@ def upgrade() -> None:
         "ck_ledger_type_direction",
         "ledger_entries",
         "(entry_type IN ('HOLD','CLAWBACK') AND direction = 'DEBIT') OR "
-        "(entry_type IN ('TOPUP','REFUND','REWARD','REIMBURSEMENT') AND direction = 'CREDIT')",
+        "(entry_type IN ('TOPUP','REFUND','REWARD','REIMBURSEMENT',"
+        "'REVIEW_PAYOUT','REVIEW_REFUND') AND direction = 'CREDIT')",
     )
     op.create_index("ix_ledger_errand", "ledger_entries", ["errand_id"])
     # Idempotency gate: a Kafka redelivery collides here instead of paying twice.

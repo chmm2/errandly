@@ -25,14 +25,28 @@ router = APIRouter(prefix="/ledger", tags=["ledger"])
 
 RECENT_ENTRY_LIMIT = 25
 
+# What counts as money EARNED by running. Top-ups and refunds are not
+# earnings; clawbacks are handled by the wallet balance, not this card.
+EARNING_TYPES = ("REWARD", "REIMBURSEMENT")
+
 
 @router.get("/me", response_model=EarningsSummary)
 async def my_earnings(
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Derived, never stored: every number is a sum over the append-only log."""
-    balance = await ledger.balance(db, user.id)
+    """The runner earnings card: what you MADE running, not what you hold.
+
+    Deliberately not the wallet balance - topping up your wallet is not
+    earnings, and showing it here would tell a runner they had earned money
+    they actually put in themselves. Spendable balance lives on /me/wallet.
+    """
+    earned = await db.scalar(
+        select(func.coalesce(func.sum(LedgerEntry.amount), 0)).where(
+            LedgerEntry.user_id == user.id,
+            LedgerEntry.entry_type.in_(EARNING_TYPES),
+        )
+    )
     week_ago = datetime.now(UTC) - timedelta(days=7)
     row = (
         await db.execute(
@@ -50,13 +64,12 @@ async def my_earnings(
             ).where(
                 LedgerEntry.user_id == user.id,
                 LedgerEntry.created_at >= week_ago,
-                # Earnings means money earned running, not money topped up.
-                LedgerEntry.entry_type.in_(("REWARD", "REIMBURSEMENT")),
+                LedgerEntry.entry_type.in_(EARNING_TYPES),
             )
         )
     ).one()
     return EarningsSummary(
-        balance=float(balance), week_total=float(row[0]), week_runs=row[1]
+        balance=float(earned or 0), week_total=float(row[0]), week_runs=row[1]
     )
 
 

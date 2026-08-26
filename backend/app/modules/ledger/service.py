@@ -313,7 +313,7 @@ async def resolve_withheld(
                 db,
                 user_id=runner_id,
                 errand_id=errand_id,
-                entry_type="REIMBURSEMENT",
+                entry_type="REVIEW_PAYOUT",
                 amount=remaining,
                 memo=memo or "Withheld amount released after review",
             )
@@ -322,7 +322,7 @@ async def resolve_withheld(
                 db,
                 user_id=hold.requester_id,
                 errand_id=errand_id,
-                entry_type="REFUND",
+                entry_type="REVIEW_REFUND",
                 amount=remaining,
                 memo=memo or "Overcharge returned after review",
             )

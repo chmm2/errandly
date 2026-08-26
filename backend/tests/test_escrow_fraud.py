@@ -59,19 +59,32 @@ async def make_admin(client, make_user):
 async def price_item(
     client, admin_headers, name="Chicken Puff", price=20, lo=15, hi=30, tolerance=15
 ):
-    resp = await client.post(
-        "/fraud/references",
-        json={
-            "display_name": name,
-            "reference_price": price,
-            "band_min": lo,
-            "band_max": hi,
-            "tolerance_pct": tolerance,
-        },
-        headers=admin_headers,
+    """Set a reference price, whether or not one already exists.
+
+    Reference prices are campus-scoped and outlive a single test, and the whole
+    suite shares one campus - so this upserts rather than assuming a clean
+    slate. Each test then gets the exact band it is reasoning about instead of
+    inheriting whatever ran before it.
+    """
+    body = {
+        "display_name": name,
+        "reference_price": price,
+        "band_min": lo,
+        "band_max": hi,
+        "tolerance_pct": tolerance,
+    }
+    resp = await client.post("/fraud/references", json=body, headers=admin_headers)
+    if resp.status_code == 201:
+        return resp.json()
+
+    assert resp.status_code == 409, resp.text
+    existing = (await client.get("/fraud/references", headers=admin_headers)).json()
+    match = next(r for r in existing if r["display_name"] == name)
+    patched = await client.patch(
+        f"/fraud/references/{match['id']}", json=body, headers=admin_headers
     )
-    assert resp.status_code == 201, resp.text
-    return resp.json()
+    assert patched.status_code == 200, patched.text
+    return patched.json()
 
 
 async def place_order(client, headers, reward=30, collect=100, title="Canteen run"):
@@ -95,6 +108,22 @@ async def accept(client, errand_id, runner_headers):
     resp = await client.post(f"/errands/{errand_id}/accept", headers=runner_headers)
     assert resp.status_code == 200, resp.text
     return resp.json()
+
+
+async def finish_run(client, errand_id, run_headers, r_headers):
+    """Drive an accepted errand to COMPLETED.
+
+    Runners have a load cap of 2 concurrent runs, so a test that needs the same
+    runner to offend repeatedly has to actually finish each errand rather than
+    stacking them.
+    """
+    for step, headers in (
+        ("pickup", run_headers),
+        ("deliver", run_headers),
+        ("complete", r_headers),
+    ):
+        resp = await client.post(f"/errands/{errand_id}/{step}", headers=headers)
+        assert resp.status_code == 200, f"{step}: {resp.text}"
 
 
 async def settle(errand_id, runner_id, reward, collect, title="Canteen run"):
@@ -432,6 +461,7 @@ async def test_repeated_overcharging_escalates_to_a_strike(client, campus, make_
             headers=run_headers,
         )
         assert resp.status_code == 200, resp.text
+        await finish_run(client, errand["id"], run_headers, r_headers)
 
     async with SessionLocal() as db:
         strikes = list(
@@ -560,11 +590,14 @@ async def test_admin_must_price_an_item_before_anyone_can_be_flagged(
     client, campus, make_user
 ):
     _, a_headers = await make_admin(client, make_user)
+    # A name nobody has priced before - reference prices outlive a test run,
+    # so asserting on a fixed name would pass once and fail on every re-run.
+    name = f"Cold Coffee {uuid.uuid4().hex[:6]}"
     refs = (await client.get("/fraud/references", headers=a_headers)).json()
-    assert all(r["item_key"] != "cold coffee" for r in refs)
+    assert all(r["display_name"] != name for r in refs)
 
-    created = await price_item(client, a_headers, "Cold Coffee", 50, 40, 70)
-    assert created["item_key"] == "cold coffee"
+    created = await price_item(client, a_headers, name, 50, 40, 70)
+    assert created["item_key"] == name.lower()
     assert created["source"] == "ADMIN"
 
 
