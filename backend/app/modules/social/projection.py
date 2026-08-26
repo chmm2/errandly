@@ -83,10 +83,13 @@ async def handle_social(db: AsyncSession, event: dict) -> None:
         await run_write(UNLINK_FRIENDS, a=a, b=b)
         logger.info("graph: unlinked %s <-> %s", a[:8], b[:8])
 
-    elif kind == "ErrandSettled":
-        # Emitted by the settlement flow. Tolerated as a no-op when the payload
-        # predates the fields, so the graph consumer never blocks on a shape it
-        # does not recognise.
+    elif kind == "ORDER_COMPLETED":
+        # Value actually changed hands. This is the same event settlement-service
+        # pays out on, so a PAID edge exists for exactly the transactions the
+        # ledger recorded — see handle_settlement in workers/consumers.py.
+        #
+        # Nothing reads these yet. They exist so collusion detection can ask
+        # "does value circulate inside this cluster?" without a backfill.
         req, run = payload.get("requester_id"), payload.get("runner_id")
         if req and run:
             await _upsert_user(db, req)
@@ -95,8 +98,12 @@ async def handle_social(db: AsyncSession, event: dict) -> None:
                 RECORD_PAYMENT,
                 from_id=req,
                 to_id=run,
-                errand_id=str(event.get("aggregate_id") or payload.get("errand_id")),
-                amount=float(payload.get("amount") or 0),
+                errand_id=str(payload.get("errand_id") or event.get("aggregate_id")),
+                # What the requester parted with: the runner's fee plus the cash
+                # handed over. items_total is deliberately excluded — it is not
+                # settled through the platform (see PaymentSummary on mobile).
+                amount=float(payload.get("reward") or 0)
+                + float(payload.get("collect_amount") or 0),
                 at=payload.get("at"),
             )
 
