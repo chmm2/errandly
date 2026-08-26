@@ -17,6 +17,7 @@ costs a runner nothing.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -28,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.auth.models import User
 from app.modules.errands.models import Errand
-from app.modules.fraud import estimator
+from app.modules.fraud import collusion, estimator
 from app.modules.fraud.models import (
     STRIKE_ACTIONS,
     FraudFlag,
@@ -41,6 +42,8 @@ from app.modules.fraud.normalize import resolve_key
 from app.modules.ledger import service as ledger
 from app.modules.notifications import service as notifications
 from app.modules.runners.models import RunnerProfile
+
+logger = logging.getLogger(__name__)
 
 TWO_PLACES = Decimal("0.01")
 
@@ -517,6 +520,76 @@ async def active_runner_block(db: AsyncSession, user_id: uuid.UUID) -> datetime 
     if profile is None or profile.fraud_blocked_until is None:
         return None
     return profile.fraud_blocked_until if profile.fraud_blocked_until > datetime.now(UTC) else None
+
+
+# ------------------------------------------------------- collusion rings
+
+
+async def sweep_collusion_rings(db: AsyncSession) -> list[FraudFlag]:
+    """Find closed money cycles and raise a flag per member.
+
+    Runs on a timer rather than on each settlement: a ring only becomes visible
+    after several completed errands, so there is nothing to see at the moment
+    any one of them settles, and re-running the cycle search per payout would
+    be pure cost.
+
+    Every member of a detected cycle is flagged, not just one. A ring has no
+    ringleader visible from the graph — the shape is symmetric, and picking a
+    "primary" would be inventing a fact. An admin reviewing them sees the whole
+    group and decides.
+
+    No money is withheld here. A cycle is strong evidence about a *group*, but
+    it says nothing about which specific errand was dishonest, and the escrow
+    holds it would touch have long since settled. It gates matching and asks a
+    human; it does not reach into a wallet.
+    """
+    rings = await collusion.find_rings()
+    if not rings:
+        return []
+
+    raised: list[FraudFlag] = []
+    for ring in rings:
+        members = list(ring.members)
+        # One open flag per member per ring. Re-running the sweep must not
+        # stack a fresh accusation on every tick for the same finding.
+        signature = "-".join(sorted(str(m)[:8] for m in members))
+
+        for member in members:
+            already = await db.scalar(
+                select(func.count())
+                .select_from(FraudFlag)
+                .where(
+                    FraudFlag.user_id == member,
+                    FraudFlag.rule == "COLLUSION_RING",
+                    FraudFlag.status == "OPEN",
+                    FraudFlag.details["signature"].astext == signature,
+                )
+            )
+            if already:
+                continue
+
+            flag = FraudFlag(
+                user_id=member,
+                rule="COLLUSION_RING",
+                severity=3,
+                details={
+                    "signature": signature,
+                    "members": [str(m) for m in members],
+                    "names": list(ring.names),
+                    "size": ring.size,
+                    "laps": ring.laps,
+                    "total_value": round(ring.total_value, 2),
+                    "min_leg_value": round(ring.min_leg_value, 2),
+                    "closure": round(ring.closure, 3),
+                },
+            )
+            db.add(flag)
+            raised.append(flag)
+
+    if raised:
+        await db.flush()
+        logger.info("collusion sweep raised %d flag(s)", len(raised))
+    return raised
 
 
 # -------------------------------------------------- reference auto-upkeep

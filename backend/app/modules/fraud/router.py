@@ -289,6 +289,25 @@ async def reject_proposal(
     return ProposalOut.model_validate(proposal)
 
 
+@router.post("/collusion/sweep", response_model=list[FlagOut])
+async def sweep_collusion(
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Run the collusion-ring search now and return whatever it raised.
+
+    Also runs on a timer in the worker; this exists so an admin can force it
+    after a suspicious week rather than waiting for the next sweep. Returns an
+    empty list when the graph is unavailable — a Neo4j outage must never
+    manufacture accusations.
+    """
+    raised = await fraud.sweep_collusion_rings(db)
+    await db.commit()
+    for flag in raised:
+        await db.refresh(flag)
+    return [FlagOut.model_validate(f) for f in raised]
+
+
 # -------------------------------------------------------------- admin: flags
 
 

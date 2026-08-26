@@ -6,6 +6,7 @@ codebase where 2004-era HTML is the correct answer.
 
 Colours track the app's brand tokens (frontend/src/index.css).
 """
+# ruff: noqa: E501 — inline HTML email markup; wrapping it hurts readability
 
 BRAND = "#FC8019"
 BRAND_DARK = "#E8720C"

@@ -99,6 +99,15 @@ export interface Flag {
     share?: number;
     avg_rupees_over?: number;
     window_days?: number;
+    // COLLUSION_RING — the evidence is a closed money cycle between friends
+    signature?: string;
+    members?: string[];
+    names?: string[];
+    size?: number;
+    laps?: number;
+    total_value?: number;
+    min_leg_value?: number;
+    closure?: number;
   } | null;
   status: "OPEN" | "UPHELD" | "DISMISSED";
   created_at: string;
@@ -165,6 +174,10 @@ export async function rejectProposal(id: string): Promise<Proposal> {
 
 export async function fetchFlags(status = "OPEN"): Promise<Flag[]> {
   return (await api.get<Flag[]>("/fraud/flags", { params: { status } })).data;
+}
+
+export async function sweepCollusion(): Promise<Flag[]> {
+  return (await api.post<Flag[]>("/fraud/collusion/sweep")).data;
 }
 
 export async function reviewFlag(

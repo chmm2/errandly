@@ -7,6 +7,7 @@ import {
   fetchFlags,
   fetchProposals,
   fetchReferences,
+  sweepCollusion,
   type Flag,
   type Proposal,
   type ReferencePrice,
@@ -38,14 +39,35 @@ function FlagCard({
 }) {
   const d = flag.details ?? {};
   const nearLine = flag.rule === "PERSISTENT_NEAR_THRESHOLD";
+  const ring = flag.rule === "COLLUSION_RING";
   return (
     <div className="rounded-2xl border border-line p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="font-extrabold text-ink">
-            {nearLine ? "Consistently just under the line" : (d.item ?? flag.rule)}
+            {ring
+              ? `Money circulating in a group of ${d.size ?? "?"}`
+              : nearLine
+                ? "Consistently just under the line"
+                : (d.item ?? flag.rule)}
           </div>
-          {nearLine ? (
+          {ring ? (
+            /* The finding is about a group, so name the group. Every member
+               carries an identical flag — the graph shows no ringleader, and
+               picking one would be inventing a fact. */
+            <div className="mt-1 text-sm text-muted">
+              <span className="font-bold text-ink">{(d.names ?? []).join(" → ")}</span>
+              {" → "}
+              <span className="font-bold text-ink">{(d.names ?? [])[0]}</span>
+              <div className="mt-1">
+                ₹{Number(d.total_value ?? 0).toFixed(0)} went round this circle{" "}
+                <span className="font-bold text-ink">{d.laps}×</span>, smallest leg ₹
+                {Number(d.min_leg_value ?? 0).toFixed(0)}. They are mutual friends and{" "}
+                {Math.round(Number(d.closure ?? 0) * 100)}% of their friendships stay
+                inside the group.
+              </div>
+            </div>
+          ) : nearLine ? (
             /* No single claim broke a rule here — the evidence is the shape of
                the distribution, so show that rather than one price. */
             <div className="mt-1 text-sm text-muted">
@@ -88,9 +110,11 @@ function FlagCard({
       </div>
 
       <p className="mt-3 text-xs text-muted">
-        {nearLine
-          ? "No money is held on this one. Dismissing restores the runner's claims as evidence for reference prices; upholding keeps them excluded."
-          : "Dismissing pays the runner the withheld amount and lets this claim count as evidence again. Upholding returns it to the requester."}
+        {ring
+          ? "No money is held. A cycle is strong evidence about a group but names no single dishonest errand, and these payouts settled long ago. Upholding keeps the group discounted in matching; dismissing clears every member."
+          : nearLine
+            ? "No money is held on this one. Dismissing restores the runner's claims as evidence for reference prices; upholding keeps them excluded."
+            : "Dismissing pays the runner the withheld amount and lets this claim count as evidence again. Upholding returns it to the requester."}
       </p>
 
       <div className="mt-3 flex gap-2">
@@ -99,14 +123,22 @@ function FlagCard({
           disabled={busy}
           className="rounded-xl border-2 border-emerald-300 px-4 py-2 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
         >
-          {nearLine ? "Dismiss — normal variation" : "Dismiss — runner was honest"}
+          {ring
+            ? "Dismiss — genuine friends"
+            : nearLine
+              ? "Dismiss — normal variation"
+              : "Dismiss — runner was honest"}
         </button>
         <button
           onClick={() => onReview(true)}
           disabled={busy}
           className="rounded-xl border-2 border-red-300 px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
         >
-          {nearLine ? "Uphold — gaming the threshold" : "Uphold — overcharge"}
+          {ring
+            ? "Uphold — collusion ring"
+            : nearLine
+              ? "Uphold — gaming the threshold"
+              : "Uphold — overcharge"}
         </button>
       </div>
     </div>
@@ -222,6 +254,11 @@ export default function FraudAdmin() {
     },
     onError: fail("Could not add that price."),
   });
+  const sweep = useMutation({
+    mutationFn: sweepCollusion,
+    onSuccess: invalidate,
+    onError: fail("Collusion sweep failed."),
+  });
   const refresh = useMutation({
     mutationFn: refreshReferences,
     onSuccess: invalidate,
@@ -276,6 +313,15 @@ export default function FraudAdmin() {
 
         {tab === "flags" && (
           <section className="mt-6 space-y-3">
+            <div className="flex justify-end">
+              <button
+                onClick={() => sweep.mutate()}
+                disabled={sweep.isPending}
+                className="rounded-xl border border-line px-4 py-2 text-sm font-semibold text-muted transition hover:border-brand hover:text-brand disabled:opacity-50"
+              >
+                {sweep.isPending ? "…" : "🔗 Scan for collusion rings"}
+              </button>
+            </div>
             {(flags ?? []).length === 0 ? (
               <div className="rounded-2xl border-2 border-dashed border-line p-10 text-center">
                 <div className="text-4xl">✅</div>

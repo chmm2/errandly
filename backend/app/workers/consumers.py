@@ -27,17 +27,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import app.models  # noqa: F401 — register ALL mappers (workers skip the API's import graph)
 from app.core.config import settings
 from app.core.database import SessionLocal
+from app.core.graph import ensure_schema
 from app.core.redis import redis_client
 from app.core.resilience import retry_with_backoff
 from app.modules.analytics.models import DailyStat
 from app.modules.campus.models import Campus
 from app.modules.errands.models import Errand, ErrandEvent
+from app.modules.fraud import collusion
 from app.modules.fraud import service as fraud
 from app.modules.ledger import service as ledger
 from app.modules.notifications import service as notifications
 from app.modules.outbox.models import ProcessedEvent
 from app.modules.runners import service as runners_service
-from app.core.graph import ensure_schema
 from app.modules.social.projection import handle_social, refresh_graph_metrics
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s worker %(levelname)s %(message)s")
@@ -258,7 +259,6 @@ async def broaden_stale_offers() -> None:
     likelier to land with them, without ever letting it starve: by 90 seconds
     it is an ordinary open offer, well inside the poster's deadline.
     """
-    from app.modules.errands import service as errands_service  # avoid import cycle
 
     async with SessionLocal() as db:
         now = datetime.now(UTC)
@@ -407,6 +407,19 @@ REFERENCE_REFRESH_INTERVAL = 3600
 METRICS_EVERY_N_SWEEPS = 20
 
 
+async def sweep_collusion_rings() -> None:
+    """Look for closed money cycles among mutual friends and flag their members."""
+    async with SessionLocal() as db:
+        try:
+            raised = await fraud.sweep_collusion_rings(db)
+            await db.commit()
+            if raised:
+                logger.info("collusion: raised %d flag(s)", len(raised))
+        except Exception:
+            await db.rollback()
+            raise
+
+
 async def refresh_reference_prices() -> None:
     """Re-estimate every campus's reference prices from recent honest claims.
 
@@ -446,6 +459,15 @@ async def scheduler() -> None:
         nonlocal_tick[0] = (nonlocal_tick[0] + 1) % METRICS_EVERY_N_SWEEPS
         if nonlocal_tick[0] == 0:
             await refresh_graph_metrics()
+            # Circulation reads the FRIEND and PAID edges the refresh above
+            # just settled, so it follows it rather than running on its own
+            # clock — a ring's closure and its money flow should describe the
+            # same instant.
+            await collusion.refresh_circulation()
+            try:
+                await sweep_collusion_rings()
+            except Exception:
+                logger.exception("collusion ring sweep failed")
 
         now = asyncio.get_running_loop().time()
         if now - last_reference_refresh >= REFERENCE_REFRESH_INTERVAL:
