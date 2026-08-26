@@ -1,4 +1,5 @@
 import { api } from "../lib/api";
+import type { Connection } from "./social";
 
 export type Category =
   | "FOOD"
@@ -53,6 +54,8 @@ export interface Errand {
   items: OrderLine[];
   items_total: number;
   rated: boolean;
+  /** How you're connected to the other party (null when the graph is down). */
+  connection: Connection | null;
   status: ErrandStatus;
   version: number;
   expires_at: string | null;

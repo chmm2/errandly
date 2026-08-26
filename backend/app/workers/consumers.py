@@ -308,9 +308,12 @@ async def _offer_tier(db, errand, max_hops: int | None, radius_m: int) -> int:
         limit=BROADEN_FANOUT,
         exclude=errand.requester_id,
     )
-    if max_hops is not None:
-        nearby = await errands_service._within_hops(errand.requester_id, nearby, max_hops)
-    nearby = await errands_service._rank_by_social_trust(errand.requester_id, nearby)
+    scores = await errands_service._safe_scores(
+        errand.requester_id, [rid for rid, _ in nearby]
+    )
+    if max_hops is not None and scores is not None:
+        nearby = [(r, d) for r, d in nearby if scores.get(r, {}).get("hops", 99) <= max_hops]
+    nearby = errands_service._rank_with_scores(nearby, scores)
 
     payload = {
         "type": "offer",
@@ -322,6 +325,7 @@ async def _offer_tier(db, errand, max_hops: int | None, radius_m: int) -> int:
     count = 0
     for runner_id, distance_m in nearby:
         payload["distance_m"] = round(distance_m)
+        payload["connection"] = errands_service._connection_payload(scores, runner_id)
         await redis_client.publish(
             f"{errands_service.OFFER_CHANNEL_PREFIX}{runner_id}", json.dumps(payload)
         )

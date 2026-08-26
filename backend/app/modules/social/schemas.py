@@ -30,5 +30,9 @@ class RespondRequest(BaseModel):
 class SearchResultOut(FriendOut):
     """A student you might add, plus where they already sit relative to you."""
 
+    # Shown in results because display names are not unique on a campus —
+    # several students genuinely share one, and the registration number is the
+    # only thing that tells you which person you are about to add.
+    student_id: str | None = None
     relationship: str  # NONE | PENDING_OUT | PENDING_IN | FRIENDS | BLOCKED
     mutual_friends: int = 0

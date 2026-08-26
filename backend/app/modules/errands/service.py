@@ -195,10 +195,11 @@ async def _offer_to_nearby_runners(
     if exclude_runner:
         nearby = [(rid, dist) for rid, dist in nearby if rid != exclude_runner][:OFFER_FANOUT]
 
-    nearby = await _rank_by_social_trust(errand.requester_id, nearby)
+    scores = await _safe_scores(errand.requester_id, [rid for rid, _ in nearby])
+    nearby = _rank_with_scores(nearby, scores)
 
-    if max_hops is not None:
-        nearby = await _within_hops(errand.requester_id, nearby, max_hops)
+    if max_hops is not None and scores is not None:
+        nearby = [(r, d) for r, d in nearby if scores.get(r, {}).get("hops", 99) <= max_hops]
         if not nearby:
             return 0
 
@@ -211,8 +212,51 @@ async def _offer_to_nearby_runners(
     }
     for runner_id, distance_m in nearby:
         payload["distance_m"] = round(distance_m)
+        # The degree badge rides along with the offer. Friendship edges are
+        # undirected, so requester→runner hops are the same number the runner
+        # needs for "how do I know this person".
+        payload["connection"] = _connection_payload(scores, runner_id)
         await redis.publish(f"{OFFER_CHANNEL_PREFIX}{runner_id}", json.dumps(payload))
     return len(nearby)
+
+
+async def _safe_scores(requester_id: uuid.UUID, runner_ids: list[uuid.UUID]) -> dict | None:
+    """Social scores for a candidate set, or None when the graph is unavailable.
+
+    None and {} mean different things: {} is 'graph answered, nobody connected',
+    None is 'no answer'. Only the former may be used to filter people out.
+    """
+    if not runner_ids:
+        return {}
+    try:
+        return await social_service.social_scores(requester_id, runner_ids)
+    except Exception:
+        logger.warning("social scores unavailable", exc_info=True)
+        return None
+
+
+def _connection_payload(scores: dict | None, runner_id: uuid.UUID) -> dict:
+    s = (scores or {}).get(runner_id)
+    if not s:
+        return {"degree": None, "label": "R", "via": None, "trust": 0.0}
+    return {
+        "degree": s["hops"],
+        "label": social_service.degree_label(s["hops"]),
+        "via": s.get("via"),
+        "trust": s["trust"],
+    }
+
+
+def _rank_with_scores(
+    nearby: list[tuple[uuid.UUID, float]], scores: dict | None
+) -> list[tuple[uuid.UUID, float]]:
+    """Order candidates by distance offset by social trust. See SOCIAL_WEIGHT_M."""
+    if not scores or len(nearby) < 2:
+        return nearby
+    return sorted(
+        nearby,
+        key=lambda item: item[1] - scores.get(item[0], {}).get("trust", 0.0) * SOCIAL_WEIGHT_M,
+    )
 
 
 # How much social trust can outweigh distance. At 1500 a direct friend
@@ -281,6 +325,37 @@ async def _within_hops(
     if not scores:
         return []
     return [(rid, d) for rid, d in nearby if scores.get(rid, {}).get("hops", 99) <= max_hops]
+
+
+async def attach_connections(viewer: User, errands: list[Errand]) -> None:
+    """Set .connection on each errand: how the viewer relates to the OTHER party.
+
+    Which party that is depends on who is looking. A runner browsing the feed
+    wants to know how they connect to the requester; a requester looking at
+    their own errand wants the runner. Showing someone their connection to
+    themselves would be noise, so own-errand rows with no runner get nothing.
+
+    Never raises: a graph outage drops the badge, it does not break the feed.
+    """
+    if not errands:
+        return
+    others: dict[uuid.UUID, uuid.UUID] = {}
+    for e in errands:
+        other = e.runner_id if e.requester_id == viewer.id else e.requester_id
+        if other and other != viewer.id:
+            others[e.id] = other
+    if not others:
+        return
+    try:
+        found = await social_service.connections_for(viewer.id, list(others.values()))
+    except Exception:
+        logger.warning("connection badges unavailable", exc_info=True)
+        return
+    stranger = {"degree": None, "label": "R", "via": None, "trust": 0.0}
+    for e in errands:
+        other = others.get(e.id)
+        if other:
+            e.connection = found.get(other, stranger)
 
 
 async def _attach_secret_flags(db: AsyncSession, errands: list[Errand]) -> None:
@@ -487,6 +562,7 @@ async def list_feed(
         )
 
     await _attach_secret_flags(db, errands)
+    await attach_connections(user, errands)
     return errands, total or 0
 
 
@@ -508,6 +584,7 @@ async def list_mine(db: AsyncSession, user: User) -> tuple[list[Errand], list[Er
     await _attach_secret_flags(db, requested + running)
     await _attach_items(db, requested + running)
     await _attach_rated(db, requested + running)
+    await attach_connections(user, requested + running)
     return requested, running
 
 
@@ -518,6 +595,7 @@ async def get_errand(db: AsyncSession, user: User, errand_id: uuid.UUID) -> Erra
     await _attach_secret_flags(db, [errand])
     await _attach_items(db, [errand])
     await _attach_rated(db, [errand])
+    await attach_connections(user, [errand])
     return errand
 
 
@@ -833,6 +911,7 @@ async def set_item_availability(
     await _attach_secret_flags(db, [errand])
     await _attach_items(db, [errand])
     await _attach_rated(db, [errand])
+    await attach_connections(user, [errand])
     return errand
 
 

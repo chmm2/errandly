@@ -23,6 +23,8 @@ import {
 import { apiErrorMessage } from "../../src/lib/api";
 import { confirm, notify } from "../../src/lib/dialog";
 import { useSocket } from "../../src/lib/ws";
+import type { Connection } from "../../src/api/social";
+import { ConnectionBadge } from "../../src/components/ConnectionBadge";
 import { colors, font, metres, radius, rupees, space } from "../../src/theme";
 
 interface Offer {
@@ -31,6 +33,8 @@ interface Offer {
   category: string;
   reward: number;
   distance_m?: number;
+  /** How you know the poster — rides along with the offer over pub/sub. */
+  connection?: Connection | null;
 }
 
 /** Matches the web client's 10s send throttle. */
@@ -209,10 +213,19 @@ export default function Runner() {
                 <Card key={o.errand_id} raised style={s.offer}>
                   <Row justify="space-between" gap={space.md}>
                     <View style={{ flex: 1 }}>
-                      <Body numberOfLines={1} style={{ fontFamily: font.bold }}>
-                        {o.title}
-                      </Body>
+                      <Row gap={space.sm} align="flex-start">
+                        <Body numberOfLines={1} style={{ fontFamily: font.bold, flex: 1 }}>
+                          {o.title}
+                        </Body>
+                        <ConnectionBadge connection={o.connection} />
+                      </Row>
                       <Caption style={{ marginTop: 2 }}>
+                        {o.connection?.degree === 1
+                          ? "From a friend"
+                          : o.connection?.via
+                            ? `Through ${o.connection.via}`
+                            : null}
+                        {o.connection?.degree ? " · " : ""}
                         {o.distance_m != null ? `${metres(o.distance_m)} away` : "Nearby"}
                       </Caption>
                     </View>

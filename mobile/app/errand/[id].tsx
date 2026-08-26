@@ -19,6 +19,7 @@ import {
 } from "../../src/api/errands";
 import { ChatPanel } from "../../src/components/ChatPanel";
 import { FindingRunner } from "../../src/components/CountdownRing";
+import { ConnectionBadge, ConnectionLine } from "../../src/components/ConnectionBadge";
 import { PaymentSummary } from "../../src/components/PaymentSummary";
 import { TrackingMap } from "../../src/components/TrackingMap";
 import {
@@ -204,6 +205,16 @@ export default function ErrandDetail() {
           </View>
         </Row>
 
+        {/* The other direction: a runner looking at someone else's errand sees
+            how they connect to whoever posted it. This is the deciding fact
+            when choosing which run to take, so it sits above the fold rather
+            than in the payment block at the bottom. */}
+        {!isRequester && errand.connection ? (
+          <Card style={{ marginTop: space.lg }}>
+            <ConnectionLine connection={errand.connection} />
+          </Card>
+        ) : null}
+
         {/* Waiting for a runner. Requester-only: this is *their* deadline
             ticking down. A runner browsing the same errand has no stake in it
             and shouldn't be shown the poster's private countdown. */}
@@ -273,7 +284,10 @@ export default function ErrandDetail() {
                 <Text style={{ fontSize: 20 }}>🛵</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Body style={{ fontFamily: font.bold }}>{errand.runner.display_name}</Body>
+                <Row gap={space.sm}>
+                  <Body style={{ fontFamily: font.bold }}>{errand.runner.display_name}</Body>
+                  <ConnectionBadge connection={errand.connection} />
+                </Row>
                 <Caption>
                   ★ {errand.runner.reputation_score.toFixed(2)} · {errand.runner.trips_completed}{" "}
                   trips
@@ -287,6 +301,12 @@ export default function ErrandDetail() {
                 />
               ) : null}
             </Row>
+
+            {errand.connection ? (
+              <View style={{ marginTop: space.md }}>
+                <ConnectionLine connection={errand.connection} />
+              </View>
+            ) : null}
 
             {runnerPos ? (
               <View style={s.livePos}>

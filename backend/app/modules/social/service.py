@@ -287,6 +287,7 @@ async def search_students(
             {
                 "id": c.id,
                 "display_name": c.display_name,
+                "student_id": c.student_id,
                 "photo_url": c.photo_url,
                 "reputation_score": c.reputation_score,
                 "relationship": rel,
@@ -339,6 +340,56 @@ def _closure_penalty(closure: float, degree: int) -> float:
         return 0.0
     excess = (closure - CLOSURE_KNEE) / (1.0 - CLOSURE_KNEE)
     return min(MAX_CLOSURE_PENALTY, excess * MAX_CLOSURE_PENALTY)
+
+
+def degree_label(degree: int | None) -> str:
+    """LinkedIn-style badge for a friendship degree.
+
+    'R' rather than '4th+' for anyone unreachable: the useful distinction to a
+    runner scanning a feed is 'someone I'm connected to' vs 'a stranger', and a
+    4th-degree path is, in practice, the latter.
+    """
+    return {1: "1st", 2: "2nd", 3: "3rd"}.get(degree or 0, "R" if not degree else f"{degree}th")
+
+
+async def connection_between(viewer_id: uuid.UUID, other_id: uuid.UUID) -> dict:
+    """One viewer→other connection, shaped for ConnectionOut."""
+    if viewer_id == other_id:
+        return {"degree": 0, "label": "You", "via": None, "trust": 0.0}
+    scores = await social_scores(viewer_id, [other_id])
+    s = scores.get(other_id)
+    if not s:
+        return {"degree": None, "label": "R", "via": None, "trust": 0.0}
+    return {
+        "degree": s["hops"],
+        "label": degree_label(s["hops"]),
+        "via": s.get("via"),
+        "trust": s["trust"],
+    }
+
+
+async def connections_for(
+    viewer_id: uuid.UUID, other_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, dict]:
+    """Batch form of connection_between — one graph round-trip for a whole feed.
+
+    Anyone with no path is simply absent from the result; callers fill in the
+    stranger default. Doing this per-errand instead would put one Neo4j query
+    per row on the feed's critical path.
+    """
+    targets = [i for i in set(other_ids) if i != viewer_id]
+    if not targets:
+        return {}
+    scores = await social_scores(viewer_id, targets)
+    return {
+        rid: {
+            "degree": s["hops"],
+            "label": degree_label(s["hops"]),
+            "via": s.get("via"),
+            "trust": s["trust"],
+        }
+        for rid, s in scores.items()
+    }
 
 
 async def social_scores(

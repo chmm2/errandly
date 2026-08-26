@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import type { Errand } from "../api/errands";
 import { categoryIcon, colors, font, metres, rupees, space, statusStyle, timeAgo } from "../theme";
+import { ConnectionBadge } from "./ConnectionBadge";
 import { Body, Caption, Card, IconTile, Pill, Row } from "./ui";
 
 /**
@@ -28,9 +29,15 @@ export function ErrandCard({
         <IconTile emoji={categoryIcon[errand.category] ?? "✨"} />
 
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Body numberOfLines={2} style={{ fontFamily: font.bold }}>
-            {errand.title}
-          </Body>
+          <Row gap={space.sm} align="flex-start">
+            <Body numberOfLines={2} style={{ fontFamily: font.bold, flex: 1 }}>
+              {errand.title}
+            </Body>
+            {/* Degree badge sits with the title, not the metadata row: whether
+                this came from someone you know changes how you read the whole
+                card, so it has to land in the same glance as the title. */}
+            <ConnectionBadge connection={errand.connection} />
+          </Row>
           <Caption numberOfLines={1} style={{ marginTop: 2 }}>
             from {errand.pickup_label}
             {errand.drop_label ? ` → ${errand.drop_label}` : ""}
