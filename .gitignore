@@ -33,3 +33,6 @@ data/
 # env backups may contain secrets
 .env.bak
 *.env.bak
+
+# FCM service-account private key — never commit (google-services.json is fine, this is not)
+mobile/fcm-service-account*.json

@@ -13,6 +13,8 @@ import {
   Divider,
   Heading,
   Hero,
+  Button,
+  EmptyState,
   Loading,
   Pill,
   Row,
@@ -32,7 +34,7 @@ export default function VendorMenu() {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [posting, setPosting] = useState(false);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["menu", id],
     queryFn: () => fetchMenu(id!),
     enabled: !!id,
@@ -92,6 +94,21 @@ export default function VendorMenu() {
     } finally {
       setPosting(false);
     }
+  }
+
+  // Same reasoning as the errand screen: an error must not masquerade as a
+  // permanent loading state.
+  if (isError || (!isLoading && !data)) {
+    return (
+      <Screen>
+        <EmptyState
+          emoji="😕"
+          title="Couldn't load this menu"
+          body={error ? apiErrorMessage(error) : "It may have been removed, or the link is wrong."}
+          action={<Button title="Try again" onPress={() => refetch()} />}
+        />
+      </Screen>
+    );
   }
 
   if (isLoading || !data) {

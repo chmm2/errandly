@@ -27,6 +27,7 @@ import {
   Button,
   Caption,
   Card,
+  EmptyState,
   Heading,
   Hero,
   IconTile,
@@ -80,7 +81,13 @@ export default function ErrandDetail() {
   const [secret, setSecret] = useState<HandoffSecret | null>(null);
   const [stars, setStars] = useState(0);
 
-  const { data: errand, isLoading } = useQuery({
+  const {
+    data: errand,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["errand", id],
     queryFn: () => fetchErrand(id!),
     enabled: !!id,
@@ -150,6 +157,25 @@ export default function ErrandDetail() {
     onSuccess: invalidate,
     onError: (err) => notify("Couldn't submit rating", apiErrorMessage(err)),
   });
+
+  // A failed fetch must never render as loading. The previous condition was
+  // `isLoading || !errand`, so any error — an expired token, a dropped
+  // connection, a 404 — left the spinner up forever with nothing to act on.
+  if (isError || (!isLoading && !errand)) {
+    return (
+      <Screen>
+        <Pressable onPress={() => router.back()} style={s.backBtn} hitSlop={12}>
+          <Text style={s.backGlyph}>←</Text>
+        </Pressable>
+        <EmptyState
+          emoji="😕"
+          title="Couldn't load this errand"
+          body={error ? apiErrorMessage(error) : "It may have been removed, or the link is wrong."}
+          action={<Button title="Try again" onPress={() => refetch()} />}
+        />
+      </Screen>
+    );
+  }
 
   if (isLoading || !errand) {
     return (
@@ -508,6 +534,17 @@ export default function ErrandDetail() {
 }
 
 const s = StyleSheet.create({
+  backBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brandSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: space.lg,
+  },
+  backGlyph: { color: colors.brandDark, fontSize: 19, fontFamily: font.bold },
+
   reward: { color: colors.white, fontSize: 26, fontFamily: font.black },
   rewardLabel: { color: "rgba(255,255,255,0.9)", fontSize: font.small, fontFamily: font.medium },
 

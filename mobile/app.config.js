@@ -3,6 +3,17 @@
  * at build time. Nothing secret belongs in here — this file is committed.
  */
 
+// Android push runs over Firebase Cloud Messaging, so Expo needs
+// google-services.json to initialise a FirebaseApp. Without it the native side
+// throws "Default FirebaseApp is not initialized" and no push token is ever
+// issued — POST_NOTIFICATIONS alone is not enough.
+//
+// Referenced only when the file is actually present, so a checkout without it
+// still builds (the app just reports notifications as unavailable).
+const fs = require("fs");
+const GOOGLE_SERVICES = "./google-services.json";
+const hasGoogleServices = fs.existsSync(GOOGLE_SERVICES);
+
 module.exports = {
   expo: {
     name: "Errandly",
@@ -30,6 +41,7 @@ module.exports = {
 
     android: {
       package: "in.errandly.app",
+      ...(hasGoogleServices ? { googleServicesFile: GOOGLE_SERVICES } : {}),
       usesCleartextTraffic: true,
       adaptiveIcon: {
         backgroundColor: "#0B0F1A",
