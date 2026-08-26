@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -23,7 +24,10 @@ from app.modules.ledger import service as ledger
 from app.modules.outbox import service as outbox
 from app.modules.runners import service as runners_service
 from app.modules.runners.models import RunnerProfile
+from app.modules.social import service as social_service
 from app.modules.vendors.models import MenuItem, Vendor
+
+logger = logging.getLogger(__name__)
 
 ACCEPT_LOCK_PREFIX = "errand:accept:"
 ACCEPT_LOCK_TTL_SECONDS = 10
@@ -33,6 +37,11 @@ STATUS_CHANNEL_PREFIX = "errand:status:"
 OFFER_CHANNEL_PREFIX = "runner:offers:"
 OFFER_RADIUS_M = 3000
 OFFER_FANOUT = 5
+
+# Social distance an errand is first offered within: friends and
+# friends-of-friends. Wide enough that a student with a handful of friends has
+# real coverage, narrow enough that "someone you know" still means something.
+SOCIAL_TIER_1_HOPS = 2
 
 # (from_status, to_status) — anything not listed is an illegal transition.
 ALLOWED_TRANSITIONS = {
@@ -48,6 +57,29 @@ ALLOWED_TRANSITIONS = {
 
 # How long after accepting a runner can hand an errand back to the queue.
 RELEASE_WINDOW_SECONDS = 300  # 5 minutes
+
+# After releasing an errand, that runner is locked out of re-accepting THAT
+# errand for a while. Stops one person cycling accept/release to keep an errand
+# out of everyone else's reach. Scoped per (errand, runner): other runners are
+# unaffected, and the errand itself goes straight back into the open feed.
+#
+# Redis rather than a column because the state is inherently temporary — the
+# TTL is the expiry mechanism, so there's nothing to sweep up later.
+RELEASE_COOLDOWN_PREFIX = "errand:released:"
+RELEASE_COOLDOWN_SECONDS = 300  # 5 minutes
+
+
+def _cooldown_key(errand_id: uuid.UUID, runner_id: uuid.UUID) -> str:
+    return f"{RELEASE_COOLDOWN_PREFIX}{errand_id}:{runner_id}"
+
+
+async def _cooldown_remaining(redis: Redis, errand_id: uuid.UUID, runner_id: uuid.UUID) -> int:
+    """Seconds left before this runner may retake this errand. 0 if free."""
+    try:
+        ttl = await redis.ttl(_cooldown_key(errand_id, runner_id))
+    except Exception:
+        return 0  # fail open: Redis being down shouldn't block accepting work
+    return ttl if ttl and ttl > 0 else 0
 
 
 class ErrandError(Exception):
@@ -126,11 +158,32 @@ async def publish_status(redis: Redis, errand: Errand) -> None:
     )
 
 
-async def _offer_to_nearby_runners(db: AsyncSession, redis: Redis, errand: Errand) -> int:
+async def _offer_to_nearby_runners(
+    db: AsyncSession,
+    redis: Redis,
+    errand: Errand,
+    exclude_runner: uuid.UUID | None = None,
+    max_hops: int | None = None,
+) -> int:
     """Push an offer to the nearest available runners (Redis GEO + pub/sub).
+
+    `max_hops` restricts the offer to runners within that social distance of
+    the requester. This is what makes social matching mean anything: every
+    candidate is published to in the same loop, milliseconds apart, so merely
+    *sorting* by trust would leave a free-for-all race that the nearest
+    stranger usually wins. Withholding the offer from strangers for a while is
+    the only thing that actually gives someone you know first refusal.
+
+    Returns 0 when nobody is within `max_hops` — the caller decides whether to
+    widen immediately (a student with no friends yet must not be stranded) or
+    let the scheduler escalate on a timer.
 
     Uses the drop point as the anchor — 'a runner already heading that way'.
     Best-effort: if Redis GEO is empty the errand still sits in the feed.
+
+    `exclude_runner` skips someone who just handed this errand back: they've
+    said they don't want it, so re-offering would be noise. It still appears in
+    their nearby list, so they can change their mind once the cooldown lapses.
     """
     nearby = await runners_service.nearest_available_runners(
         redis,
@@ -138,9 +191,20 @@ async def _offer_to_nearby_runners(db: AsyncSession, redis: Redis, errand: Erran
         lat=float(errand.drop_lat),
         lng=float(errand.drop_lng),
         radius_m=OFFER_RADIUS_M,
-        limit=OFFER_FANOUT,
+        limit=OFFER_FANOUT + (1 if exclude_runner else 0),
         exclude=errand.requester_id,
     )
+    if exclude_runner:
+        nearby = [(rid, dist) for rid, dist in nearby if rid != exclude_runner][:OFFER_FANOUT]
+
+    scores = await _safe_scores(errand.requester_id, [rid for rid, _ in nearby])
+    nearby = _rank_with_scores(nearby, scores)
+
+    if max_hops is not None and scores is not None:
+        nearby = [(r, d) for r, d in nearby if scores.get(r, {}).get("hops", 99) <= max_hops]
+        if not nearby:
+            return 0
+
     payload = {
         "type": "offer",
         "errand_id": str(errand.id),
@@ -150,8 +214,150 @@ async def _offer_to_nearby_runners(db: AsyncSession, redis: Redis, errand: Erran
     }
     for runner_id, distance_m in nearby:
         payload["distance_m"] = round(distance_m)
+        # The degree badge rides along with the offer. Friendship edges are
+        # undirected, so requester→runner hops are the same number the runner
+        # needs for "how do I know this person".
+        payload["connection"] = _connection_payload(scores, runner_id)
         await redis.publish(f"{OFFER_CHANNEL_PREFIX}{runner_id}", json.dumps(payload))
     return len(nearby)
+
+
+async def _safe_scores(requester_id: uuid.UUID, runner_ids: list[uuid.UUID]) -> dict | None:
+    """Social scores for a candidate set, or None when the graph is unavailable.
+
+    None and {} mean different things: {} is 'graph answered, nobody connected',
+    None is 'no answer'. Only the former may be used to filter people out.
+    """
+    if not runner_ids:
+        return {}
+    try:
+        return await social_service.social_scores(requester_id, runner_ids)
+    except Exception:
+        logger.warning("social scores unavailable", exc_info=True)
+        return None
+
+
+def _connection_payload(scores: dict | None, runner_id: uuid.UUID) -> dict:
+    s = (scores or {}).get(runner_id)
+    if not s:
+        return {"degree": None, "label": "R", "via": None, "trust": 0.0}
+    return {
+        "degree": s["hops"],
+        "label": social_service.degree_label(s["hops"]),
+        "via": s.get("via"),
+        "trust": s["trust"],
+    }
+
+
+def _rank_with_scores(
+    nearby: list[tuple[uuid.UUID, float]], scores: dict | None
+) -> list[tuple[uuid.UUID, float]]:
+    """Order candidates by distance offset by social trust. See SOCIAL_WEIGHT_M."""
+    if not scores or len(nearby) < 2:
+        return nearby
+    return sorted(
+        nearby,
+        key=lambda item: item[1] - scores.get(item[0], {}).get("trust", 0.0) * SOCIAL_WEIGHT_M,
+    )
+
+
+# How much social trust can outweigh distance. At 1500 a direct friend
+# (trust 1.0) beats a stranger who is up to 1.5km closer, while a 3-hop
+# acquaintance (trust ~0.2) only wins ties inside ~300m. Tuned so the graph
+# reorders realistic candidate sets without ever sending an errand across
+# campus to reach a friend.
+SOCIAL_WEIGHT_M = 1500.0
+
+
+async def _rank_by_social_trust(
+    requester_id: uuid.UUID, nearby: list[tuple[uuid.UUID, float]]
+) -> list[tuple[uuid.UUID, float]]:
+    """Reorder spatial candidates so socially-closer runners are offered first.
+
+    Candidate *generation* stays purely spatial — the graph never widens the
+    set, it only reorders it, so a well-connected student cannot pull errands
+    from across campus. Ranking is by effective distance:
+
+        effective = distance_m − trust × SOCIAL_WEIGHT_M
+
+    If the graph is unavailable `social_scores` returns {}, every candidate
+    scores 0, and this degrades to exactly the distance ordering Redis gave us.
+    That is the intended failure mode: matching gets worse, never broken.
+    """
+    if len(nearby) < 2:
+        return nearby
+    try:
+        scores = await social_service.social_scores(requester_id, [rid for rid, _ in nearby])
+    except Exception:
+        logger.warning("social ranking unavailable; using distance order", exc_info=True)
+        return nearby
+    if not scores:
+        return nearby
+
+    def effective(item: tuple[uuid.UUID, float]) -> float:
+        runner_id, distance_m = item
+        trust = scores.get(runner_id, {}).get("trust", 0.0)
+        return distance_m - trust * SOCIAL_WEIGHT_M
+
+    ranked = sorted(nearby, key=effective)
+    friends = sum(1 for rid, _ in ranked if scores.get(rid, {}).get("hops") == 1)
+    logger.info(
+        "social ranking: %d/%d candidates connected (%d direct friends)",
+        len(scores),
+        len(nearby),
+        friends,
+    )
+    return ranked
+
+
+async def _within_hops(
+    requester_id: uuid.UUID, nearby: list[tuple[uuid.UUID, float]], max_hops: int
+) -> list[tuple[uuid.UUID, float]]:
+    """Keep only candidates within `max_hops` friendship hops of the requester.
+
+    Returns the list unfiltered when the graph is unavailable. Failing open is
+    deliberate: a graph outage should make matching less socially targeted, not
+    stop errands from being offered at all.
+    """
+    try:
+        scores = await social_service.social_scores(requester_id, [rid for rid, _ in nearby])
+    except Exception:
+        logger.warning("hop filter unavailable; offering to all candidates", exc_info=True)
+        return nearby
+    if not scores:
+        return []
+    return [(rid, d) for rid, d in nearby if scores.get(rid, {}).get("hops", 99) <= max_hops]
+
+
+async def attach_connections(viewer: User, errands: list[Errand]) -> None:
+    """Set .connection on each errand: how the viewer relates to the OTHER party.
+
+    Which party that is depends on who is looking. A runner browsing the feed
+    wants to know how they connect to the requester; a requester looking at
+    their own errand wants the runner. Showing someone their connection to
+    themselves would be noise, so own-errand rows with no runner get nothing.
+
+    Never raises: a graph outage drops the badge, it does not break the feed.
+    """
+    if not errands:
+        return
+    others: dict[uuid.UUID, uuid.UUID] = {}
+    for e in errands:
+        other = e.runner_id if e.requester_id == viewer.id else e.requester_id
+        if other and other != viewer.id:
+            others[e.id] = other
+    if not others:
+        return
+    try:
+        found = await social_service.connections_for(viewer.id, list(others.values()))
+    except Exception:
+        logger.warning("connection badges unavailable", exc_info=True)
+        return
+    stranger = {"degree": None, "label": "R", "via": None, "trust": 0.0}
+    for e in errands:
+        other = others.get(e.id)
+        if other:
+            e.connection = found.get(other, stranger)
 
 
 async def _attach_secret_flags(db: AsyncSession, errands: list[Errand]) -> None:
@@ -243,10 +449,10 @@ async def _attach_items(db: AsyncSession, errands: list[Errand]) -> None:
 
 
 async def create_errand(db: AsyncSession, redis: Redis, user: User, data: ErrandCreate) -> Errand:
-    # Carrying a run commits you to it. The navbar already refuses to switch
-    # back to Order mode mid-delivery, but a redirect is a courtesy, not a
-    # control — anyone with devtools or curl walks straight through it. The
-    # rule is enforced here, where it cannot be bypassed.
+    # Carrying a run commits you to it. Both clients lock the Order/Run toggle,
+    # but a client-side lock is a courtesy, not a control — anyone with devtools
+    # or curl walks straight through it. The rule is enforced here, where every
+    # client gets it and none can bypass it.
     #
     # Deliberately one-directional: having placed an order never stops you
     # taking a run. It is the accepted delivery that someone else is waiting
@@ -326,9 +532,19 @@ async def create_errand(db: AsyncSession, redis: Redis, user: User, data: Errand
     await db.commit()
     await db.refresh(errand)
 
-    offered = await _offer_to_nearby_runners(db, redis, errand)
+    # Tier 1: friends and friends-of-friends only. The scheduler widens this on
+    # a timer (see SOCIAL_TIERS in workers/consumers.py) so nobody waits long.
+    offered = await _offer_to_nearby_runners(db, redis, errand, max_hops=SOCIAL_TIER_1_HOPS)
+    tier = 1
+    if not offered:
+        # Nobody you know is nearby — or you have no friends yet, which is every
+        # student on day one. Falling straight through to an open offer matters
+        # more than the social preference does: an errand nobody sees is worse
+        # than an errand a stranger takes.
+        offered = await _offer_to_nearby_runners(db, redis, errand)
+        tier = 0
     if offered:
-        _record(db, errand, None, "OFFERED", {"runners": offered})
+        _record(db, errand, None, "OFFERED", {"runners": offered, "social_tier": tier})
         await db.commit()
 
     errand.has_handoff_secret = data.otp is not None
@@ -377,6 +593,7 @@ async def list_feed(
         )
 
     await _attach_secret_flags(db, errands)
+    await attach_connections(user, errands)
     return errands, total or 0
 
 
@@ -398,6 +615,7 @@ async def list_mine(db: AsyncSession, user: User) -> tuple[list[Errand], list[Er
     await _attach_secret_flags(db, requested + running)
     await _attach_items(db, requested + running)
     await _attach_rated(db, requested + running)
+    await attach_connections(user, requested + running)
     return requested, running
 
 
@@ -408,6 +626,7 @@ async def get_errand(db: AsyncSession, user: User, errand_id: uuid.UUID) -> Erra
     await _attach_secret_flags(db, [errand])
     await _attach_items(db, [errand])
     await _attach_rated(db, [errand])
+    await attach_connections(user, [errand])
     return errand
 
 
@@ -510,6 +729,15 @@ async def accept_errand(
         raise ErrandError("Someone else is accepting this errand. Try another one.", 409)
 
     try:
+        # Cooldown: you handed this one back recently, so it's someone else's
+        # turn for a few minutes.
+        cooling = await _cooldown_remaining(redis, errand_id, user.id)
+        if cooling:
+            mins = max(1, round(cooling / 60))
+            raise ErrandError(
+                f"You handed this errand back — you can take it again in {mins} min.", 409
+            )
+
         # Load cap: don't let one runner hoard errands they can't deliver.
         profile = await runners_service.get_or_create_profile(db, user)
         load = await runners_service.active_load(db, user.id)
@@ -660,8 +888,17 @@ async def release_errand(
     await db.refresh(errand)
     await publish_status(redis, errand)
 
-    # Straight back into matching for the next nearby runner.
-    offered = await _offer_to_nearby_runners(db, redis, errand)
+    # Lock this runner out of retaking it for a while, so accept/release can't
+    # be cycled to sit on an errand nobody else can reach.
+    try:
+        await redis.set(
+            _cooldown_key(errand.id, user.id), "1", ex=RELEASE_COOLDOWN_SECONDS
+        )
+    except Exception:
+        pass  # best-effort; the accept path fails open if Redis is unavailable
+
+    # Straight back into matching — but not to the runner who just dropped it.
+    offered = await _offer_to_nearby_runners(db, redis, errand, exclude_runner=user.id)
     if offered:
         _record(db, errand, None, "OFFERED", {"runners": offered})
         await db.commit()
@@ -705,6 +942,7 @@ async def set_item_availability(
     await _attach_secret_flags(db, [errand])
     await _attach_items(db, [errand])
     await _attach_rated(db, [errand])
+    await attach_connections(user, [errand])
     return errand
 
 

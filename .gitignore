@@ -29,3 +29,7 @@ pgdata/
 data/
 !frontend/src/data/
 .claude/settings.local.json
+
+# env backups may contain secrets
+.env.bak
+*.env.bak

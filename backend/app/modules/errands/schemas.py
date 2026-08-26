@@ -81,6 +81,21 @@ class RunnerSummary(BaseModel):
     phone: str | None = None
 
 
+class ConnectionOut(BaseModel):
+    """How the viewer is connected to the other party on an errand.
+
+    `degree` is friendship hops: 1 = your friend, 2 = friend of a friend, and
+    so on. None means no path within the traversal limit — a stranger.
+    `label` is the short badge form (1st/2nd/3rd/R), computed server-side so
+    every client renders the same thing.
+    """
+
+    degree: int | None = None
+    label: str = "R"
+    via: str | None = None  # display name of the friend who connects you
+    trust: float = 0.0
+
+
 class ErrandOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -109,6 +124,7 @@ class ErrandOut(BaseModel):
     items: list["ErrandItemOut"] = []
     items_total: float = 0
     rated: bool = False
+    connection: ConnectionOut | None = None
     status: str
     version: int
     expires_at: datetime | None = None

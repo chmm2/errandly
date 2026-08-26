@@ -1,12 +1,16 @@
 import json
+import logging
 import uuid
 from datetime import UTC, datetime
 
 from redis.asyncio import Redis
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.notifications.models import Notification
+from app.core.push import send_push
+from app.modules.notifications.models import Notification, PushToken
+
+logger = logging.getLogger(__name__)
 
 NOTIFY_CHANNEL_PREFIX = "user:notify:"
 
@@ -41,7 +45,44 @@ async def create_and_push(
             }
         ),
     )
+    await _push_to_devices(db, user_id, type_, title, body, data)
     return notification
+
+
+async def _push_to_devices(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    type_: str,
+    title: str,
+    body: str | None,
+    data: dict | None,
+) -> None:
+    """OS-level banner for this user's devices.
+
+    The Redis publish above only reaches an app that's currently open; this is
+    what reaches a phone in someone's pocket. Best-effort by design — the
+    notification row is already written, so a push failure must not roll back
+    the caller's transaction (settlement in particular).
+    """
+    try:
+        tokens = list(
+            await db.scalars(select(PushToken.token).where(PushToken.user_id == user_id))
+        )
+        if not tokens:
+            return
+
+        dead = await send_push(
+            tokens,
+            title,
+            body,
+            {**(data or {}), "notification_type": type_},
+        )
+        if dead:
+            # Uninstalled apps — Expo will never deliver to these again.
+            await db.execute(delete(PushToken).where(PushToken.token.in_(dead)))
+            logger.info("dropped %d dead push token(s)", len(dead))
+    except Exception:
+        logger.exception("push delivery failed for user %s", user_id)
 
 
 async def list_for_user(

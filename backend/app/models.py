@@ -5,7 +5,13 @@ Add new module models to this file as the project grows.
 
 from app.core.database import Base
 from app.modules.analytics.models import DailyStat
-from app.modules.auth.models import AuthCredential, EmailOtp, RefreshToken, User
+from app.modules.auth.models import (
+    AuthCredential,
+    EmailOtp,
+    PasswordResetOtp,
+    RefreshToken,
+    User,
+)
 from app.modules.campus.models import Campus
 from app.modules.errands.models import (
     Errand,
@@ -22,9 +28,10 @@ from app.modules.fraud.models import (
     UserStrike,
 )
 from app.modules.ledger.models import EscrowHold, LedgerEntry
-from app.modules.notifications.models import Notification
+from app.modules.notifications.models import Notification, PushToken
 from app.modules.outbox.models import OutboxEvent, ProcessedEvent
 from app.modules.runners.models import RunnerProfile
+from app.modules.social.models import Friendship
 from app.modules.vendors.models import MenuItem, Vendor
 
 __all__ = [
@@ -33,6 +40,7 @@ __all__ = [
     "User",
     "AuthCredential",
     "EmailOtp",
+    "PasswordResetOtp",
     "RefreshToken",
     "Errand",
     "ErrandEvent",
@@ -41,6 +49,7 @@ __all__ = [
     "OutboxEvent",
     "ProcessedEvent",
     "Notification",
+    "PushToken",
     "DailyStat",
     "ErrandItem",
     "Rating",
@@ -53,4 +62,5 @@ __all__ = [
     "UserStrike",
     "Vendor",
     "MenuItem",
+    "Friendship",
 ]

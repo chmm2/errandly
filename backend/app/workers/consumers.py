@@ -37,6 +37,8 @@ from app.modules.ledger import service as ledger
 from app.modules.notifications import service as notifications
 from app.modules.outbox.models import ProcessedEvent
 from app.modules.runners import service as runners_service
+from app.core.graph import ensure_schema
+from app.modules.social.projection import handle_social, refresh_graph_metrics
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s worker %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -189,11 +191,16 @@ HANDLERS = {
     "notification-service": handle_notification,
     "analytics-service": handle_analytics,
     "settlement-service": handle_settlement,
+    # Projects friendships (and, later, money flow) into Neo4j. Its own group,
+    # so a graph outage stalls only this projection's offsets.
+    "social-graph-service": handle_social,
 }
 
 
 async def run_consumer(group: str) -> None:
     handler = HANDLERS[group]
+    if group == "social-graph-service":
+        await ensure_schema()
     consumer = AIOKafkaConsumer(
         settings.kafka_orders_topic,
         bootstrap_servers=settings.kafka_bootstrap,
@@ -224,71 +231,131 @@ async def run_consumer(group: str) -> None:
 # ------------------------------------------------------------------- scheduler
 
 SCHEDULER_INTERVAL = 30
-BROADEN_AFTER_SECONDS = 60
-BROADEN_RADIUS_M = 8000
 BROADEN_FANOUT = 10
+
+# (seconds_after_post, tier, max_hops, radius_m). Tier 1 goes out at post time
+# from create_errand; these are the escalations.
+SOCIAL_TIERS = [
+    (45, 2, 4, 3000),      # widen the social circle, same radius
+    (90, 3, None, 8000),   # open to strangers, wider radius
+]
 EXPIRE_AFTER_SECONDS = 600  # 10 min with no runner → give up and apologise
 
 
 async def broaden_stale_offers() -> None:
-    """Offer escalation: errands still OPEN after a while get re-offered to
-    a wider radius (the accept/timeout → broaden retry loop)."""
+    """Escalate offers that nobody has taken yet.
+
+    Two dimensions widen together, on a timer:
+
+        tier 1 (at post)  friends + friends-of-friends, 3km
+        tier 2 (+45s)     out to SOCIAL_TIER_2_HOPS  — the wider circle
+        tier 3 (+90s)     anyone nearby, 8km          — open to strangers
+
+    The staging is the point. Every candidate in a tier is published to within
+    milliseconds of the others, so social preference cannot come from ordering
+    a simultaneous broadcast — it has to come from *when* each group is told.
+    Giving people you know a 45-second head start is what makes an errand
+    likelier to land with them, without ever letting it starve: by 90 seconds
+    it is an ordinary open offer, well inside the poster's deadline.
+    """
     from app.modules.errands import service as errands_service  # avoid import cycle
 
     async with SessionLocal() as db:
-        cutoff = datetime.now(UTC).timestamp() - BROADEN_AFTER_SECONDS
+        now = datetime.now(UTC)
         stale = list(
             await db.scalars(
                 select(Errand).where(
                     Errand.status == "OPEN",
                     Errand.deleted_at.is_(None),
-                    Errand.created_at < datetime.fromtimestamp(cutoff, tz=UTC),
+                    Errand.created_at
+                    < now - timedelta(seconds=SOCIAL_TIERS[0][0]),
                 )
             )
         )
         for errand in stale:
-            # broaden at most once — check the audit trail
-            prior = await db.scalar(
-                select(ErrandEvent.id).where(
-                    ErrandEvent.errand_id == errand.id,
-                    ErrandEvent.event_type == "OFFER_BROADENED",
+            age = (now - errand.created_at).total_seconds()
+
+            # Which tiers have already gone out for this errand? The audit trail
+            # is the state, so a worker restart cannot re-offer a tier.
+            done = {
+                (row.payload or {}).get("social_tier")
+                for row in await db.scalars(
+                    select(ErrandEvent).where(
+                        ErrandEvent.errand_id == errand.id,
+                        ErrandEvent.event_type.in_(("OFFERED", "OFFER_BROADENED")),
+                    )
                 )
-            )
-            if prior:
-                continue
-            nearby = await runners_service.nearest_available_runners(
-                redis_client,
-                errand.campus_id,
-                lat=float(errand.drop_lat),
-                lng=float(errand.drop_lng),
-                radius_m=BROADEN_RADIUS_M,
-                limit=BROADEN_FANOUT,
-                exclude=errand.requester_id,
-            )
-            payload = {
-                "type": "offer",
-                "errand_id": str(errand.id),
-                "title": errand.title,
-                "category": errand.category,
-                "reward": float(errand.reward),
             }
-            count = 0
-            for runner_id, distance_m in nearby:
-                payload["distance_m"] = round(distance_m)
-                await redis_client.publish(
-                    f"{errands_service.OFFER_CHANNEL_PREFIX}{runner_id}", json.dumps(payload)
+            # An errand posted with no friends nearby already went out open
+            # (tier 0); there is nothing left to widen to.
+            if 0 in done:
+                continue
+
+            for after_s, tier, hops, radius_m in SOCIAL_TIERS:
+                if age < after_s or tier in done:
+                    continue
+                count = await _offer_tier(db, errand, hops, radius_m)
+                db.add(
+                    ErrandEvent(
+                        errand_id=errand.id,
+                        actor_id=None,
+                        event_type="OFFER_BROADENED",
+                        payload={
+                            "social_tier": tier,
+                            "max_hops": hops,
+                            "radius_m": radius_m,
+                            "runners": count,
+                        },
+                    )
                 )
-                count += 1
-            db.add(
-                ErrandEvent(
-                    errand_id=errand.id,
-                    actor_id=None,
-                    event_type="OFFER_BROADENED",
-                    payload={"radius_m": BROADEN_RADIUS_M, "runners": count},
+                logger.info(
+                    "errand %s → tier %d (hops<=%s, %dm): %d runner(s)",
+                    errand.id,
+                    tier,
+                    hops if hops is not None else "any",
+                    radius_m,
+                    count,
                 )
-            )
-            logger.info("broadened offer for %s to %d runner(s)", errand.id, count)
+                break  # one tier per sweep, so each gets its own window
         await db.commit()
+
+
+async def _offer_tier(db, errand, max_hops: int | None, radius_m: int) -> int:
+    """Publish an offer for one escalation tier."""
+    from app.modules.errands import service as errands_service
+
+    nearby = await runners_service.nearest_available_runners(
+        redis_client,
+        errand.campus_id,
+        lat=float(errand.drop_lat),
+        lng=float(errand.drop_lng),
+        radius_m=radius_m,
+        limit=BROADEN_FANOUT,
+        exclude=errand.requester_id,
+    )
+    scores = await errands_service._safe_scores(
+        errand.requester_id, [rid for rid, _ in nearby]
+    )
+    if max_hops is not None and scores is not None:
+        nearby = [(r, d) for r, d in nearby if scores.get(r, {}).get("hops", 99) <= max_hops]
+    nearby = errands_service._rank_with_scores(nearby, scores)
+
+    payload = {
+        "type": "offer",
+        "errand_id": str(errand.id),
+        "title": errand.title,
+        "category": errand.category,
+        "reward": float(errand.reward),
+    }
+    count = 0
+    for runner_id, distance_m in nearby:
+        payload["distance_m"] = round(distance_m)
+        payload["connection"] = errands_service._connection_payload(scores, runner_id)
+        await redis_client.publish(
+            f"{errands_service.OFFER_CHANNEL_PREFIX}{runner_id}", json.dumps(payload)
+        )
+        count += 1
+    return count
 
 
 async def expire_stale_open_errands() -> None:
@@ -336,6 +403,9 @@ async def expire_stale_open_errands() -> None:
 # every enforcer tick would be wasted work. Once an hour is plenty.
 REFERENCE_REFRESH_INTERVAL = 3600
 
+# 30s sweeps × 20 = graph metrics refresh every ~10 minutes.
+METRICS_EVERY_N_SWEEPS = 20
+
 
 async def refresh_reference_prices() -> None:
     """Re-estimate every campus's reference prices from recent honest claims.
@@ -356,9 +426,11 @@ async def refresh_reference_prices() -> None:
                 logger.exception("reference refresh failed for campus %s", campus_id)
 
 
+
 async def scheduler() -> None:
     logger.info("scheduler up (interval %ss)", SCHEDULER_INTERVAL)
     last_reference_refresh = 0.0
+    nonlocal_tick = [0]
     while True:
         try:
             await broaden_stale_offers()
@@ -368,6 +440,12 @@ async def scheduler() -> None:
             await expire_stale_open_errands()
         except Exception:
             logger.exception("errand expiry sweep failed")
+
+        # Graph metrics are cheap on a campus-sized graph but not free, so they
+        # run every Nth sweep rather than every one.
+        nonlocal_tick[0] = (nonlocal_tick[0] + 1) % METRICS_EVERY_N_SWEEPS
+        if nonlocal_tick[0] == 0:
+            await refresh_graph_metrics()
 
         now = asyncio.get_running_loop().time()
         if now - last_reference_refresh >= REFERENCE_REFRESH_INTERVAL:
@@ -385,6 +463,7 @@ async def main() -> None:
         run_consumer("notification-service"),
         run_consumer("analytics-service"),
         run_consumer("settlement-service"),
+        run_consumer("social-graph-service"),
         scheduler(),
     )
 

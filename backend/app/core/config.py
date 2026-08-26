@@ -18,6 +18,14 @@ class Settings(BaseSettings):
     kafka_bootstrap: str = "kafka:19092"
     kafka_orders_topic: str = "errandly.orders"
 
+    # Neo4j (social graph — a derived read model, safe to rebuild)
+    neo4j_url: str = "bolt://neo4j:7687"
+    neo4j_user: str = "neo4j"
+    neo4j_password: str = "errandly-dev"
+    # Hops beyond this are treated as strangers. 4 keeps a campus-sized graph
+    # traversable in single-digit milliseconds while still reaching most of it.
+    social_max_hops: int = 4
+
     # MongoDB (chat)
     mongo_url: str = "mongodb://mongo:27017"
     mongo_db: str = "errandly"

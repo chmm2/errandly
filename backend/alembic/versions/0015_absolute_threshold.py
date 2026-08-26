@@ -4,8 +4,8 @@ Replaces the percentage tolerance on reference prices with a flat rupee line,
 and records enough on each claim to detect a runner who habitually sits just
 under that line without ever crossing it.
 
-Revision ID: 0012_absolute_threshold
-Revises: 0011_escrow_fraud
+Revision ID: 0015_absolute_threshold
+Revises: 0014_escrow_fraud
 Create Date: 2026-08-26
 
 """
@@ -15,8 +15,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "0012_absolute_threshold"
-down_revision: str | None = "0011_escrow_fraud"
+revision: str = "0015_absolute_threshold"
+down_revision: str | None = "0014_escrow_fraud"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
