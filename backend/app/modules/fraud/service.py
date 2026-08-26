@@ -28,8 +28,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.auth.models import User
-from app.modules.errands.models import Errand
-from app.modules.fraud import collusion, estimator, semantics
+from app.modules.errands.models import Errand, Rating
+from app.modules.fraud import collusion, estimator, reputation, semantics
 from app.modules.fraud import normalize as normalize_mod
 from app.modules.fraud.models import (
     STRIKE_ACTIONS,
@@ -717,6 +717,78 @@ async def sweep_collusion_rings(db: AsyncSession) -> list[FraudFlag]:
     if raised:
         await db.flush()
         logger.info("collusion sweep raised %d flag(s)", len(raised))
+    return raised
+
+
+async def sweep_rating_farming(db: AsyncSession) -> list[FraudFlag]:
+    """Find runners whose reputation rests on their own circle, and check it.
+
+    The attack this closes: scam strangers, absorb the price flag and the
+    reputation penalty, then run errands for friends and collect five stars
+    until ranking offers you strangers again.
+
+    Two-stage on purpose. Arithmetic decides WHO to look at - concentration, a
+    friends-versus-strangers gap, and high in-cluster ratings arriving right
+    after a penalty. It is cheap, exact, and cannot be gamed by writing well.
+    Only then is the language model asked whether those reviews describe
+    errands that actually happened, which is the one question arithmetic cannot
+    answer and the one that protects a genuinely well-liked runner.
+
+    No punishment is applied here. A concentrated reputation is already
+    self-limiting - the weighting in reputation.py shrinks it toward neutral -
+    so this raises the case for a human rather than acting twice on one fact.
+    """
+    since = datetime.now(UTC) - timedelta(days=PATTERN_WINDOW_DAYS)
+
+    # Only runners who were actually rated recently; there is no point
+    # profiling an account nobody has used.
+    recent = list(
+        await db.scalars(
+            select(Rating.ratee_id)
+            .where(Rating.created_at >= since)
+            .group_by(Rating.ratee_id)
+            .having(func.count() >= reputation.FARMING_MIN_IN_CLUSTER)
+        )
+    )
+    if not recent:
+        return []
+
+    raised: list[FraudFlag] = []
+    for runner_id in recent:
+        profile = await reputation.recompute(db, runner_id)
+        signals = reputation.farming_signals(profile)
+        if signals is None:
+            continue
+
+        already = await db.scalar(
+            select(func.count())
+            .select_from(FraudFlag)
+            .where(
+                FraudFlag.user_id == runner_id,
+                FraudFlag.rule == "RATING_FARMING",
+                FraudFlag.status == "OPEN",
+            )
+        )
+        if already:
+            continue
+
+        # Ask the model only about cases arithmetic already surfaced. Running
+        # it over every runner would cost a fortune and, worse, would put a
+        # language judgement in front of people nothing was wrong with.
+        verdict = await semantics.assess_reviews(db, runner_id)
+
+        flag = FraudFlag(
+            user_id=runner_id,
+            rule="RATING_FARMING",
+            severity=2,
+            details={**signals, **semantics.review_details(verdict)},
+        )
+        db.add(flag)
+        raised.append(flag)
+
+    if raised:
+        await db.flush()
+        logger.info("rating-farming sweep raised %d flag(s)", len(raised))
     return raised
 
 

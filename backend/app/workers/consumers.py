@@ -407,6 +407,19 @@ REFERENCE_REFRESH_INTERVAL = 3600
 METRICS_EVERY_N_SWEEPS = 20
 
 
+async def sweep_rating_farming() -> None:
+    """Look for runners whose reputation is carried by their own circle."""
+    async with SessionLocal() as db:
+        try:
+            raised = await fraud.sweep_rating_farming(db)
+            await db.commit()
+            if raised:
+                logger.info("rating farming: raised %d flag(s)", len(raised))
+        except Exception:
+            await db.rollback()
+            raise
+
+
 async def sweep_collusion_rings() -> None:
     """Look for closed money cycles among mutual friends and flag their members."""
     async with SessionLocal() as db:
@@ -474,6 +487,10 @@ async def scheduler() -> None:
                 await sweep_collusion_rings()
             except Exception:
                 logger.exception("collusion ring sweep failed")
+            try:
+                await sweep_rating_farming()
+            except Exception:
+                logger.exception("rating farming sweep failed")
 
         now = asyncio.get_running_loop().time()
         if now - last_reference_refresh >= REFERENCE_REFRESH_INTERVAL:

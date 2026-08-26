@@ -20,6 +20,7 @@ from app.modules.errands.models import (
     Rating,
 )
 from app.modules.errands.schemas import ErrandCreate
+from app.modules.fraud import reputation as fraud_reputation
 from app.modules.ledger import service as ledger
 from app.modules.outbox import service as outbox
 from app.modules.runners import service as runners_service
@@ -198,7 +199,8 @@ async def _offer_to_nearby_runners(
         nearby = [(rid, dist) for rid, dist in nearby if rid != exclude_runner][:OFFER_FANOUT]
 
     scores = await _safe_scores(errand.requester_id, [rid for rid, _ in nearby])
-    nearby = _rank_with_scores(nearby, scores)
+    reputations = await _reputations(db, [rid for rid, _ in nearby])
+    nearby = _rank_with_scores(nearby, scores, reputations)
 
     if max_hops is not None and scores is not None:
         nearby = [(r, d) for r, d in nearby if scores.get(r, {}).get("hops", 99) <= max_hops]
@@ -249,16 +251,66 @@ def _connection_payload(scores: dict | None, runner_id: uuid.UUID) -> dict:
     }
 
 
+# How far a full star of reputation can move a runner up the queue. Smaller
+# than SOCIAL_WEIGHT_M on purpose: reputation should decide between comparable
+# candidates, not let an excellent runner across campus beat a decent one at
+# the door. Measured from NEUTRAL_REPUTATION, so this both rewards and demotes.
+REPUTATION_WEIGHT_M = 800.0
+NEUTRAL_REPUTATION = 3.5
+
+
 def _rank_with_scores(
-    nearby: list[tuple[uuid.UUID, float]], scores: dict | None
+    nearby: list[tuple[uuid.UUID, float]],
+    scores: dict | None,
+    reputations: dict[uuid.UUID, float] | None = None,
 ) -> list[tuple[uuid.UUID, float]]:
-    """Order candidates by distance offset by social trust. See SOCIAL_WEIGHT_M."""
-    if not scores or len(nearby) < 2:
+    """Order candidates by distance, offset by social trust and by reputation.
+
+    Three terms, deliberately in the same unit — metres of effective distance —
+    so their relative influence is legible rather than buried in a weighted sum
+    of incomparable scales:
+
+        effective = distance
+                  - trust      x SOCIAL_WEIGHT_M
+                  - (rep - 3.5) x REPUTATION_WEIGHT_M
+
+    The reputation used is the PROVENANCE-WEIGHTED one, shrunk toward neutral
+    when little independent evidence backs it. That is what closes the loop the
+    price flags always implied but never had: a penalty lowers the score, the
+    score lowers the ranking, and the runner is genuinely offered less work.
+    Before this, a flagged runner lost a star and was offered exactly as much.
+    """
+    if len(nearby) < 2 or (not scores and not reputations):
         return nearby
-    return sorted(
-        nearby,
-        key=lambda item: item[1] - scores.get(item[0], {}).get("trust", 0.0) * SOCIAL_WEIGHT_M,
+
+    def effective(item: tuple[uuid.UUID, float]) -> float:
+        runner_id, distance_m = item
+        trust = (scores or {}).get(runner_id, {}).get("trust", 0.0)
+        rep = (reputations or {}).get(runner_id, NEUTRAL_REPUTATION)
+        return (
+            distance_m
+            - trust * SOCIAL_WEIGHT_M
+            - (rep - NEUTRAL_REPUTATION) * REPUTATION_WEIGHT_M
+        )
+
+    return sorted(nearby, key=effective)
+
+
+async def _reputations(
+    db: AsyncSession, runner_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, float]:
+    """Provenance-weighted reputation per candidate, for ranking.
+
+    Read from Postgres rather than recomputed here: the weighting needs a
+    runner's whole rating history, which is far too much work for an offer
+    that has to go out in milliseconds. It is refreshed when a rating lands.
+    """
+    if not runner_ids:
+        return {}
+    rows = await db.execute(
+        select(User.id, User.effective_reputation).where(User.id.in_(runner_ids))
     )
+    return {uid: float(rep) for uid, rep in rows}
 
 
 # How much social trust can outweigh distance. At 1500 a direct friend
@@ -857,6 +909,11 @@ async def rate_errand(
     total = float(runner.reputation_score) * runner.rating_count + stars
     runner.rating_count += 1
     runner.reputation_score = round(total / runner.rating_count, 2)
+    # The plain average above is what the runner sees. Ranking reads the
+    # provenance-weighted figure, refreshed here so the offer path never has to
+    # recompute a whole rating history.
+    await db.flush()
+    await fraud_reputation.recompute(db, runner.id)
     _record(db, errand, user, "RATED", {"stars": stars})
     await db.commit()
 

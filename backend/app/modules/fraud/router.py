@@ -371,6 +371,23 @@ async def decide_alias(
     return ItemAliasOut.model_validate(alias)
 
 
+@router.post("/rating-farming/sweep", response_model=list[FlagOut])
+async def sweep_rating_farming(
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Check runners whose reputation rests on their own circle.
+
+    Also runs on a timer. Raises cases for review; applies no punishment - a
+    concentrated reputation is already self-limiting through the weighting.
+    """
+    raised = await fraud.sweep_rating_farming(db)
+    await db.commit()
+    for flag in raised:
+        await db.refresh(flag)
+    return [FlagOut.model_validate(f) for f in raised]
+
+
 # -------------------------------------------------------------- admin: flags
 
 
