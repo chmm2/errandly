@@ -108,6 +108,26 @@ export interface Flag {
     total_value?: number;
     min_leg_value?: number;
     closure?: number;
+    // RATING_FARMING — the evidence is where the praise came from
+    concentration?: number;
+    in_cluster?: number;
+    out_cluster?: number;
+    mean_in?: number | null;
+    mean_out?: number | null;
+    differential?: number | null;
+    post_penalty_burst?: number;
+    reasons?: string[];
+    // Advisory reading of whether those reviews describe real errands. null on
+    // the same terms as `semantic` below.
+    reviews?: {
+      authenticity: number;
+      describes_real_errands: boolean;
+      template_like: boolean;
+      observations: string[];
+      reviews_considered: number;
+      exculpatory: boolean;
+      model: string;
+    } | null;
     // Advisory reading of what the group's errands actually say. null when no
     // model was configured, the history was too thin, or the call failed.
     semantic?: {
@@ -190,6 +210,10 @@ export async function fetchFlags(status = "OPEN"): Promise<Flag[]> {
 
 export async function sweepCollusion(): Promise<Flag[]> {
   return (await api.post<Flag[]>("/fraud/collusion/sweep")).data;
+}
+
+export async function sweepRatingFarming(): Promise<Flag[]> {
+  return (await api.post<Flag[]>("/fraud/rating-farming/sweep")).data;
 }
 
 export async function reviewFlag(

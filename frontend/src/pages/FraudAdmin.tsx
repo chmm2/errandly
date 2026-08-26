@@ -12,6 +12,7 @@ import {
   type ItemAlias,
   sweepAliases,
   sweepCollusion,
+  sweepRatingFarming,
   type Flag,
   type Proposal,
   type ReferencePrice,
@@ -44,6 +45,7 @@ function FlagCard({
   const d = flag.details ?? {};
   const nearLine = flag.rule === "PERSISTENT_NEAR_THRESHOLD";
   const ring = flag.rule === "COLLUSION_RING";
+  const farming = flag.rule === "RATING_FARMING";
   return (
     <div className="rounded-2xl border border-line p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -51,11 +53,46 @@ function FlagCard({
           <div className="font-extrabold text-ink">
             {ring
               ? `Money circulating in a group of ${d.size ?? "?"}`
-              : nearLine
-                ? "Consistently just under the line"
-                : (d.item ?? flag.rule)}
+              : farming
+                ? "Reputation built inside their own circle"
+                : nearLine
+                  ? "Consistently just under the line"
+                  : (d.item ?? flag.rule)}
           </div>
-          {ring ? (
+          {farming ? (
+            /* The finding is about where the praise came from, not about any
+               one rating. Show the provenance, and the reasons the detector
+               already wrote in plain words. */
+            <div className="mt-1 text-sm text-muted">
+              <span className="font-bold text-ink">{d.in_cluster}</span> of{" "}
+              <span className="font-bold text-ink">
+                {(d.in_cluster ?? 0) + (d.out_cluster ?? 0)}
+              </span>{" "}
+              ratings came from their own friends (
+              {Math.round(Number(d.concentration ?? 0) * 100)}%).
+              {d.mean_in != null && d.mean_out != null && (
+                <>
+                  {" "}
+                  Friends average{" "}
+                  <span className="font-bold text-amber-700">
+                    {Number(d.mean_in).toFixed(1)}
+                  </span>
+                  , strangers{" "}
+                  <span className="font-bold text-ink">
+                    {Number(d.mean_out).toFixed(1)}
+                  </span>
+                  .
+                </>
+              )}
+              {(d.reasons ?? []).length > 0 && (
+                <ul className="mt-1.5 list-disc space-y-0.5 pl-4">
+                  {(d.reasons ?? []).map((r, i) => (
+                    <li key={i}>{r}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : ring ? (
             /* The finding is about a group, so name the group. Every member
                carries an identical flag — the graph shows no ringleader, and
                picking one would be inventing a fact. */
@@ -113,6 +150,52 @@ function FlagCard({
         </span>
       </div>
 
+      {farming && d.reviews && (
+        /* Advisory, exactly like the errand reading on a ring flag: it can
+           support clearing a runner, never condemn one. */
+        <div
+          className={`mt-3 rounded-xl border p-3 ${
+            d.reviews.exculpatory
+              ? "border-emerald-200 bg-emerald-50"
+              : "border-line bg-brand-soft/40"
+          }`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-bold uppercase tracking-wide text-muted">
+              What their reviews say &middot; advisory
+            </span>
+            <span className="text-xs font-semibold text-ink">
+              authenticity {d.reviews.authenticity.toFixed(2)} &middot; across{" "}
+              {d.reviews.reviews_considered} reviews
+            </span>
+          </div>
+          <p className="mt-1.5 text-sm font-semibold text-ink">
+            {d.reviews.exculpatory
+              ? "These read as written about errands that actually happened."
+              : d.reviews.template_like
+                ? "These reviews repeat each other in wording or structure."
+                : "Not specific enough to count in their favour."}
+          </p>
+          {d.reviews.observations.length > 0 && (
+            <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-xs text-muted">
+              {d.reviews.observations.map((o, i) => (
+                <li key={i}>{o}</li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-2 text-xs text-muted">
+            A blank or short review is never evidence of fraud &mdash; most
+            people rate without writing anything.
+          </p>
+        </div>
+      )}
+      {farming && d.reviews === null && (
+        <p className="mt-3 text-xs text-muted">
+          No reading of their reviews &mdash; either no model is configured, or
+          too few reviews to judge.
+        </p>
+      )}
+
       {ring && d.semantic && (
         /* Advisory. Rendered so an admin can weigh it, and labelled so nobody
            mistakes it for a verdict - it can support clearing a group, never
@@ -161,7 +244,9 @@ function FlagCard({
       )}
 
       <p className="mt-3 text-xs text-muted">
-        {ring
+        {farming
+          ? "No money is held, and no extra penalty applies \u2014 a concentrated reputation is already discounted toward neutral by the weighting, and punishing twice for one fact would be double-counting. Upholding records the judgement; dismissing clears the flag."
+          : ring
           ? "No money is held. A cycle is strong evidence about a group but names no single dishonest errand, and these payouts settled long ago. Upholding keeps the group discounted in matching; dismissing clears every member."
           : nearLine
             ? "No money is held on this one. Dismissing restores the runner's claims as evidence for reference prices; upholding keeps them excluded."
@@ -174,22 +259,26 @@ function FlagCard({
           disabled={busy}
           className="rounded-xl border-2 border-emerald-300 px-4 py-2 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
         >
-          {ring
-            ? "Dismiss — genuine friends"
-            : nearLine
-              ? "Dismiss — normal variation"
-              : "Dismiss — runner was honest"}
+          {farming
+            ? "Dismiss \u2014 genuinely well liked"
+            : ring
+              ? "Dismiss \u2014 genuine friends"
+              : nearLine
+                ? "Dismiss \u2014 normal variation"
+                : "Dismiss \u2014 runner was honest"}
         </button>
         <button
           onClick={() => onReview(true)}
           disabled={busy}
           className="rounded-xl border-2 border-red-300 px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
         >
-          {ring
-            ? "Uphold — collusion ring"
-            : nearLine
-              ? "Uphold — gaming the threshold"
-              : "Uphold — overcharge"}
+          {farming
+            ? "Uphold \u2014 inflated ratings"
+            : ring
+              ? "Uphold \u2014 collusion ring"
+              : nearLine
+                ? "Uphold \u2014 gaming the threshold"
+                : "Uphold \u2014 overcharge"}
         </button>
       </div>
     </div>
@@ -326,6 +415,11 @@ export default function FraudAdmin() {
     onSuccess: invalidate,
     onError: fail("Could not decide that alias."),
   });
+  const farmingSweep = useMutation({
+    mutationFn: sweepRatingFarming,
+    onSuccess: invalidate,
+    onError: fail("Rating-farming sweep failed."),
+  });
   const refresh = useMutation({
     mutationFn: refreshReferences,
     onSuccess: invalidate,
@@ -381,13 +475,20 @@ export default function FraudAdmin() {
 
         {tab === "flags" && (
           <section className="mt-6 space-y-3">
-            <div className="flex justify-end">
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                onClick={() => farmingSweep.mutate()}
+                disabled={farmingSweep.isPending}
+                className="rounded-xl border border-line px-4 py-2 text-sm font-semibold text-muted transition hover:border-brand hover:text-brand disabled:opacity-50"
+              >
+                {farmingSweep.isPending ? "..." : "\u2B50 Check rating provenance"}
+              </button>
               <button
                 onClick={() => sweep.mutate()}
                 disabled={sweep.isPending}
                 className="rounded-xl border border-line px-4 py-2 text-sm font-semibold text-muted transition hover:border-brand hover:text-brand disabled:opacity-50"
               >
-                {sweep.isPending ? "…" : "🔗 Scan for collusion rings"}
+                {sweep.isPending ? "..." : "\u{1F517} Scan for collusion rings"}
               </button>
             </div>
             {(flags ?? []).length === 0 ? (
