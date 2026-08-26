@@ -144,12 +144,19 @@ def best_fuzzy_match(key: str, known_keys: list[str]) -> tuple[str, float] | Non
     return scored[0]
 
 
-def resolve_key(raw: str, known_keys: list[str]) -> tuple[str, bool]:
+def resolve_key(
+    raw: str, known_keys: list[str], aliases: dict[str, str] | None = None
+) -> tuple[str, bool]:
     """Map a raw name onto an existing key where possible.
 
     Returns (key, matched_existing). When nothing matches, the normalized form
     becomes a new key in its own right - an unrecognised item is not an error,
     it is just an item nobody has priced yet.
+
+    `aliases` carries ADMIN-APPROVED equivalences only (see ItemAlias). They are
+    consulted after exact and fuzzy matching, because a name that already
+    resolves on spelling needs no alias, and before giving up - which is the
+    only place an alias can turn a blind spot into a check.
     """
     key = normalize(raw)
     if not key:
@@ -159,6 +166,12 @@ def resolve_key(raw: str, known_keys: list[str]) -> tuple[str, bool]:
     match = best_fuzzy_match(key, known_keys)
     if match:
         return match[0], True
+    if aliases:
+        target = aliases.get(key)
+        # An alias may only point at something actually priced; a stale one
+        # left behind by a deleted reference must not resurrect a dead key.
+        if target and target in known_keys:
+            return target, True
     return key, False
 
 

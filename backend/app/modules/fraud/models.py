@@ -266,3 +266,58 @@ class UserStrike(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )
+
+
+ALIAS_STATUSES = ("PENDING", "APPROVED", "REJECTED")
+ALIAS_SOURCES = ("MODEL", "ADMIN")
+
+
+class ItemAlias(Base):
+    """One name that means an item already priced under a different word.
+
+    Tiers 1 and 2 of the normalizer work on spelling. This table holds the
+    equivalences spelling cannot reach - "patties" for a puff, "iced latte" for
+    a cold coffee - which is where most unpriced-item blind spots come from.
+
+    **Only APPROVED rows affect judgement.** A PENDING row is a suggestion
+    waiting for a human and changes nothing. That asymmetry is deliberate: an
+    alias applied automatically would let a runner invent a spelling, have it
+    attached to a cheap item, and then be reimbursed against the wrong
+    reference. Handing an attacker the mapping is worse than having no mapping,
+    so the cost of a wrong alias is paid in admin clicks rather than rupees.
+    """
+
+    __tablename__ = "item_aliases"
+    __table_args__ = (
+        UniqueConstraint("campus_id", "alias_key", name="uq_item_alias_key"),
+        CheckConstraint(
+            "status IN ('PENDING','APPROVED','REJECTED')", name="ck_item_alias_status"
+        ),
+        CheckConstraint("source IN ('MODEL','ADMIN')", name="ck_item_alias_source"),
+        CheckConstraint("alias_key <> item_key", name="ck_item_alias_not_self"),
+        Index("ix_item_alias_campus_status", "campus_id", "status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    campus_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("campuses.id"), nullable=False
+    )
+    # The normalized form of what someone typed.
+    alias_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    # The priced item it is claimed to mean.
+    item_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    # An example of the raw text, so an admin sees what was actually written
+    # rather than only its normalized shadow.
+    sample_raw_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(String(8), nullable=False, server_default="MODEL")
+    status: Mapped[str] = mapped_column(String(16), nullable=False, server_default="PENDING")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=False
+    )
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    decided_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+    )

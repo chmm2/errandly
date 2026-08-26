@@ -22,6 +22,7 @@ from app.modules.errands.models import (
 )
 from app.modules.fraud.models import (
     FraudFlag,
+    ItemAlias,
     ReferencePrice,
     ReferencePriceProposal,
     RunnerPriceClaim,
@@ -59,6 +60,7 @@ __all__ = [
     "ReferencePriceProposal",
     "RunnerPriceClaim",
     "FraudFlag",
+    "ItemAlias",
     "UserStrike",
     "Vendor",
     "MenuItem",

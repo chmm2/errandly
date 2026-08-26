@@ -15,6 +15,7 @@ from app.modules.errands.models import Errand
 from app.modules.fraud import service as fraud
 from app.modules.fraud.models import (
     FraudFlag,
+    ItemAlias,
     ReferencePrice,
     ReferencePriceProposal,
     UserStrike,
@@ -26,6 +27,7 @@ from app.modules.fraud.schemas import (
     ClaimSubmission,
     FlagOut,
     FlagReview,
+    ItemAliasOut,
     ProposalOut,
     ReferencePriceIn,
     ReferencePriceOut,
@@ -306,6 +308,67 @@ async def sweep_collusion(
     for flag in raised:
         await db.refresh(flag)
     return [FlagOut.model_validate(f) for f in raised]
+
+
+# ------------------------------------------------------------ admin: aliases
+
+
+@router.get("/aliases", response_model=list[ItemAliasOut])
+async def list_aliases(
+    status: str = "PENDING",
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    rows = await db.execute(
+        select(ItemAlias)
+        .where(ItemAlias.campus_id == admin.campus_id, ItemAlias.status == status)
+        .order_by(ItemAlias.created_at.desc())
+        .limit(200)
+    )
+    return [ItemAliasOut.model_validate(a) for a in rows.scalars()]
+
+
+@router.post("/aliases/sweep", response_model=list[ItemAliasOut])
+async def sweep_aliases(
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Ask the model about item names that matched nothing recently.
+
+    Also runs on a timer. Returns an empty list when no model is configured -
+    the alias table simply stays as the admins left it.
+    """
+    created = await fraud.suggest_item_aliases(db, admin.campus_id)
+    await db.commit()
+    for row in created:
+        await db.refresh(row)
+    return [ItemAliasOut.model_validate(a) for a in created]
+
+
+@router.post("/aliases/{alias_id}/decide", response_model=ItemAliasOut)
+async def decide_alias(
+    alias_id: uuid.UUID,
+    approve: bool,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Confirm or reject a proposed equivalence.
+
+    Approval is the moment an alias starts affecting judgement - until now it
+    has changed nothing at all.
+    """
+    alias = await db.get(ItemAlias, alias_id)
+    if alias is None or alias.campus_id != admin.campus_id:
+        raise HTTPException(404, "Alias not found.")
+    if alias.status != "PENDING":
+        raise HTTPException(409, "That alias was already decided.")
+
+    alias.status = "APPROVED" if approve else "REJECTED"
+    alias.decided_at = datetime.now(UTC)
+    alias.decided_by = admin.id
+    await db.commit()
+    await db.refresh(alias)
+    return ItemAliasOut.model_validate(alias)
 
 
 # -------------------------------------------------------------- admin: flags

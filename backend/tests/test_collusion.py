@@ -239,3 +239,28 @@ async def test_circulation_ignores_users_with_too_little_history():
     scores = await collusion.circulation_for([uuid.UUID(a)])
 
     assert scores[uuid.UUID(a)] == 0.0
+
+
+@graph_test
+async def test_a_ring_of_users_postgres_does_not_know_is_skipped(campus):
+    """The graph is a derived read model and can outlive Postgres.
+
+    A deleted account leaves its node and PAID edges behind until the
+    projection catches up. Flagging a member who no longer exists violates the
+    foreign key and takes the entire sweep down with it - so a ring whose
+    members are not all real users must be skipped, not partially raised.
+    """
+    from app.core.database import SessionLocal
+    from app.modules.fraud import service as fraud
+
+    await _wipe_graph()
+    ghosts = [str(uuid.uuid4()) for _ in range(3)]
+    await _make_ring(ghosts, laps=3, amount=400)
+
+    assert len(await collusion.find_rings()) == 1, "the graph does see the ring"
+
+    async with SessionLocal() as db:
+        raised = await fraud.sweep_collusion_rings(db)
+        await db.commit()
+
+    assert raised == [], "no flag may be raised against a user Postgres cannot see"

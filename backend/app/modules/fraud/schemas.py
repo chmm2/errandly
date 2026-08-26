@@ -147,3 +147,19 @@ class StandingOut(BaseModel):
     strikes: list[StrikeOut]
     blocked_until: datetime | None
     next_action_at: int | None = None
+
+
+class ItemAliasOut(BaseModel):
+    """A proposed or approved name equivalence. PENDING ones change nothing."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    alias_key: str
+    item_key: str
+    sample_raw_name: str
+    reason: str | None
+    source: str
+    status: str
+    created_at: datetime
+    decided_at: datetime | None

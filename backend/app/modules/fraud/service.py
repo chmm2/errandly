@@ -30,9 +30,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.auth.models import User
 from app.modules.errands.models import Errand
 from app.modules.fraud import collusion, estimator, semantics
+from app.modules.fraud import normalize as normalize_mod
 from app.modules.fraud.models import (
     STRIKE_ACTIONS,
     FraudFlag,
+    ItemAlias,
     ReferencePrice,
     ReferencePriceProposal,
     RunnerPriceClaim,
@@ -77,6 +79,10 @@ NEAR_THRESHOLD_SHARE = Decimal("0.60")   # >=60% of the way to the line = "near"
 NEAR_THRESHOLD_MIN_CLAIMS = 4            # near-line claims needed in the window
 NEAR_THRESHOLD_MIN_RATIO = Decimal("0.60")  # share of their judged claims
 
+# Unpriced names to ask about per sweep. Small on purpose: the recurring
+# ones surface first, and a cap keeps a burst of typos from becoming a bill.
+ALIAS_SUGGESTIONS_PER_SWEEP = 5
+
 
 class FraudError(Exception):
     def __init__(self, message: str, status_code: int = 400):
@@ -104,6 +110,95 @@ async def known_keys(db: AsyncSession, campus_id: uuid.UUID) -> list[str]:
         select(ReferencePrice.item_key).where(ReferencePrice.campus_id == campus_id)
     )
     return [r[0] for r in rows]
+
+
+async def approved_aliases(db: AsyncSession, campus_id: uuid.UUID) -> dict[str, str]:
+    """Admin-approved name equivalences, as {alias_key: item_key}.
+
+    PENDING rows are excluded on purpose - a suggestion nobody has confirmed
+    must not change what anyone is judged against.
+    """
+    rows = await db.execute(
+        select(ItemAlias.alias_key, ItemAlias.item_key).where(
+            ItemAlias.campus_id == campus_id, ItemAlias.status == "APPROVED"
+        )
+    )
+    return {a: i for a, i in rows}
+
+
+async def suggest_item_aliases(db: AsyncSession, campus_id: uuid.UUID) -> list[ItemAlias]:
+    """Ask the model whether recently-unpriced item names mean something known.
+
+    Runs on a timer, never in the claim request path. A runner standing at a
+    counter must not wait on a model call, and asking once per claim would pay
+    for the same question repeatedly - the names that matter are the ones that
+    keep recurring, and a batch sweep sees exactly those.
+
+    Everything produced here is PENDING. Nothing is judged against it until an
+    admin agrees.
+    """
+    since = datetime.now(UTC) - timedelta(days=PATTERN_WINDOW_DAYS)
+    keys = await known_keys(db, campus_id)
+    if not keys:
+        return []
+
+    # Names that were claimed but matched nothing. Ordered by how often they
+    # recur, so a one-off typo never costs a model call while a genuine missing
+    # alias rises to the top on its own.
+    rows = await db.execute(
+        select(
+            RunnerPriceClaim.item_key,
+            func.min(RunnerPriceClaim.raw_name),
+            func.count().label("seen"),
+        )
+        .where(
+            RunnerPriceClaim.campus_id == campus_id,
+            RunnerPriceClaim.created_at >= since,
+            RunnerPriceClaim.verdict == "NO_REFERENCE",
+        )
+        .group_by(RunnerPriceClaim.item_key)
+        .order_by(func.count().desc())
+        .limit(ALIAS_SUGGESTIONS_PER_SWEEP)
+    )
+    candidates = [(k, raw, n) for k, raw, n in rows if k and k not in keys]
+    if not candidates:
+        return []
+
+    # Skip anything already decided or already proposed.
+    seen_keys = set(
+        (
+            await db.scalars(
+                select(ItemAlias.alias_key).where(
+                    ItemAlias.campus_id == campus_id,
+                    ItemAlias.alias_key.in_([c[0] for c in candidates]),
+                )
+            )
+        ).all()
+    )
+
+    created: list[ItemAlias] = []
+    for alias_key, raw_name, _seen in candidates:
+        if alias_key in seen_keys:
+            continue
+        target = await normalize_mod.suggest_alias(raw_name, keys)
+        if not target or target == alias_key:
+            continue
+        row = ItemAlias(
+            campus_id=campus_id,
+            alias_key=alias_key,
+            item_key=target,
+            sample_raw_name=raw_name[:120],
+            reason=f"Model matched '{raw_name}' to '{target}'.",
+            source="MODEL",
+            status="PENDING",
+        )
+        db.add(row)
+        created.append(row)
+
+    if created:
+        await db.flush()
+        logger.info("alias sweep proposed %d alias(es) for review", len(created))
+    return created
 
 
 async def get_reference(
@@ -191,10 +286,11 @@ async def submit_claims(
         raise FraudError("No price lines submitted.", 422)
 
     keys = await known_keys(db, errand.campus_id)
+    aliases = await approved_aliases(db, errand.campus_id)
     claims: list[RunnerPriceClaim] = []
 
     for raw_name, unit_price, quantity in lines:
-        item_key, _matched = resolve_key(raw_name, keys)
+        item_key, _matched = resolve_key(raw_name, keys, aliases)
         if not item_key:
             raise FraudError(f"Could not read an item name from '{raw_name}'.", 422)
 
@@ -550,6 +646,30 @@ async def sweep_collusion_rings(db: AsyncSession) -> list[FraudFlag]:
     raised: list[FraudFlag] = []
     for ring in rings:
         members = list(ring.members)
+
+        # The graph is a DERIVED read model and can outlive Postgres: a deleted
+        # account leaves its node and edges behind until the projection catches
+        # up. Flagging a member who no longer exists violates the foreign key
+        # and takes the whole sweep down with it, so confirm every member is a
+        # real user first. A ring with missing members is skipped rather than
+        # partially flagged - the finding is about the group, and a group we
+        # cannot fully identify is not one an admin can act on.
+        live = set(
+            (
+                await db.scalars(
+                    select(User.id).where(
+                        User.id.in_(members), User.deleted_at.is_(None)
+                    )
+                )
+            ).all()
+        )
+        if len(live) != len(members):
+            logger.info(
+                "collusion: skipping a ring with %d member(s) missing from Postgres "
+                "- the graph is stale for this cluster",
+                len(members) - len(live),
+            )
+            continue
         # One open flag per member per ring. Re-running the sweep must not
         # stack a fresh accusation on every tick for the same finding.
         signature = "-".join(sorted(str(m)[:8] for m in members))

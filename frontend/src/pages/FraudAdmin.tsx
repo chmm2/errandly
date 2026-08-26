@@ -6,7 +6,11 @@ import {
   createReference,
   fetchFlags,
   fetchProposals,
+  decideAlias,
+  fetchAliases,
   fetchReferences,
+  type ItemAlias,
+  sweepAliases,
   sweepCollusion,
   type Flag,
   type Proposal,
@@ -18,7 +22,7 @@ import {
 import Navbar from "../components/Navbar";
 import { apiErrorMessage } from "../lib/api";
 
-type Tab = "flags" | "proposals" | "prices";
+type Tab = "flags" | "proposals" | "prices" | "aliases";
 
 const BLANK = {
   display_name: "",
@@ -108,6 +112,53 @@ function FlagCard({
           severity {flag.severity}
         </span>
       </div>
+
+      {ring && d.semantic && (
+        /* Advisory. Rendered so an admin can weigh it, and labelled so nobody
+           mistakes it for a verdict - it can support clearing a group, never
+           condemn one. */
+        <div
+          className={`mt-3 rounded-xl border p-3 ${
+            d.semantic.exculpatory
+              ? "border-emerald-200 bg-emerald-50"
+              : "border-line bg-brand-soft/40"
+          }`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-bold uppercase tracking-wide text-muted">
+              What their errands say &middot; advisory
+            </span>
+            <span className="text-xs font-semibold text-ink">
+              coherence {d.semantic.coherence.toFixed(2)} &middot; across{" "}
+              {d.semantic.errands_considered} errands
+            </span>
+          </div>
+          <p className="mt-1.5 text-sm font-semibold text-ink">
+            {d.semantic.exculpatory
+              ? "Reads like genuine, varied campus life."
+              : d.semantic.reads_as_genuine
+                ? "Reads as genuine, but not strongly enough to count in their favour."
+                : "Does not read as varied campus life."}
+          </p>
+          {d.semantic.observations.length > 0 && (
+            <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-xs text-muted">
+              {d.semantic.observations.map((o, i) => (
+                <li key={i}>{o}</li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-2 text-xs text-muted">
+            A low reading is never evidence of fraud on its own &mdash; people
+            write tersely for many reasons. Weigh it only alongside the money.
+          </p>
+        </div>
+      )}
+      {ring && d.semantic === null && (
+        <p className="mt-3 text-xs text-muted">
+          No language reading for this group &mdash; either no model is
+          configured, or they share too little history to judge.
+        </p>
+      )}
 
       <p className="mt-3 text-xs text-muted">
         {ring
@@ -217,6 +268,10 @@ export default function FraudAdmin() {
     queryKey: ["proposals"],
     queryFn: () => fetchProposals("PENDING"),
   });
+  const { data: aliases } = useQuery({
+    queryKey: ["aliases"],
+    queryFn: () => fetchAliases("PENDING"),
+  });
   const { data: references } = useQuery({
     queryKey: ["references"],
     queryFn: fetchReferences,
@@ -227,6 +282,7 @@ export default function FraudAdmin() {
     qc.invalidateQueries({ queryKey: ["flags"] });
     qc.invalidateQueries({ queryKey: ["proposals"] });
     qc.invalidateQueries({ queryKey: ["references"] });
+    qc.invalidateQueries({ queryKey: ["aliases"] });
   }
   const fail = (fallback: string) => (err: unknown) =>
     setError(apiErrorMessage(err, fallback));
@@ -259,6 +315,17 @@ export default function FraudAdmin() {
     onSuccess: invalidate,
     onError: fail("Collusion sweep failed."),
   });
+  const aliasSweep = useMutation({
+    mutationFn: sweepAliases,
+    onSuccess: invalidate,
+    onError: fail("Alias sweep failed."),
+  });
+  const alias = useMutation({
+    mutationFn: ({ id, approve }: { id: string; approve: boolean }) =>
+      decideAlias(id, approve),
+    onSuccess: invalidate,
+    onError: fail("Could not decide that alias."),
+  });
   const refresh = useMutation({
     mutationFn: refreshReferences,
     onSuccess: invalidate,
@@ -270,6 +337,7 @@ export default function FraudAdmin() {
     ["flags", "Flags", flags?.length ?? 0],
     ["proposals", "Price proposals", proposals?.length ?? 0],
     ["prices", "Reference prices", references?.length ?? 0],
+    ["aliases", "Item names", aliases?.length ?? 0],
   ];
 
   return (
@@ -364,6 +432,74 @@ export default function FraudAdmin() {
                   onReject={() => reject.mutate(p.id)}
                 />
               ))
+            )}
+          </section>
+        )}
+
+        {tab === "aliases" && (
+          <section className="mt-6">
+            <div className="rounded-2xl border border-line p-5">
+              <h2 className="font-extrabold">Names that might mean a priced item</h2>
+              <p className="mt-1 text-sm text-muted">
+                Spelling checks already catch typos. These are the ones spelling
+                cannot reach &mdash; a different word for the same thing.
+                Nothing here affects a price check until you approve it.
+              </p>
+              <button
+                onClick={() => aliasSweep.mutate()}
+                disabled={aliasSweep.isPending}
+                className="mt-3 rounded-xl border border-line px-4 py-2 text-sm font-semibold text-muted transition hover:border-brand hover:text-brand disabled:opacity-50"
+              >
+                {aliasSweep.isPending ? "..." : "\u{1F524} Look for new name matches"}
+              </button>
+            </div>
+
+            {(aliases ?? []).length === 0 ? (
+              <div className="mt-4 rounded-2xl border-2 border-dashed border-line p-10 text-center">
+                <p className="font-semibold">Nothing waiting</p>
+                <p className="text-sm text-muted">
+                  Suggestions appear when a reported item name matches nothing
+                  you have priced.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-3 space-y-3">
+                {aliases!.map((a: ItemAlias) => (
+                  <div key={a.id} className="rounded-2xl border border-line p-5">
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className="rounded-lg bg-brand-soft px-2.5 py-1 font-bold text-brand-dark">
+                        {a.sample_raw_name}
+                      </span>
+                      <span className="text-muted">is the same item as</span>
+                      <span className="rounded-lg bg-brand-soft px-2.5 py-1 font-bold text-brand-dark">
+                        {a.item_key}
+                      </span>
+                    </div>
+                    {a.reason && <p className="mt-2 text-sm text-muted">{a.reason}</p>}
+                    <p className="mt-2 text-xs text-muted">
+                      Approving means future claims for that name are checked
+                      against {a.item_key}. Reject anything that is a different
+                      size or variant &mdash; those are priced separately.
+                    </p>
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={() => alias.mutate({ id: a.id, approve: true })}
+                        disabled={alias.isPending}
+                        className="rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
+                      >
+                        Same item
+                      </button>
+                      <button
+                        onClick={() => alias.mutate({ id: a.id, approve: false })}
+                        disabled={alias.isPending}
+                        className="rounded-xl border border-line px-4 py-2 text-sm font-semibold text-muted transition hover:border-brand hover:text-brand disabled:opacity-50"
+                      >
+                        Different item
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </section>
         )}

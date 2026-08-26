@@ -108,6 +108,18 @@ export interface Flag {
     total_value?: number;
     min_leg_value?: number;
     closure?: number;
+    // Advisory reading of what the group's errands actually say. null when no
+    // model was configured, the history was too thin, or the call failed.
+    semantic?: {
+      coherence: number;
+      diversity: number;
+      specificity: number;
+      reads_as_genuine: boolean;
+      observations: string[];
+      errands_considered: number;
+      exculpatory: boolean;
+      model: string;
+    } | null;
   } | null;
   status: "OPEN" | "UPHELD" | "DISMISSED";
   created_at: string;
@@ -186,6 +198,32 @@ export async function reviewFlag(
   note?: string,
 ): Promise<Flag> {
   return (await api.post<Flag>(`/fraud/flags/${id}/review`, { uphold, note })).data;
+}
+
+export interface ItemAlias {
+  id: string;
+  alias_key: string;
+  item_key: string;
+  sample_raw_name: string;
+  reason: string | null;
+  source: "MODEL" | "ADMIN";
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  created_at: string;
+  decided_at: string | null;
+}
+
+export async function fetchAliases(status = "PENDING"): Promise<ItemAlias[]> {
+  return (await api.get<ItemAlias[]>("/fraud/aliases", { params: { status } })).data;
+}
+
+export async function sweepAliases(): Promise<ItemAlias[]> {
+  return (await api.post<ItemAlias[]>("/fraud/aliases/sweep")).data;
+}
+
+export async function decideAlias(id: string, approve: boolean): Promise<ItemAlias> {
+  return (await api.post<ItemAlias>(`/fraud/aliases/${id}/decide`, null, {
+    params: { approve },
+  })).data;
 }
 
 export const STRIKE_LABELS: Record<Strike["action"], string> = {

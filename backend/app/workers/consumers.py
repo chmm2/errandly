@@ -434,6 +434,12 @@ async def refresh_reference_prices() -> None:
                 count = await fraud.refresh_all_references(db, campus_id)
                 await db.commit()
                 logger.info("refreshed %d reference price(s) for campus %s", count, campus_id)
+                # Same slow clock: unpriced names are a backlog to work
+                # through, not an event to react to.
+                proposed = await fraud.suggest_item_aliases(db, campus_id)
+                await db.commit()
+                if proposed:
+                    logger.info("proposed %d item alias(es) for review", len(proposed))
             except Exception:
                 await db.rollback()
                 logger.exception("reference refresh failed for campus %s", campus_id)

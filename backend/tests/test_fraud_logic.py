@@ -160,3 +160,32 @@ def test_proposed_band_brackets_the_observation():
     lo, hi = propose_band(D(25))
     assert lo < D(25) < hi
     assert lo > 0
+
+
+def test_an_approved_alias_resolves_a_name_spelling_cannot_reach():
+    """The gap tiers 1 and 2 leave. "patties" and "puff" share almost no
+    letters, so no amount of fuzzy matching connects them - but on this campus
+    they are one pastry at two counters."""
+    known = ["chicken puff"]
+    assert resolve_key("chicken patties", known) == ("chicken pattie", False)
+
+    aliases = {"chicken pattie": "chicken puff"}
+    assert resolve_key("chicken patties", known, aliases) == ("chicken puff", True)
+
+
+def test_spelling_still_wins_before_any_alias_is_consulted():
+    """An alias is a last resort. A name that already resolves on spelling must
+    not be diverted by one."""
+    known = ["chicken puff"]
+    aliases = {"chicken puff": "masala tea"}  # a bad alias
+    assert resolve_key("chkn puf", known, aliases) == ("chicken puff", True)
+
+
+def test_an_alias_pointing_at_an_unpriced_item_is_ignored():
+    """A reference can be deleted after an alias was approved. A stale alias
+    must not resurrect a dead key and judge someone against nothing."""
+    aliases = {"chicken pattie": "chicken puff"}
+    assert resolve_key("chicken patties", ["masala tea"], aliases) == (
+        "chicken pattie",
+        False,
+    )

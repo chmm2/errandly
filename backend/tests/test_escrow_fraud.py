@@ -13,7 +13,13 @@ from sqlalchemy import select, update
 
 from app.core.database import SessionLocal
 from app.modules.auth.models import User
-from app.modules.fraud.models import FraudFlag, RunnerPriceClaim, UserStrike
+from app.modules.fraud.models import (
+    FraudFlag,
+    ItemAlias,
+    RunnerPriceClaim,
+    UserStrike,
+)
+from app.modules.fraud.normalize import normalize
 from app.modules.ledger import service as ledger
 from app.modules.ledger.models import EscrowHold
 from app.modules.runners.models import RunnerProfile
@@ -790,3 +796,119 @@ async def test_a_reference_cannot_be_set_outside_its_own_band(client, campus, ma
         headers=a_headers,
     )
     assert resp.status_code == 422
+
+
+# ------------------------------------------------------------- item aliases
+
+
+async def test_a_pending_alias_changes_nothing(client, campus, make_user):
+    """The safety property the whole design rests on.
+
+    An alias applied automatically would let a runner mint a spelling, have it
+    attached to a cheap item, and be reimbursed against the wrong reference.
+    Until an admin agrees, a suggestion must be inert.
+    """
+    _, run_headers = await make_user("Runner")
+    _, r_headers = await make_user("Requester")
+    _, a_headers = await make_admin(client, make_user)
+    await price_item(client, a_headers, "Chicken Puff", 20, 15, 30, tolerance=20)
+
+    # Unique per run: alias rows are campus-scoped and outlive the test.
+    raw_name = f"Chicken Pattie {uuid.uuid4().hex[:6]}"
+    async with SessionLocal() as db:
+        db.add(
+            ItemAlias(
+                campus_id=campus,
+                alias_key=normalize(raw_name),
+                item_key="chicken puff",
+                sample_raw_name=raw_name,
+                source="MODEL",
+                status="PENDING",
+            )
+        )
+        await db.commit()
+
+    errand = (await place_order(client, r_headers, collect=200)).json()
+    await accept(client, errand["id"], run_headers)
+    resp = await client.post(
+        f"/fraud/errands/{errand['id']}/claims",
+        json={"lines": [{"name": raw_name, "unit_price": 90, "quantity": 1}]},
+        headers=run_headers,
+    )
+    claim = resp.json()["claims"][0]
+    assert claim["verdict"] == "NO_REFERENCE", "a pending alias must not price anything"
+    assert resp.json()["withheld"] == 0.0
+
+
+async def test_approving_an_alias_makes_it_bite(client, campus, make_user):
+    """And the other half: once a human agrees, the same claim is checked."""
+    _, run_headers = await make_user("Runner")
+    _, r_headers = await make_user("Requester")
+    _, a_headers = await make_admin(client, make_user)
+    await price_item(client, a_headers, "Chicken Puff", 20, 15, 30, tolerance=20)
+
+    raw_name = f"Chicken Turnover {uuid.uuid4().hex[:6]}"
+    async with SessionLocal() as db:
+        row = ItemAlias(
+            campus_id=campus,
+            alias_key=normalize(raw_name),
+            item_key="chicken puff",
+            sample_raw_name=raw_name,
+            source="MODEL",
+            status="PENDING",
+        )
+        db.add(row)
+        await db.commit()
+        alias_id = str(row.id)
+
+    listed = (await client.get("/fraud/aliases", headers=a_headers)).json()
+    assert any(a["id"] == alias_id for a in listed)
+
+    decided = await client.post(
+        f"/fraud/aliases/{alias_id}/decide", params={"approve": True}, headers=a_headers
+    )
+    assert decided.status_code == 200, decided.text
+    assert decided.json()["status"] == "APPROVED"
+
+    errand = (await place_order(client, r_headers, collect=200)).json()
+    await accept(client, errand["id"], run_headers)
+    resp = await client.post(
+        f"/fraud/errands/{errand['id']}/claims",
+        json={"lines": [{"name": raw_name, "unit_price": 90, "quantity": 1}]},
+        headers=run_headers,
+    )
+    claim = resp.json()["claims"][0]
+    assert claim["item_key"] == "chicken puff"
+    assert claim["verdict"] == "FLAGGED", "now judged against the puff it actually is"
+
+
+async def test_alias_endpoints_are_admin_only(client, campus, make_user):
+    _, headers = await make_user("Ordinary Student")
+    assert (await client.get("/fraud/aliases", headers=headers)).status_code == 403
+    assert (await client.post("/fraud/aliases/sweep", headers=headers)).status_code == 403
+
+
+async def test_an_alias_cannot_be_decided_twice(client, campus, make_user):
+    _, a_headers = await make_admin(client, make_user)
+    async with SessionLocal() as db:
+        raw_name = f"Iced Latte {uuid.uuid4().hex[:6]}"
+        row = ItemAlias(
+            campus_id=campus,
+            alias_key=normalize(raw_name),
+            item_key="cold coffee",
+            sample_raw_name=raw_name,
+            source="MODEL",
+            status="PENDING",
+        )
+        db.add(row)
+        await db.commit()
+        alias_id = str(row.id)
+
+    first = await client.post(
+        f"/fraud/aliases/{alias_id}/decide", params={"approve": False}, headers=a_headers
+    )
+    assert first.status_code == 200
+    again = await client.post(
+        f"/fraud/aliases/{alias_id}/decide", params={"approve": True}, headers=a_headers
+    )
+    assert again.status_code == 409
