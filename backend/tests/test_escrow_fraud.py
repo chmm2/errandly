@@ -505,6 +505,45 @@ async def test_an_honest_runner_near_the_line_once_is_not_flagged(
     assert flags == [], "occasional variation is not a pattern"
 
 
+async def test_a_runner_mid_delivery_cannot_place_an_order(client, campus, make_user):
+    """The mode lock has to hold at the API, not just in the navbar.
+
+    The frontend redirects order-mode pages while you're carrying a run, but a
+    redirect is a courtesy — anyone with devtools or curl goes around it. The
+    rule is that an accepted delivery someone is waiting on commits you until
+    you finish it or release it back to the queue.
+    """
+    runner_id, run_headers = await make_user("Runner")
+    _, r_headers = await make_user("Requester")
+
+    errand = (await place_order(client, r_headers)).json()
+    await accept(client, errand["id"], run_headers)
+
+    blocked = await place_order(client, run_headers, title="Order while running")
+    assert blocked.status_code == 409, blocked.text
+    assert "before ordering" in blocked.json()["detail"]
+
+    # Releasing the run back to the queue frees them immediately.
+    rel = await client.post(f"/errands/{errand['id']}/release", headers=run_headers)
+    assert rel.status_code == 200, rel.text
+
+    allowed = await place_order(client, run_headers, title="Order after releasing")
+    assert allowed.status_code == 201, allowed.text
+
+
+async def test_placing_an_order_does_not_stop_you_taking_a_run(client, campus, make_user):
+    """The lock is one-directional on purpose — an order you placed commits
+    nobody, so it must not stand between you and earning."""
+    _, a_headers = await make_user("Orderer")
+    _, r_headers = await make_user("Requester")
+
+    await place_order(client, a_headers, title="My own order")
+    someone_elses = (await place_order(client, r_headers)).json()
+
+    resp = await client.post(f"/errands/{someone_elses['id']}/accept", headers=a_headers)
+    assert resp.status_code == 200, resp.text
+
+
 # --------------------------------------------------------------- escalation
 
 

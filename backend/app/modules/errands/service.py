@@ -243,6 +243,20 @@ async def _attach_items(db: AsyncSession, errands: list[Errand]) -> None:
 
 
 async def create_errand(db: AsyncSession, redis: Redis, user: User, data: ErrandCreate) -> Errand:
+    # Carrying a run commits you to it. The navbar already refuses to switch
+    # back to Order mode mid-delivery, but a redirect is a courtesy, not a
+    # control — anyone with devtools or curl walks straight through it. The
+    # rule is enforced here, where it cannot be bypassed.
+    #
+    # Deliberately one-directional: having placed an order never stops you
+    # taking a run. It is the accepted delivery that someone else is waiting
+    # on, so that is the only thing that locks.
+    if await runners_service.active_load(db, user.id) > 0:
+        raise ErrandError(
+            "Finish or release the run you're on before ordering.",
+            409,
+        )
+
     order_items = await _validate_order_items(db, user, data) if data.items else []
 
     errand = Errand(
