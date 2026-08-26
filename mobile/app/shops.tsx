@@ -15,6 +15,7 @@ import {
   Screen,
 } from "../src/components/ui";
 import { categoryIcon, colors, font, radius, space } from "../src/theme";
+import { goBack } from "../src/lib/nav";
 
 export default function Shops() {
   const router = useRouter();
@@ -52,7 +53,7 @@ export default function Shops() {
     >
       <Hero
         compact
-        onBack={() => router.back()}
+        onBack={() => goBack(router)}
         title={foodMode ? "Food on campus 🍔" : "Campus stores 🏪"}
         subtitle={
           foodMode

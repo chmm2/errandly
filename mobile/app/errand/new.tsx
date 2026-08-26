@@ -26,6 +26,7 @@ import {
   Title,
 } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
+import { goBack } from "../../src/lib/nav";
 import { categoryIcon, colors, font, radius, space } from "../../src/theme";
 
 /**
@@ -151,7 +152,7 @@ export default function NewErrand() {
           showsVerticalScrollIndicator={false}
         >
           <Row justify="flex-end">
-            <Pressable onPress={() => router.back()} style={s.close} hitSlop={12}>
+            <Pressable onPress={() => goBack(router)} style={s.close} hitSlop={12}>
               <Text style={s.closeGlyph}>✕</Text>
             </Pressable>
           </Row>

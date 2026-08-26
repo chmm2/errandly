@@ -15,6 +15,7 @@ import {
   Title,
 } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
+import { goBack } from "../../src/lib/nav";
 import { colors, font, radius, space } from "../../src/theme";
 
 const MIN_PASSWORD = 8; // must match RegisterRequest/ResetPasswordRequest on the backend
@@ -88,7 +89,7 @@ export default function Forgot() {
   return (
     <Screen scroll>
       <Pressable
-        onPress={() => (step === "reset" ? setStep("email") : router.back())}
+        onPress={() => (step === "reset" ? setStep("email") : goBack(router, "login"))}
         style={s.back}
         hitSlop={12}
       >

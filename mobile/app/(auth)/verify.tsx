@@ -15,6 +15,7 @@ import {
   Title,
 } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
+import { goBack } from "../../src/lib/nav";
 import { useAuth } from "../../src/stores/auth";
 import { colors, font, radius, space } from "../../src/theme";
 
@@ -63,7 +64,7 @@ export default function Verify() {
 
   return (
     <Screen scroll>
-      <Pressable onPress={() => router.back()} style={s.back} hitSlop={12}>
+      <Pressable onPress={() => goBack(router, "login")} style={s.back} hitSlop={12}>
         <Text style={s.backGlyph}>←</Text>
       </Pressable>
 

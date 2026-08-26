@@ -5,6 +5,7 @@ import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } fro
 import { register } from "../../src/api/auth";
 import { Body, Button, Caption, ErrorNote, Field, Row, Screen, Title } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
+import { goBack } from "../../src/lib/nav";
 import { colors, font, radius, space } from "../../src/theme";
 
 export default function Register() {
@@ -55,7 +56,7 @@ export default function Register() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <Screen scroll>
-        <Pressable onPress={() => router.back()} style={s.back} hitSlop={12}>
+        <Pressable onPress={() => goBack(router, "login")} style={s.back} hitSlop={12}>
           <Text style={s.backGlyph}>←</Text>
         </Pressable>
 

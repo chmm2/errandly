@@ -16,6 +16,7 @@ import {
   Screen,
 } from "../src/components/ui";
 import { useSocket } from "../src/lib/ws";
+import { goBack } from "../src/lib/nav";
 import { colors, font, space, timeAgo } from "../src/theme";
 
 /** Map notification types onto the same glyphs the rest of the app uses. */
@@ -62,7 +63,7 @@ export default function Notifications() {
     >
       <Hero
         compact
-        onBack={() => router.back()}
+        onBack={() => goBack(router)}
         title="Notifications"
         subtitle={
           data?.unread ? `${data.unread} unread` : "Updates on your errands land here."

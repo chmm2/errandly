@@ -22,6 +22,7 @@ import {
 } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
 import { confirm, notify } from "../../src/lib/dialog";
+import { goBack } from "../../src/lib/nav";
 import { colors, font, radius, rupees, shadow, space } from "../../src/theme";
 
 const DEFAULT_REWARD = 20;
@@ -123,7 +124,7 @@ export default function VendorMenu() {
     <Screen padded={false}>
       <View style={{ flex: 1 }}>
         <Screen scroll padded={false} edges={[]}>
-          <Hero compact onBack={() => router.back()} title={data.vendor.name} subtitle={data.vendor.description ?? undefined}>
+          <Hero compact onBack={() => goBack(router)} title={data.vendor.name} subtitle={data.vendor.description ?? undefined}>
             <View style={{ marginTop: space.md, alignSelf: "flex-start" }}>
               <Pill
                 label={data.vendor.is_open ? "● Open now" : "Closed"}

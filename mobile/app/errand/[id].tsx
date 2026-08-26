@@ -39,6 +39,7 @@ import {
 import { apiErrorMessage } from "../../src/lib/api";
 import { confirm, notify } from "../../src/lib/dialog";
 import { useSocket } from "../../src/lib/ws";
+import { goBack } from "../../src/lib/nav";
 import { useAuth } from "../../src/stores/auth";
 import {
   categoryIcon,
@@ -164,7 +165,7 @@ export default function ErrandDetail() {
   if (isError || (!isLoading && !errand)) {
     return (
       <Screen>
-        <Pressable onPress={() => router.back()} style={s.backBtn} hitSlop={12}>
+        <Pressable onPress={() => goBack(router)} style={s.backBtn} hitSlop={12}>
           <Text style={s.backGlyph}>←</Text>
         </Pressable>
         <EmptyState
@@ -201,7 +202,7 @@ export default function ErrandDetail() {
 
   return (
     <Screen scroll padded={false}>
-      <Hero compact onBack={() => router.back()} title={errand.title}>
+      <Hero compact onBack={() => goBack(router)} title={errand.title}>
         <Row gap={space.md} style={{ marginTop: space.md }} wrap>
           <Text style={s.reward}>{rupees(errand.reward)}</Text>
           <Text style={s.rewardLabel}>reward</Text>
