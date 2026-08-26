@@ -21,6 +21,8 @@ dependencies = [
     "motor==3.6.0",
     # Expo push delivery — the OS-banner half of notifications.
     "httpx==0.28.1",
+    # Social graph (derived read model; see modules/social).
+    "neo4j==5.27.0",
 ]
 
 [project.optional-dependencies]

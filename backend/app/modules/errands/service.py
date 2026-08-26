@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -21,7 +22,10 @@ from app.modules.errands.schemas import ErrandCreate
 from app.modules.outbox import service as outbox
 from app.modules.runners import service as runners_service
 from app.modules.runners.models import RunnerProfile
+from app.modules.social import service as social_service
 from app.modules.vendors.models import MenuItem, Vendor
+
+logger = logging.getLogger(__name__)
 
 ACCEPT_LOCK_PREFIX = "errand:accept:"
 ACCEPT_LOCK_TTL_SECONDS = 10
@@ -31,6 +35,11 @@ STATUS_CHANNEL_PREFIX = "errand:status:"
 OFFER_CHANNEL_PREFIX = "runner:offers:"
 OFFER_RADIUS_M = 3000
 OFFER_FANOUT = 5
+
+# Social distance an errand is first offered within: friends and
+# friends-of-friends. Wide enough that a student with a handful of friends has
+# real coverage, narrow enough that "someone you know" still means something.
+SOCIAL_TIER_1_HOPS = 2
 
 # (from_status, to_status) — anything not listed is an illegal transition.
 ALLOWED_TRANSITIONS = {
@@ -152,8 +161,20 @@ async def _offer_to_nearby_runners(
     redis: Redis,
     errand: Errand,
     exclude_runner: uuid.UUID | None = None,
+    max_hops: int | None = None,
 ) -> int:
     """Push an offer to the nearest available runners (Redis GEO + pub/sub).
+
+    `max_hops` restricts the offer to runners within that social distance of
+    the requester. This is what makes social matching mean anything: every
+    candidate is published to in the same loop, milliseconds apart, so merely
+    *sorting* by trust would leave a free-for-all race that the nearest
+    stranger usually wins. Withholding the offer from strangers for a while is
+    the only thing that actually gives someone you know first refusal.
+
+    Returns 0 when nobody is within `max_hops` — the caller decides whether to
+    widen immediately (a student with no friends yet must not be stranded) or
+    let the scheduler escalate on a timer.
 
     Uses the drop point as the anchor — 'a runner already heading that way'.
     Best-effort: if Redis GEO is empty the errand still sits in the feed.
@@ -173,6 +194,14 @@ async def _offer_to_nearby_runners(
     )
     if exclude_runner:
         nearby = [(rid, dist) for rid, dist in nearby if rid != exclude_runner][:OFFER_FANOUT]
+
+    nearby = await _rank_by_social_trust(errand.requester_id, nearby)
+
+    if max_hops is not None:
+        nearby = await _within_hops(errand.requester_id, nearby, max_hops)
+        if not nearby:
+            return 0
+
     payload = {
         "type": "offer",
         "errand_id": str(errand.id),
@@ -184,6 +213,74 @@ async def _offer_to_nearby_runners(
         payload["distance_m"] = round(distance_m)
         await redis.publish(f"{OFFER_CHANNEL_PREFIX}{runner_id}", json.dumps(payload))
     return len(nearby)
+
+
+# How much social trust can outweigh distance. At 1500 a direct friend
+# (trust 1.0) beats a stranger who is up to 1.5km closer, while a 3-hop
+# acquaintance (trust ~0.2) only wins ties inside ~300m. Tuned so the graph
+# reorders realistic candidate sets without ever sending an errand across
+# campus to reach a friend.
+SOCIAL_WEIGHT_M = 1500.0
+
+
+async def _rank_by_social_trust(
+    requester_id: uuid.UUID, nearby: list[tuple[uuid.UUID, float]]
+) -> list[tuple[uuid.UUID, float]]:
+    """Reorder spatial candidates so socially-closer runners are offered first.
+
+    Candidate *generation* stays purely spatial — the graph never widens the
+    set, it only reorders it, so a well-connected student cannot pull errands
+    from across campus. Ranking is by effective distance:
+
+        effective = distance_m − trust × SOCIAL_WEIGHT_M
+
+    If the graph is unavailable `social_scores` returns {}, every candidate
+    scores 0, and this degrades to exactly the distance ordering Redis gave us.
+    That is the intended failure mode: matching gets worse, never broken.
+    """
+    if len(nearby) < 2:
+        return nearby
+    try:
+        scores = await social_service.social_scores(requester_id, [rid for rid, _ in nearby])
+    except Exception:
+        logger.warning("social ranking unavailable; using distance order", exc_info=True)
+        return nearby
+    if not scores:
+        return nearby
+
+    def effective(item: tuple[uuid.UUID, float]) -> float:
+        runner_id, distance_m = item
+        trust = scores.get(runner_id, {}).get("trust", 0.0)
+        return distance_m - trust * SOCIAL_WEIGHT_M
+
+    ranked = sorted(nearby, key=effective)
+    friends = sum(1 for rid, _ in ranked if scores.get(rid, {}).get("hops") == 1)
+    logger.info(
+        "social ranking: %d/%d candidates connected (%d direct friends)",
+        len(scores),
+        len(nearby),
+        friends,
+    )
+    return ranked
+
+
+async def _within_hops(
+    requester_id: uuid.UUID, nearby: list[tuple[uuid.UUID, float]], max_hops: int
+) -> list[tuple[uuid.UUID, float]]:
+    """Keep only candidates within `max_hops` friendship hops of the requester.
+
+    Returns the list unfiltered when the graph is unavailable. Failing open is
+    deliberate: a graph outage should make matching less socially targeted, not
+    stop errands from being offered at all.
+    """
+    try:
+        scores = await social_service.social_scores(requester_id, [rid for rid, _ in nearby])
+    except Exception:
+        logger.warning("hop filter unavailable; offering to all candidates", exc_info=True)
+        return nearby
+    if not scores:
+        return []
+    return [(rid, d) for rid, d in nearby if scores.get(rid, {}).get("hops", 99) <= max_hops]
 
 
 async def _attach_secret_flags(db: AsyncSession, errands: list[Errand]) -> None:
@@ -329,9 +426,19 @@ async def create_errand(db: AsyncSession, redis: Redis, user: User, data: Errand
     await db.commit()
     await db.refresh(errand)
 
-    offered = await _offer_to_nearby_runners(db, redis, errand)
+    # Tier 1: friends and friends-of-friends only. The scheduler widens this on
+    # a timer (see SOCIAL_TIERS in workers/consumers.py) so nobody waits long.
+    offered = await _offer_to_nearby_runners(db, redis, errand, max_hops=SOCIAL_TIER_1_HOPS)
+    tier = 1
+    if not offered:
+        # Nobody you know is nearby — or you have no friends yet, which is every
+        # student on day one. Falling straight through to an open offer matters
+        # more than the social preference does: an errand nobody sees is worse
+        # than an errand a stranger takes.
+        offered = await _offer_to_nearby_runners(db, redis, errand)
+        tier = 0
     if offered:
-        _record(db, errand, None, "OFFERED", {"runners": offered})
+        _record(db, errand, None, "OFFERED", {"runners": offered, "social_tier": tier})
         await db.commit()
 
     errand.has_handoff_secret = data.otp is not None
