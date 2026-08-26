@@ -1,5 +1,6 @@
-"""Seed the full demo cast: campus, two students, an admin, and a vendor
-with a real menu — so a fresh clone is demoable immediately.
+"""Seed the full demo cast: campus, two students, an admin, a vendor with a
+real menu, and campus reference prices — so a fresh clone is demoable
+immediately.
 
 Run:  docker compose exec backend python -m app.seed
 Idempotent — safe to run repeatedly.
@@ -9,16 +10,24 @@ Accounts created (all pre-approved):
   student  priya.runner@vitstudent.ac.in   / password123
   admin    admin@vitstudent.ac.in          / password123
   vendor   foodys@errandlyvendors.in       / vendorpass123   (Foodys Express)
+
+The cast, vendor and menu come from the shared dev seed; this branch adds the
+campus reference prices and the starting wallet balances that escrow needs.
 """
 
 import asyncio
+from decimal import Decimal
 
 from sqlalchemy import select
 
+import app.models  # noqa: F401 — register ALL mappers; the ledger FKs reach errands
 from app.core.database import SessionLocal
 from app.core.security import hash_password
 from app.modules.auth.models import AuthCredential, User
 from app.modules.campus.models import Campus
+from app.modules.fraud.models import ReferencePrice
+from app.modules.fraud.normalize import normalize
+from app.modules.ledger import service as ledger
 from app.modules.vendors.models import MenuItem, Vendor
 
 DEFAULT_CAMPUS = "VIT Vellore"
@@ -37,6 +46,23 @@ MENU = [
     ("Drinks", "Fresh Lime Juice", 25),
     ("Drinks", "Cold Coffee", 40),
 ]
+
+# Non-MRP items a runner might front cash for. Bands are deliberately generous:
+# an admin widening a band later is routine, but a band set too tight flags
+# honest runners on day one, and that is the expensive mistake.
+#   (display name, typical, band min, band max)
+REFERENCE_PRICES = [
+    ("Chicken Puff", 20, 15, 30),
+    ("Veg Puff", 15, 10, 25),
+    ("Masala Tea", 10, 6, 18),
+    ("Samosa", 15, 10, 25),
+    ("Veg Sandwich", 35, 25, 50),
+    ("Cold Coffee", 40, 30, 60),
+]
+
+# Every student starts with wallet credit — orders escrow money up front, so a
+# demo account with an empty wallet cannot place a single errand.
+STARTING_BALANCE = Decimal("1000")
 
 
 async def _ensure_user(db, campus_id, *, email, name, role="STUDENT",
@@ -67,8 +93,10 @@ async def seed() -> None:
             await db.flush()
             print(f"created campus: {campus.name}")
 
-        for student_id, email, name in STUDENTS:
-            await _ensure_user(db, campus.id, email=email, name=name, student_id=student_id)
+        students = [
+            await _ensure_user(db, campus.id, email=email, name=name, student_id=sid)
+            for sid, email, name in STUDENTS
+        ]
 
         await _ensure_user(
             db, campus.id,
@@ -95,6 +123,38 @@ async def seed() -> None:
             for section, name, price in MENU:
                 db.add(MenuItem(vendor_id=vendor.id, section=section, name=name, price=price))
             print(f"created vendor: {vendor.name} with {len(MENU)} menu items")
+
+        created = 0
+        for display_name, price, lo, hi in REFERENCE_PRICES:
+            item_key = normalize(display_name)
+            existing = await db.scalar(
+                select(ReferencePrice).where(
+                    ReferencePrice.campus_id == campus.id,
+                    ReferencePrice.item_key == item_key,
+                )
+            )
+            if existing is None:
+                db.add(
+                    ReferencePrice(
+                        campus_id=campus.id,
+                        item_key=item_key,
+                        display_name=display_name,
+                        reference_price=Decimal(price),
+                        band_min=Decimal(lo),
+                        band_max=Decimal(hi),
+                        source="ADMIN",
+                    )
+                )
+                created += 1
+        if created:
+            print(f"created {created} campus reference price(s)")
+
+        # Top up only wallets that are empty, so re-running the seed never
+        # quietly inflates a balance you were using to test a spend.
+        for student in students:
+            if await ledger.balance(db, student.id) <= 0:
+                await ledger.topup(db, student.id, STARTING_BALANCE, memo="Demo credit")
+                print(f"funded {student.email} with ₹{STARTING_BALANCE}")
 
         await db.commit()
         print("seed complete.")
