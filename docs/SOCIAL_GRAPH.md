@@ -306,10 +306,12 @@ working when Neo4j is down.
 - ~~**Nothing reads `PAID` edges.**~~ Done: `modules/fraud/collusion.py`.
 - ~~**No money-flow term in `closure_penalty`.**~~ Done, plus a `_direct_penalty()`
   for the one-hop case the original could not reach.
-- **No integrity gating.** The deck's O2 says "gate out integrity-flagged
-  runners". There is no flag, no event, and no filter. Suggested shape: a
-  `RunnerFlagged` / `IntegrityCleared` event → a property on `(:User)` or an
-  edge weight → filter in `_within_hops` or `_rank_with_scores`.
+- ~~**No integrity gating.**~~ Done — see `docs/HANDOFF-fraud-gating.md`. Not
+  the shape suggested here: no graph property and no hard filter. An open flag
+  became a fourth term in `_rank_with_scores` (metres, capped), plus one narrow
+  refusal to re-pair a requester with someone they share an open
+  `COLLUSION_RING` with. Unreviewed suspicion demotes; only a human suspends.
+  The `None` vs `{}` rule in §6 is preserved.
 - **No GDS plugin.** Deliberately not installed: it downloads at container
   boot, so an offline start would fail the whole stack. `degree` and `closure`
   are plain Cypher. **Louvain community detection needs it** — add
@@ -424,9 +426,10 @@ friends, and 1.0 would erase them from matching entirely.
 
 ### Still open
 
-- **Integrity gating** (§8) is still not done — flags exist now, but nothing
-  filters a flagged runner out of a candidate set. The `None` vs `{}` rule in
-  `_safe_scores()` is preserved and should stay that way when it lands.
+- ~~**Integrity gating** (§8) is still not done.~~ Landed — see
+  `docs/HANDOFF-fraud-gating.md`. The dyad block reads the `members` list on
+  `COLLUSION_RING` flags, so it inherits the 3-cycle limit below exactly: a
+  4-member ring with no triangle raises no flag and therefore gates nothing.
 - **Rings larger than 3.** The cycle search is a 3-cycle. A 4+ member ring is
   found only if it contains a triangle. GDS would be the honest tool here.
 - **Constants untuned**, same caveat as §8.
