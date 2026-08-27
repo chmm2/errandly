@@ -34,6 +34,7 @@ from app.modules.analytics.models import DailyStat
 from app.modules.campus.models import Campus
 from app.modules.errands.models import Errand, ErrandEvent
 from app.modules.fraud import collusion
+from app.modules.fraud import integrity as fraud_integrity
 from app.modules.fraud import service as fraud
 from app.modules.ledger import service as ledger
 from app.modules.notifications import service as notifications
@@ -333,12 +334,22 @@ async def _offer_tier(db, errand, max_hops: int | None, radius_m: int) -> int:
         limit=BROADEN_FANOUT,
         exclude=errand.requester_id,
     )
-    scores = await errands_service._safe_scores(
-        errand.requester_id, [rid for rid, _ in nearby]
+    # The escalation tiers gate exactly as the first offer does. Skipping it
+    # here would leave the whole thing bypassable by waiting: a flagged runner
+    # simply collects the broadened offer a tier later instead.
+    co_ringed = await fraud_integrity.co_ringed_with(
+        db, errand.requester_id, [rid for rid, _ in nearby]
     )
+    if co_ringed:
+        nearby = [(rid, dist) for rid, dist in nearby if rid not in co_ringed]
+
+    candidate_ids = [rid for rid, _ in nearby]
+    scores = await errands_service._safe_scores(errand.requester_id, candidate_ids)
     if max_hops is not None and scores is not None:
         nearby = [(r, d) for r, d in nearby if scores.get(r, {}).get("hops", 99) <= max_hops]
-    nearby = errands_service._rank_with_scores(nearby, scores)
+        candidate_ids = [rid for rid, _ in nearby]
+    penalties = await fraud_integrity.penalties(db, candidate_ids)
+    nearby = errands_service._rank_with_scores(nearby, scores, None, penalties)
 
     payload = {
         "type": "offer",

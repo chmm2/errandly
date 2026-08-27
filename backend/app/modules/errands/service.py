@@ -20,6 +20,7 @@ from app.modules.errands.models import (
     Rating,
 )
 from app.modules.errands.schemas import ErrandCreate
+from app.modules.fraud import integrity as fraud_integrity
 from app.modules.fraud import reputation as fraud_reputation
 from app.modules.ledger import service as ledger
 from app.modules.outbox import service as outbox
@@ -198,9 +199,27 @@ async def _offer_to_nearby_runners(
     if exclude_runner:
         nearby = [(rid, dist) for rid, dist in nearby if rid != exclude_runner][:OFFER_FANOUT]
 
-    scores = await _safe_scores(errand.requester_id, [rid for rid, _ in nearby])
-    reputations = await _reputations(db, [rid for rid, _ in nearby])
-    nearby = _rank_with_scores(nearby, scores, reputations)
+    candidate_ids = [rid for rid, _ in nearby]
+
+    # Don't re-pair a requester with someone they share an open collusion ring
+    # with. Narrow on purpose: neither person is excluded from anything else,
+    # and both keep taking work from the rest of campus at a rank cost only.
+    # None means the lookup failed, and excludes nobody.
+    co_ringed = await fraud_integrity.co_ringed_with(db, errand.requester_id, candidate_ids)
+    if co_ringed:
+        nearby = [(rid, dist) for rid, dist in nearby if rid not in co_ringed]
+        if not nearby:
+            logger.info(
+                "errand %s: every nearby runner shares an open ring with the requester",
+                errand.id,
+            )
+            return 0
+        candidate_ids = [rid for rid, _ in nearby]
+
+    scores = await _safe_scores(errand.requester_id, candidate_ids)
+    reputations = await _reputations(db, candidate_ids)
+    penalties = await fraud_integrity.penalties(db, candidate_ids)
+    nearby = _rank_with_scores(nearby, scores, reputations, penalties)
 
     if max_hops is not None and scores is not None:
         nearby = [(r, d) for r, d in nearby if scores.get(r, {}).get("hops", 99) <= max_hops]
@@ -263,16 +282,23 @@ def _rank_with_scores(
     nearby: list[tuple[uuid.UUID, float]],
     scores: dict | None,
     reputations: dict[uuid.UUID, float] | None = None,
+    penalties: dict[uuid.UUID, float] | None = None,
 ) -> list[tuple[uuid.UUID, float]]:
-    """Order candidates by distance, offset by social trust and by reputation.
+    """Order candidates by distance, offset by trust, reputation and standing.
 
-    Three terms, deliberately in the same unit — metres of effective distance —
+    Four terms, deliberately in the same unit — metres of effective distance —
     so their relative influence is legible rather than buried in a weighted sum
     of incomparable scales:
 
         effective = distance
                   - trust      x SOCIAL_WEIGHT_M
                   - (rep - 3.5) x REPUTATION_WEIGHT_M
+                  + open-flag penalty (see fraud/integrity.py)
+
+    The last term is the only one that adds: an unreviewed flag pushes a runner
+    down the queue and can never pull them up it. It is also the only one
+    bounded — capped so that accumulating suspicion can demote someone but
+    never quietly amount to a ban.
 
     The reputation used is the PROVENANCE-WEIGHTED one, shrunk toward neutral
     when little independent evidence backs it. That is what closes the loop the
@@ -280,17 +306,19 @@ def _rank_with_scores(
     score lowers the ranking, and the runner is genuinely offered less work.
     Before this, a flagged runner lost a star and was offered exactly as much.
     """
-    if len(nearby) < 2 or (not scores and not reputations):
+    if len(nearby) < 2 or (not scores and not reputations and not penalties):
         return nearby
 
     def effective(item: tuple[uuid.UUID, float]) -> float:
         runner_id, distance_m = item
         trust = (scores or {}).get(runner_id, {}).get("trust", 0.0)
         rep = (reputations or {}).get(runner_id, NEUTRAL_REPUTATION)
+        penalty = (penalties or {}).get(runner_id, 0.0)
         return (
             distance_m
             - trust * SOCIAL_WEIGHT_M
             - (rep - NEUTRAL_REPUTATION) * REPUTATION_WEIGHT_M
+            + penalty
         )
 
     return sorted(nearby, key=effective)
