@@ -89,6 +89,10 @@ services:
 
   backend:
     build: ./backend
+    extra_hosts:
+      # Reach a model running on the host (see LLM_PROVIDER=ollama). Docker
+      # Desktop provides this name already; a plain Linux daemon does not.
+      - "host.docker.internal:host-gateway"
     env_file:
       - ./backend/.env
     ports:
@@ -111,6 +115,10 @@ services:
   # Outbox relay: polls unpublished outbox rows, publishes to Kafka.
   relay:
     build: ./backend
+    extra_hosts:
+      # Reach a model running on the host (see LLM_PROVIDER=ollama). Docker
+      # Desktop provides this name already; a plain Linux daemon does not.
+      - "host.docker.internal:host-gateway"
     env_file:
       - ./backend/.env
     volumes:
@@ -126,6 +134,10 @@ services:
   # timetable enforcer / offer-broadening scheduler.
   workers:
     build: ./backend
+    extra_hosts:
+      # Reach a model running on the host (see LLM_PROVIDER=ollama). Docker
+      # Desktop provides this name already; a plain Linux daemon does not.
+      - "host.docker.internal:host-gateway"
     env_file:
       - ./backend/.env
     volumes:
