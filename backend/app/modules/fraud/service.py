@@ -107,6 +107,16 @@ STORE_MIN_RUNNERS = 3
 STORE_MAX_DRIFT = Decimal("0.60")
 
 
+def _store_label(store_key: str | None) -> str | None:
+    """The store key as a human would read it. Vendor ids stay opaque here;
+    the admin console resolves those from its own vendor list."""
+    if not store_key:
+        return None
+    if store_key.startswith("label:"):
+        return store_key[len("label:") :].title()
+    return store_key
+
+
 def store_key_for(errand) -> str | None:
     """Which outlet an errand's purchases come from.
 
@@ -547,9 +557,16 @@ async def raise_flag(
         or {
             "item": claim.item_key if claim else None,
             "claimed": float(claim.claimed_unit_price) if claim else None,
+            # The value actually judged against, which is the store-adjusted
+            # reference when that shop has a record of its own.
             "reference": float(claim.reference_snapshot)
             if claim and claim.reference_snapshot
             else None,
+            # Which shop, so an admin can tell an inflated claim from an
+            # honest one at a dearer counter. Without it they would be
+            # reviewing with strictly less information than the system used
+            # to raise the flag.
+            "store": _store_label(claim.store_key) if claim else None,
             "delta_pct": float(delta_pct),
         },
     )

@@ -134,6 +134,15 @@ function FlagCard({
                   · <span className="font-bold">+{Number(d.delta_pct).toFixed(0)}%</span>
                 </>
               )}
+              {/* Which counter this came from. The reference above is already
+                  adjusted toward what this shop is observed to charge, so
+                  naming it is what lets an admin tell an inflated claim from an
+                  honest one at a dearer stall. */}
+              {d.store && (
+                <div className="mt-1">
+                  bought at <span className="font-bold text-ink">{d.store}</span>
+                </div>
+              )}
             </div>
           )}
         </div>

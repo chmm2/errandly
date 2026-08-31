@@ -92,6 +92,9 @@ export interface Flag {
     item?: string | null;
     claimed?: number | null;
     reference?: number | null;
+    // Which shop it was bought at. The reference above is store-adjusted, so
+    // this is what makes the comparison interpretable to a reviewer.
+    store?: string | null;
     delta_pct?: number | null;
     // PERSISTENT_NEAR_THRESHOLD — the evidence is a distribution, not a price
     near_line_claims?: number;
