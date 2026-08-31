@@ -264,3 +264,57 @@ async def test_a_ring_of_users_postgres_does_not_know_is_skipped(campus):
         await db.commit()
 
     assert raised == [], "no flag may be raised against a user Postgres cannot see"
+
+
+# ----------------------------------------------- rings of any size (SCC)
+
+from app.modules.fraud.collusion import strongly_connected_components
+
+
+def _loop(n: int):
+    """n people paying each other in a closed circle."""
+    nodes = {f"n{i}" for i in range(n)}
+    edges = {f"n{i}": {f"n{(i + 1) % n}"} for i in range(n)}
+    return nodes, edges
+
+
+def test_a_ring_is_found_at_any_size():
+    """The gap this closes: detection matched a hard-coded three-hop pattern,
+    so the cost of evading the platform's strongest fraud signal was one extra
+    member. A four-person loop with no internal triangle produced nothing."""
+    for n in (3, 4, 5, 8, 20, 80):
+        nodes, edges = _loop(n)
+        found = [c for c in strongly_connected_components(nodes, edges) if len(c) >= 3]
+        assert len(found) == 1, f"ring of {n} not found"
+        assert len(found[0]) == n
+
+
+def test_money_that_does_not_come_back_is_not_a_ring():
+    """A chain drains whoever starts it, which is why it is not worth running
+    and not what we are looking for."""
+    nodes, edges = {"a", "b", "c"}, {"a": {"b"}, "b": {"c"}}
+    assert [c for c in strongly_connected_components(nodes, edges) if len(c) >= 3] == []
+
+
+def test_one_person_paying_many_is_not_a_ring():
+    """A generous requester is not a fraud ring. Their money leaves and does
+    not return."""
+    nodes = {"hub"} | {f"p{i}" for i in range(6)}
+    edges = {"hub": {f"p{i}" for i in range(6)}}
+    assert [c for c in strongly_connected_components(nodes, edges) if len(c) >= 3] == []
+
+
+def test_two_people_trading_are_not_a_ring():
+    """Below MIN_RING_SIZE on purpose: two friends who buy each other lunch
+    alternately are the most ordinary thing on a campus."""
+    nodes, edges = {"a", "b"}, {"a": {"b"}, "b": {"a"}}
+    assert [c for c in strongly_connected_components(nodes, edges) if len(c) >= 3] == []
+
+
+def test_a_long_chain_does_not_exhaust_the_stack():
+    """Tarjan here is iterative because its recursive form has depth equal to
+    the longest path, and a detector that raises RecursionError instead of
+    finding a ring is worse than one that is longer to read."""
+    nodes, edges = _loop(5000)
+    found = [c for c in strongly_connected_components(nodes, edges) if len(c) >= 3]
+    assert len(found) == 1 and len(found[0]) == 5000

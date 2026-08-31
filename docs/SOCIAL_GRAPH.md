@@ -317,10 +317,12 @@ working when Neo4j is down.
   are plain Cypher. **Louvain community detection needs it** — add
   `NEO4J_PLUGINS: '["graph-data-science"]'` to the neo4j service when you get
   there, and expect a slower first boot.
-- **No `PAID` backfill.** `social-graph-service` already committed offsets past
-  the historical `ORDER_COMPLETED` events, so edges exist only for errands
-  completed after this shipped. To rebuild, reset that consumer group's offset
-  to earliest (the projection is idempotent, so replay is safe).
+- ~~**No `PAID` backfill.**~~ Closed: `python -m app.rebuild_graph` projects
+  every accepted friendship and completed errand from Postgres. Idempotent,
+  since every write is a MERGE. This is what makes the "derived and
+  rebuildable" claim operational rather than aspirational — the graph was
+  found empty against 11 live friendships during development, and nothing
+  reported it, because every graph read degrades to a neutral value by design.
 - **No decay/aging on edges.** A friendship from a year ago weighs the same as
   one from yesterday.
 - **Constants are untuned.** `HOP_DECAY`, `CLOSURE_KNEE`, `SOCIAL_WEIGHT_M`,

@@ -490,8 +490,13 @@ hand-set constants into swept parameters.
 
 ## VII. Limitations
 
-1. **Ring detection is limited to 3-cycles.** A four-member ring without an
-   internal triangle raises no flag.
+1. ~~Ring detection is limited to 3-cycles.~~ **Closed.** Detection now filters
+   payment edges between mutual friends by value and transaction count, then
+   finds strongly connected components in what remains, so rings of any size
+   are found without enumerating paths. Verified at 3, 4, 6, 9 and 80 members
+   ✅. Filtering edges before the search rather than measuring afterwards
+   matters: a minimum taken across a whole component would let a ring hide
+   behind one deliberate token payment between two members.
 2. **Friendship is declared.** A ring whose members never friend each other is
    invisible to every social mechanism here. They forfeit dispatch preference,
    but escape the discount entirely.

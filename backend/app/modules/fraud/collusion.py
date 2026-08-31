@@ -125,49 +125,81 @@ SET u.paid_value     = total_value,
         ELSE internal_value / total_value END
 """
 
-# Directed 3-cycles of PAID edges where all three are mutual friends.
-#
-# `a.id < b.id AND a.id < c.id` keeps one representative per cycle instead of
-# all three rotations. The reverse cycle (a→c→b→a) is deliberately NOT deduped
-# against this one: money going both ways round a triangle is a stronger
-# signal, not a duplicate of the same finding.
-FIND_RINGS = """
-MATCH (a:User)-[:PAID]->(b:User)-[:PAID]->(c:User)-[:PAID]->(a)
-WHERE a.id < b.id AND a.id < c.id
-  AND (a)-[:FRIEND]-(b) AND (b)-[:FRIEND]-(c) AND (c)-[:FRIEND]-(a)
-// Collapse to the distinct triangle FIRST. Matching all three legs in one
-// pattern yields every combination of them, so aggregating there multiplies
-// each leg's value by the number of combinations — 4 laps became 64 payments.
-// Each leg has to be summed on its own.
-WITH DISTINCT a, b, c
-CALL (a, b) {
-  MATCH (a)-[p:PAID]->(b)
-  RETURN sum(coalesce(p.amount, 0.0)) AS v1, count(DISTINCT p.errand_id) AS n1
-}
-CALL (b, c) {
-  MATCH (b)-[p:PAID]->(c)
-  RETURN sum(coalesce(p.amount, 0.0)) AS v2, count(DISTINCT p.errand_id) AS n2
-}
-CALL (c, a) {
-  MATCH (c)-[p:PAID]->(a)
-  RETURN sum(coalesce(p.amount, 0.0)) AS v3, count(DISTINCT p.errand_id) AS n3
-}
-WITH a, b, c, v1, v2, v3,
-     // Laps = how many complete circuits the money could have made. The
-     // narrowest leg is the bottleneck, so that is the honest count.
-     CASE WHEN n1 < n2 AND n1 < n3 THEN n1 WHEN n2 < n3 THEN n2 ELSE n3 END AS laps,
-     CASE WHEN v1 < v2 AND v1 < v3 THEN v1 WHEN v2 < v3 THEN v2 ELSE v3 END AS min_leg
-WHERE laps >= $min_laps AND min_leg >= $min_leg_value
-RETURN [a.id, b.id, c.id]       AS members,
-       [a.name, b.name, c.name] AS names,
-       v1 + v2 + v3             AS total_value,
-       laps                     AS laps,
-       min_leg                  AS min_leg_value,
-       (coalesce(a.closure, 0.0) + coalesce(b.closure, 0.0)
-        + coalesce(c.closure, 0.0)) / 3.0 AS closure
-ORDER BY total_value DESC
-LIMIT 50
+# Every PAID edge between two mutual friends, collapsed to one row per ordered
+# pair. Cycle-finding happens in Python over this edge list rather than in
+# Cypher, because a fixed-length pattern can only ever find fixed-length rings
+# and the cost of evading one is a single extra member. See find_rings.
+FRIEND_PAYMENT_EDGES = """
+MATCH (a:User)-[p:PAID]->(b:User)
+WHERE (a)-[:FRIEND]-(b)
+RETURN a.id AS src, b.id AS dst,
+       a.name AS src_name, b.name AS dst_name,
+       sum(coalesce(p.amount, 0.0))    AS value,
+       count(DISTINCT p.errand_id)     AS txns,
+       coalesce(a.closure, 0.0)        AS src_closure
 """
+
+# The previous implementation matched a hard-coded three-hop Cypher pattern.
+# It is in git history if the contrast is ever useful; see find_rings for why
+# a fixed-length pattern cannot work here.
+
+
+def strongly_connected_components(
+    nodes: set[str], edges: dict[str, set[str]]
+) -> list[set[str]]:
+    """Tarjan's algorithm. Every component of size >= 2 contains a cycle.
+
+    Iterative rather than recursive: the recursive form is shorter, but its
+    depth is the length of the longest path in the graph, and a campus graph
+    can exceed Python's default limit on a bad day. A detector that raises
+    RecursionError instead of finding a ring is worse than one that is slightly
+    longer to read.
+    """
+    index: dict[str, int] = {}
+    low: dict[str, int] = {}
+    on_stack: set[str] = set()
+    stack: list[str] = []
+    result: list[set[str]] = []
+    counter = 0
+
+    for root in nodes:
+        if root in index:
+            continue
+        # (node, iterator over its successors)
+        work: list[tuple[str, list[str]]] = [(root, list(edges.get(root, ())))]
+        index[root] = low[root] = counter
+        counter += 1
+        stack.append(root)
+        on_stack.add(root)
+
+        while work:
+            node, successors = work[-1]
+            if successors:
+                nxt = successors.pop()
+                if nxt not in index:
+                    index[nxt] = low[nxt] = counter
+                    counter += 1
+                    stack.append(nxt)
+                    on_stack.add(nxt)
+                    work.append((nxt, list(edges.get(nxt, ()))))
+                elif nxt in on_stack:
+                    low[node] = min(low[node], index[nxt])
+            else:
+                work.pop()
+                if work:
+                    parent = work[-1][0]
+                    low[parent] = min(low[parent], low[node])
+                if low[node] == index[node]:
+                    component: set[str] = set()
+                    while True:
+                        member = stack.pop()
+                        on_stack.discard(member)
+                        component.add(member)
+                        if member == node:
+                            break
+                    if len(component) > 1:
+                        result.append(component)
+    return result
 
 
 async def refresh_circulation() -> None:
@@ -189,34 +221,95 @@ async def refresh_circulation() -> None:
 
 
 async def find_rings() -> list[Ring]:
-    """Closed money cycles among mutual friends.
+    """Closed money cycles among mutual friends, of any size.
+
+    Previously this matched a hard-coded three-hop pattern, which made the cost
+    of evading the platform's strongest fraud signal exactly one extra member:
+    a four-person loop with no internal triangle produced nothing. That matters
+    more since rating provenance began counting distinct raters, because the
+    cheapest way to defeat *that* is to recruit breadth — which requires a
+    larger ring, landing the attacker precisely in the old blind spot.
+
+    Method: keep only payment edges between mutual friends that individually
+    carry enough money and enough separate errands, then look for strongly
+    connected components in what remains. Every component of size >= 2 contains
+    a cycle by definition, so this finds loops of any length without
+    enumerating paths.
+
+    Filtering edges BEFORE the search rather than measuring afterwards is the
+    part that matters. Taking a minimum across a whole component would let a
+    ring hide behind one deliberate ₹1 payment between two of its members,
+    dragging the bottleneck under the threshold. An edge that does not qualify
+    is simply not part of the ring.
 
     Returns [] when the graph is silent — `run_read` swallows failures by
-    design. That is the safe direction here: a graph outage must not manufacture
-    accusations, and the worst case is that detection pauses until it recovers.
+    design. That is the safe direction: an outage must not manufacture
+    accusations.
     """
-    rows = await run_read(
-        FIND_RINGS, min_laps=MIN_RING_LAPS, min_leg_value=MIN_RING_LEG_VALUE
-    )
-    rings: list[Ring] = []
+    rows = await run_read(FRIEND_PAYMENT_EDGES)
+    if not rows:
+        return []
+
+    nodes: set[str] = set()
+    adjacency: dict[str, set[str]] = {}
+    edge_value: dict[tuple[str, str], float] = {}
+    edge_txns: dict[tuple[str, str], int] = {}
+    names: dict[str, str] = {}
+    closures: dict[str, float] = {}
+
     for r in rows:
+        src, dst = r.get("src"), r.get("dst")
+        if not src or not dst or src == dst:
+            continue
+        value = float(r.get("value") or 0.0)
+        txns = int(r.get("txns") or 0)
+        # An edge only counts toward a ring if it is substantial on its own.
+        if value < MIN_RING_LEG_VALUE or txns < MIN_RING_LAPS:
+            continue
+        nodes.update((src, dst))
+        adjacency.setdefault(src, set()).add(dst)
+        edge_value[(src, dst)] = value
+        edge_txns[(src, dst)] = txns
+        names[src] = r.get("src_name") or "?"
+        names[dst] = r.get("dst_name") or "?"
+        closures[src] = float(r.get("src_closure") or 0.0)
+
+    rings: list[Ring] = []
+    for component in strongly_connected_components(nodes, adjacency):
+        if len(component) < MIN_RING_SIZE:
+            continue
+        internal = [
+            (a, b)
+            for (a, b) in edge_value
+            if a in component and b in component
+        ]
+        if not internal:
+            continue
         try:
-            members = tuple(uuid.UUID(m) for m in r["members"] if m)
+            members = tuple(uuid.UUID(m) for m in sorted(component))
         except (ValueError, TypeError):
             continue
-        if len(members) < MIN_RING_SIZE:
-            continue
+
+        member_closures = [closures.get(m, 0.0) for m in component]
         rings.append(
             Ring(
                 members=members,
-                names=tuple(n or "?" for n in (r.get("names") or [])),
-                total_value=float(r.get("total_value") or 0.0),
-                laps=int(r.get("laps") or 0),
-                min_leg_value=float(r.get("min_leg_value") or 0.0),
-                closure=float(r.get("closure") or 0.0),
+                names=tuple(names.get(m, "?") for m in sorted(component)),
+                total_value=sum(edge_value[e] for e in internal),
+                # The narrowest leg is the bottleneck: money cannot go round
+                # more times than the thinnest hop allows.
+                laps=min(edge_txns[e] for e in internal),
+                min_leg_value=min(edge_value[e] for e in internal),
+                closure=(
+                    sum(member_closures) / len(member_closures)
+                    if member_closures
+                    else 0.0
+                ),
             )
         )
-    return rings
+
+    rings.sort(key=lambda r: r.total_value, reverse=True)
+    return rings[:50]
 
 
 async def circulation_for(user_ids: list[uuid.UUID]) -> dict[uuid.UUID, float]:
