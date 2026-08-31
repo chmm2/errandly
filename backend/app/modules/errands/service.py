@@ -354,6 +354,7 @@ def _terms_for(
     scores: dict | None,
     reputations: dict[uuid.UUID, float] | None,
     penalties: dict[uuid.UUID, float] | None,
+    apply_trust: bool = True,
 ) -> dict[str, Any]:
     """The four terms behind one candidate's rank, and their sum.
 
@@ -361,6 +362,13 @@ def _terms_for(
     stores the whole dict. Were the log to recompute the formula separately the
     two would drift, and a counterfactual built on a stale copy of the ranking
     rule is worse than no counterfactual at all.
+
+    `apply_trust` is False on an exploring round, where the social term is
+    deliberately not applied. `trust` is still recorded — what the graph thought
+    is worth keeping even when the round declined to act on it — but it is left
+    out of `effective`, which must always be the score that actually decided the
+    order. A log whose score disagrees with the ordering it claims to explain is
+    worse than no log.
     """
     social = (scores or {}).get(runner_id) or {}
     trust = float(social.get("trust", 0.0))
@@ -370,12 +378,13 @@ def _terms_for(
         "runner_id": str(runner_id),
         "distance_m": round(float(distance_m), 1),
         "trust": round(trust, 4),
+        "trust_applied": apply_trust,
         "hops": social.get("hops"),
         "reputation": round(rep, 3),
         "penalty": round(penalty, 1),
         "effective": round(
             float(distance_m)
-            - trust * SOCIAL_WEIGHT_M
+            - (trust * SOCIAL_WEIGHT_M if apply_trust else 0.0)
             - (rep - NEUTRAL_REPUTATION) * REPUTATION_WEIGHT_M
             + penalty,
             1,
@@ -447,7 +456,14 @@ async def _record_offer_log(
                     exploring=exploring,
                     candidates=[
                         {
-                            **_terms_for(rid, dist, scores, reputations, penalties),
+                            **_terms_for(
+                                rid,
+                                dist,
+                                scores,
+                                reputations,
+                                penalties,
+                                apply_trust=not exploring,
+                            ),
                             "rank": i,
                         }
                         for i, (rid, dist) in enumerate(ranked)

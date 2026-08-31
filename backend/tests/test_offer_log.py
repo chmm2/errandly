@@ -77,7 +77,8 @@ def test_every_term_is_stored_not_just_the_verdict():
     rid = uuid.uuid4()
     terms = _terms_for(rid, 500.0, {rid: {"trust": 1.0, "hops": 2}}, {rid: 4.0}, {rid: 30.0})
     assert set(terms) == {
-        "runner_id", "distance_m", "trust", "hops", "reputation", "penalty", "effective"
+        "runner_id", "distance_m", "trust", "trust_applied", "hops",
+        "reputation", "penalty", "effective",
     }
     # The counterfactual is recomputable from what was kept.
     assert terms["effective"] - (-terms["trust"] * SOCIAL_WEIGHT_M) == pytest.approx(
@@ -280,6 +281,7 @@ async def test_an_exploring_round_ignores_friendship_and_says_so(client, make_us
     dists = [c["distance_m"] for c in row.candidates]
     assert dists == sorted(dists)
     for c in row.candidates:
+        assert c["trust_applied"] is False
         assert c["effective"] == pytest.approx(
             c["distance_m"] - (c["reputation"] - NEUTRAL_REPUTATION) * 800.0 + c["penalty"]
         ), "no social term may appear in an exploring round's score"
@@ -299,3 +301,26 @@ async def test_an_ordinary_round_is_not_marked_as_a_control(client, make_user, m
     errand_id = uuid.UUID(created.json()["id"])
 
     assert (await _logs_for(errand_id))[0].exploring is False
+
+
+def test_an_exploring_round_records_the_score_that_actually_ordered_it():
+    """The bug this pins: `trust` is still recorded on an exploring round — the
+    graph's opinion is worth keeping — but it must be left OUT of `effective`.
+
+    Logging the boosted score for a round that was ranked without the boost
+    makes the log disagree with the ordering it claims to explain, and every
+    later estimate would inherit that lie.
+    """
+    rid = uuid.uuid4()
+    boosted = _terms_for(rid, 900.0, {rid: {"trust": 1.0, "hops": 1}}, None, None)
+    blind = _terms_for(
+        rid, 900.0, {rid: {"trust": 1.0, "hops": 1}}, None, None, apply_trust=False
+    )
+
+    assert boosted["effective"] == pytest.approx(900.0 - SOCIAL_WEIGHT_M)
+    assert blind["effective"] == pytest.approx(900.0), "no social term may survive"
+
+    # What the graph reported is retained in both cases.
+    assert boosted["trust"] == blind["trust"] == 1.0
+    assert boosted["trust_applied"] is True
+    assert blind["trust_applied"] is False
