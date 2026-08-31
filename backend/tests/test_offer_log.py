@@ -17,6 +17,7 @@ import uuid
 import pytest
 from sqlalchemy import select
 
+from app.core.config import settings
 from app.core.database import SessionLocal
 from app.core.redis import redis_client
 from app.modules.errands.models import Errand, OfferLog
@@ -25,6 +26,7 @@ from app.modules.errands.service import (
     SOCIAL_WEIGHT_M,
     _offer_to_nearby_runners,
     _terms_for,
+    should_explore,
 )
 
 async_test = pytest.mark.asyncio(loop_scope="session")
@@ -212,3 +214,88 @@ async def test_a_logging_failure_never_costs_an_errand(client, make_user, monkey
     # And the errand is genuinely usable, not merely created.
     accepted = await client.post(f"/errands/{errand_id}/accept", headers=runner)
     assert accepted.status_code == 200, accepted.text
+
+
+# ------------------------------------------------------------ exploration
+
+
+def test_exploration_is_off_when_the_rate_is_zero(monkeypatch):
+    """The kill switch has to be exact. Anything that still explores at 0 turns
+    a config change into a silent behaviour change nobody asked for."""
+    monkeypatch.setattr(settings, "offer_explore_rate", 0.0)
+    assert not any(should_explore() for _ in range(500))
+
+
+def test_exploration_is_certain_when_the_rate_is_one(monkeypatch):
+    monkeypatch.setattr(settings, "offer_explore_rate", 1.0)
+    assert all(should_explore() for _ in range(200))
+
+
+def test_the_rate_is_read_per_call_not_captured_at_import(monkeypatch):
+    """So it can be turned down without a deploy — and, more immediately, so
+    conftest can pin it to 0 for every other test in the suite."""
+    monkeypatch.setattr(settings, "offer_explore_rate", 1.0)
+    assert should_explore()
+    monkeypatch.setattr(settings, "offer_explore_rate", 0.0)
+    assert not should_explore()
+
+
+def test_the_observed_rate_tracks_the_configured_one(monkeypatch):
+    """Loose bounds on purpose: this asserts the dial means what it says
+    without turning a fair coin into a flaky test."""
+    monkeypatch.setattr(settings, "offer_explore_rate", 0.25)
+    hits = sum(should_explore() for _ in range(4000))
+    assert 800 < hits < 1200
+
+
+@async_test
+async def test_an_exploring_round_ignores_friendship_and_says_so(client, make_user, monkeypatch):
+    """The control group, end to end.
+
+    Trust is still recorded — the graph's opinion is worth keeping even on a
+    round that declined to act on it — but it must not have moved anybody, and
+    the row has to be marked so analysis can find it.
+    """
+    _, requester = await make_user("Requester")
+    far_id, far = await make_user("Far runner")
+    near_id, near = await make_user("Near runner")
+
+    await _available(client, far)
+    resp = await client.post(
+        "/runners/me/availability",
+        json={"is_available": True, "lat": 12.9702, "lng": 79.1569},
+        headers=near,
+    )
+    assert resp.status_code == 200, resp.text
+
+    monkeypatch.setattr(settings, "offer_explore_rate", 1.0)
+    created = await client.post("/errands", json=ERRAND_PAYLOAD, headers=requester)
+    assert created.status_code == 201, created.text
+    errand_id = uuid.UUID(created.json()["id"])
+
+    row = (await _logs_for(errand_id))[0]
+    assert row.exploring is True
+    assert row.max_hops is None, "an exploring round must not keep a hop ceiling"
+    # Ranked on distance alone: the order is exactly the distance order.
+    dists = [c["distance_m"] for c in row.candidates]
+    assert dists == sorted(dists)
+    for c in row.candidates:
+        assert c["effective"] == pytest.approx(
+            c["distance_m"] - (c["reputation"] - NEUTRAL_REPUTATION) * 800.0 + c["penalty"]
+        ), "no social term may appear in an exploring round's score"
+
+
+@async_test
+async def test_an_ordinary_round_is_not_marked_as_a_control(client, make_user, monkeypatch):
+    """The other half of the switch: exploring must never default to true, or
+    biased rounds would be counted as controls and the estimate would be worse
+    than having no control group at all."""
+    _, requester = await make_user("Requester")
+    _, runner = await make_user("Runner")
+    await _available(client, runner)
+
+    monkeypatch.setattr(settings, "offer_explore_rate", 0.0)
+    created = await client.post("/errands", json=ERRAND_PAYLOAD, headers=requester)
+    errand_id = uuid.UUID(created.json()["id"])
+
+    assert (await _logs_for(errand_id))[0].exploring is False

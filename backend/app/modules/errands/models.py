@@ -273,6 +273,17 @@ class OfferLog(Base):
     # narrower ceiling is itself part of why a candidate was or was not offered.
     max_hops: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
 
+    # This round was offered with the social boost switched off — distance
+    # only, no hop ceiling. These rows are the control group: the only
+    # observations where the outcome was not already shaped by friendship.
+    #
+    # Stored, not inferred. A round where nobody happened to be a friend looks
+    # exactly like one where friendship was deliberately ignored, and counting
+    # the first as a control would poison the estimate silently.
+    exploring: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
+
     # One entry per candidate, in the order they were offered:
     #   {runner_id, distance_m, trust, hops, reputation, penalty, effective, rank}
     # `effective` is the score that decided the order; the rest are the terms it

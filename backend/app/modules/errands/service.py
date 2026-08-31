@@ -1,5 +1,6 @@
 import json
 import logging
+import random
 import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -10,6 +11,7 @@ from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.crypto import decrypt_str, encrypt_str
 from app.modules.auth.models import User
 from app.modules.errands.models import (
@@ -227,15 +229,25 @@ async def _offer_to_nearby_runners(
     scores = await _safe_scores(errand.requester_id, candidate_ids)
     reputations = await _reputations(db, candidate_ids)
     penalties = await fraud_integrity.penalties(db, candidate_ids)
-    nearby = _rank_with_scores(nearby, scores, reputations, penalties)
 
-    if max_hops is not None and scores is not None:
+    # A small fraction of rounds go out socially blind. See `should_explore`.
+    exploring = should_explore()
+    ranking_scores = None if exploring else scores
+    nearby = _rank_with_scores(nearby, ranking_scores, reputations, penalties)
+
+    # An exploring round ignores the hop ceiling too. Ranking without the boost
+    # while still refusing to offer past 2 hops would not be a control group at
+    # all — the strangers whose absence is the whole problem would still never
+    # be offered anything, and the sample would stay exactly as biased.
+    if max_hops is not None and scores is not None and not exploring:
         nearby = [(r, d) for r, d in nearby if scores.get(r, {}).get("hops", 99) <= max_hops]
         if not nearby:
             return 0
 
     # After filtering, so the log holds the set that was actually offered
-    # rather than the set that was considered.
+    # rather than the set that was considered. `scores` (not `ranking_scores`)
+    # is passed on purpose: the trust the graph reported is worth recording
+    # even on a round that declined to act on it.
     await _record_offer_log(
         db,
         errand=errand,
@@ -243,7 +255,8 @@ async def _offer_to_nearby_runners(
         scores=scores,
         reputations=reputations,
         penalties=penalties,
-        max_hops=max_hops,
+        max_hops=None if exploring else max_hops,
+        exploring=exploring,
     )
 
     payload = {
@@ -370,6 +383,31 @@ def _terms_for(
     }
 
 
+def should_explore() -> bool:
+    """Whether this dispatch round ignores friendship entirely.
+
+    Errandly boosts friends up the offer queue and then reads "friends
+    transacting with each other" as evidence of a collusion ring — so the
+    router manufactures the signal the detector trusts. The stronger the boost
+    the worse it gets: at the live weight the policy already expects almost
+    every errand in a friend group to stay inside it, and once you expect
+    everything, nothing can be surprising. A real ring stops being
+    distinguishable from ordinary friendship, not because it hid but because
+    the router does its work for it.
+
+    So a slice of rounds is offered blind, keeping a control group in the data.
+    It is a real cost — those requesters get a worse-matched runner — paid to
+    keep collusion detectable at all.
+
+    Read from settings on every call rather than captured at import, so the
+    rate can be changed without a deploy and pinned to 0 in tests.
+    """
+    rate = settings.offer_explore_rate
+    if rate <= 0:
+        return False
+    return random.random() < min(rate, 1.0)
+
+
 async def _record_offer_log(
     db: AsyncSession,
     *,
@@ -379,6 +417,7 @@ async def _record_offer_log(
     reputations: dict[uuid.UUID, float] | None,
     penalties: dict[uuid.UUID, float] | None,
     max_hops: int | None,
+    exploring: bool = False,
 ) -> None:
     """Store why this offer round went out in the order it did.
 
@@ -405,6 +444,7 @@ async def _record_offer_log(
                     campus_id=errand.campus_id,
                     round_no=round_no + 1,
                     max_hops=max_hops,
+                    exploring=exploring,
                     candidates=[
                         {
                             **_terms_for(rid, dist, scores, reputations, penalties),

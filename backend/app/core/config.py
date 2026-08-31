@@ -26,6 +26,21 @@ class Settings(BaseSettings):
     # traversable in single-digit milliseconds while still reaching most of it.
     social_max_hops: int = 4
 
+    # Fraction of dispatch rounds offered with the social boost switched OFF —
+    # ranked on distance alone and with no hop ceiling.
+    #
+    # This buys observability. Boosting friends up the queue and then reading
+    # "friends transact with each other" as evidence of collusion means the
+    # router manufactures the signal the detector trusts. Worse, the stronger
+    # the boost the more completely it does so: at the live weight the policy
+    # already expects ~99% of a friend group's errands to go inside the group,
+    # and once you expect everything nothing can look surprising, so a real
+    # ring becomes indistinguishable from ordinary friendship.
+    #
+    # A small slice of socially-blind rounds keeps a control group in the data.
+    # Set to 0.0 to disable, at the cost of being unable to tell the two apart.
+    offer_explore_rate: float = 0.05
+
     # MongoDB (chat)
     mongo_url: str = "mongodb://mongo:27017"
     mongo_db: str = "errandly"
