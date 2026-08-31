@@ -63,6 +63,38 @@ const PICKUP_CATEGORIES: Category[] = ["CUSTOM", "PARCEL"];
 const WAIT_OPTIONS = [15, 30, 45, 60];
 const REWARD_PRESETS = [10, 20, 30, 50];
 
+/**
+ * Who the delivery is from.
+ *
+ * A pickup errand does not need "what do you need?" — the parcel is already
+ * bought and already there. What the runner has to be told is which counter to
+ * stand at, and that is the courier. The two flows get different lists because
+ * a parcel at the collection point and a bag at the gate come from different
+ * companies.
+ */
+const COURIERS: Record<string, string[]> = {
+  PARCEL: [
+    "Amazon", "Flipkart", "Delhivery", "Blue Dart",
+    "DTDC", "Ekart", "India Post", "Other",
+  ],
+  CUSTOM: [
+    "Swiggy", "Zomato", "Zepto", "Blinkit",
+    "Instamart", "Amazon", "Flipkart", "Other",
+  ],
+};
+
+/** Where each pickup flow physically happens. Fixed, so it is not asked. */
+const FIXED_PICKUP: Record<string, string> = {
+  PARCEL: "Campus collection point",
+  CUSTOM: "Main gate",
+};
+
+/** One line of a shopping list. */
+interface ListRow {
+  name: string;
+  quantity: number;
+}
+
 export default function NewErrand() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -73,9 +105,14 @@ export default function NewErrand() {
     params.category ?? (isShopping ? "GROCERY" : "FOOD"),
   );
   const copy = FLOW_COPY[isShopping ? "shopping" : (params.category ?? "FOOD")] ?? FLOW_COPY.FOOD;
-  const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
-  const [pickup, setPickup] = useState("");
+  // Shopping lists are structured, not prose. A typed sentence cannot be
+  // priced, and price checking is what catches an inflated claim — the runner
+  // reports a unit price per line, and a line needs a name and a quantity to
+  // report against.
+  const [rows, setRows] = useState<ListRow[]>([{ name: "", quantity: 1 }]);
+  const [courier, setCourier] = useState("");
+  const [courierOther, setCourierOther] = useState("");
   const [reward, setReward] = useState("20");
   const [waitMinutes, setWaitMinutes] = useState(30);
   const [externalRef, setExternalRef] = useState("");
@@ -116,16 +153,51 @@ export default function NewErrand() {
   });
 
   const rewardNum = Number(reward) || 0;
-  const ready = title.trim().length >= 3 && pickup.trim().length >= 2 && !!drop;
+
+  const filledRows = rows.filter((r) => r.name.trim().length > 0);
+  const chosenCourier = courier === "Other" ? courierOther.trim() : courier;
+
+  // Both title and pickup_label are required server-side. Where the flow no
+  // longer asks for them they are derived, so the errand still reads properly
+  // in a feed and an admin log without the requester typing what the app
+  // already knows.
+  const derivedTitle = isShopping
+    ? filledRows.length === 1
+      ? `${filledRows[0].quantity} × ${filledRows[0].name.trim()}`
+      : `${filledRows.length} items`
+    : chosenCourier
+      ? `${chosenCourier} pickup`
+      : "";
+  const derivedPickup = isShopping
+    ? // The runner decides which shop is nearest to them; naming one would be
+      // guessing on their behalf.
+      "Runner's choice"
+    : FIXED_PICKUP[category] ?? "Main gate";
+
+  const ready = isShopping
+    ? filledRows.length > 0 && !!drop
+    : chosenCourier.length >= 2 && !!drop;
+
+  function setRow(i: number, patch: Partial<ListRow>) {
+    setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  }
 
   function submit() {
     if (!drop) return;
     setError(null);
     create.mutate({
       category,
-      title: title.trim(),
+      title: derivedTitle.slice(0, 200),
       notes: notes.trim() || undefined,
-      pickup_label: pickup.trim(),
+      pickup_label: derivedPickup,
+      ...(isShopping && filledRows.length
+        ? {
+            list_items: filledRows.map((r) => ({
+              name: r.name.trim(),
+              quantity: r.quantity,
+            })),
+          }
+        : {}),
       drop_lat: drop.lat,
       drop_lng: drop.lng,
       reward: rewardNum,
@@ -197,21 +269,115 @@ export default function NewErrand() {
           ) : null}
 
           <View style={{ gap: space.lg, marginTop: space.xxl }}>
-            <Field
-              label="What do you need?"
-              placeholder="2 veg rolls and a cold coffee"
-              value={title}
-              onChangeText={setTitle}
-              maxLength={200}
-            />
+            {isShopping ? (
+              /* A list, not a sentence. Each line carries its own quantity,
+                 because the runner reports a unit price against it later and
+                 a price check needs to know how many were bought. */
+              <View style={{ gap: 6 }}>
+                <Label>Your list</Label>
+                <View style={{ gap: space.sm }}>
+                  {rows.map((row, i) => (
+                    <Row key={i} gap={space.sm}>
+                      <View style={{ flex: 1 }}>
+                        <Field
+                          placeholder={i === 0 ? "Chicken puff" : "Add another item"}
+                          value={row.name}
+                          onChangeText={(v) => setRow(i, { name: v })}
+                          maxLength={120}
+                        />
+                      </View>
 
-            <Field
-              label="Pick up from"
-              placeholder={isPickup ? "Main Gate" : "Foodys Express"}
-              value={pickup}
-              onChangeText={setPickup}
-              maxLength={200}
-            />
+                      {/* A stepper rather than a keypad: quantities here are
+                          small, and tapping beats typing for 1 to 5. */}
+                      <Row gap={0} style={s.qty}>
+                        <Pressable
+                          onPress={() => setRow(i, { quantity: Math.max(1, row.quantity - 1) })}
+                          style={s.qtyBtn}
+                          hitSlop={6}
+                        >
+                          <Text style={s.qtyGlyph}>−</Text>
+                        </Pressable>
+                        <Text style={s.qtyValue}>{row.quantity}</Text>
+                        <Pressable
+                          onPress={() => setRow(i, { quantity: Math.min(50, row.quantity + 1) })}
+                          style={s.qtyBtn}
+                          hitSlop={6}
+                        >
+                          <Text style={s.qtyGlyph}>+</Text>
+                        </Pressable>
+                      </Row>
+
+                      <Pressable
+                        onPress={() =>
+                          setRows((prev) =>
+                            prev.length === 1
+                              ? [{ name: "", quantity: 1 }]
+                              : prev.filter((_, idx) => idx !== i),
+                          )
+                        }
+                        style={s.rowRemove}
+                        hitSlop={8}
+                      >
+                        <Text style={s.rowRemoveGlyph}>×</Text>
+                      </Pressable>
+                    </Row>
+                  ))}
+                </View>
+
+                <Pressable
+                  onPress={() => setRows((prev) => [...prev, { name: "", quantity: 1 }])}
+                  style={s.addRow}
+                >
+                  <Text style={s.addRowText}>+  Add item</Text>
+                </Pressable>
+
+                <Caption>
+                  A runner picks these up from whichever shop is closest to them.
+                </Caption>
+              </View>
+            ) : (
+              /* Pickups do not need "what do you need" — the parcel exists and
+                 is already paid for. What the runner needs is the counter. */
+              <View style={{ gap: 6 }}>
+                <Label>Who is it from?</Label>
+                <Row gap={space.sm} wrap>
+                  {(COURIERS[category] ?? COURIERS.CUSTOM).map((c) => {
+                    const on = courier === c;
+                    return (
+                      <Pressable
+                        key={c}
+                        onPress={() => setCourier(c)}
+                        style={[s.courier, on && s.courierOn]}
+                      >
+                        <Caption
+                          style={{
+                            color: on ? colors.brandDark : colors.ink,
+                            fontFamily: font.semi,
+                          }}
+                        >
+                          {c}
+                        </Caption>
+                      </Pressable>
+                    );
+                  })}
+                </Row>
+
+                {courier === "Other" ? (
+                  <View style={{ marginTop: space.sm }}>
+                    <Field
+                      placeholder="Who delivered it?"
+                      value={courierOther}
+                      onChangeText={setCourierOther}
+                      maxLength={60}
+                    />
+                  </View>
+                ) : null}
+
+                <Caption style={{ marginTop: space.xs }}>
+                  Collected from the {(FIXED_PICKUP[category] ?? "main gate").toLowerCase()}.
+                </Caption>
+              </View>
+            )}
 
             <Field
               label="Notes (optional)"
@@ -231,7 +397,10 @@ export default function NewErrand() {
                   value={reward}
                   onChangeText={setReward}
                   keyboardType="number-pad"
-                  style={{ flex: 1 }}
+                  // Fixed width, not flex: at flex:1 the input took the whole
+                  // row and pushed the last preset off the screen edge. Four
+                  // digits is more reward than anyone will offer.
+                  style={s.rewardInput}
                   placeholder="20"
                 />
                 {REWARD_PRESETS.map((v) => (
@@ -348,6 +517,47 @@ export default function NewErrand() {
 }
 
 const s = StyleSheet.create({
+  rewardInput: { width: 74, textAlign: "center" },
+
+  qty: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    backgroundColor: colors.white,
+    alignItems: "center",
+  },
+  qtyBtn: { paddingHorizontal: 10, paddingVertical: 9 },
+  qtyGlyph: { color: colors.brandDark, fontSize: 17, fontFamily: font.bold },
+  qtyValue: {
+    minWidth: 20,
+    textAlign: "center",
+    color: colors.ink,
+    fontSize: font.body,
+    fontFamily: font.bold,
+  },
+  rowRemove: { paddingHorizontal: 4, paddingVertical: 8 },
+  rowRemoveGlyph: { color: colors.muted, fontSize: 19, fontFamily: font.bold },
+
+  addRow: {
+    alignSelf: "flex-start",
+    paddingHorizontal: space.md,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brandSoft,
+    marginTop: 2,
+  },
+  addRowText: { color: colors.brandDark, fontSize: font.small, fontFamily: font.bold },
+
+  courier: {
+    paddingHorizontal: space.md,
+    paddingVertical: 9,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.white,
+  },
+  courierOn: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
+
   close: {
     width: 40,
     height: 40,
