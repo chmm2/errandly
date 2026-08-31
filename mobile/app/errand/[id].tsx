@@ -20,6 +20,7 @@ import {
 import { ChatPanel } from "../../src/components/ChatPanel";
 import { FindingRunner } from "../../src/components/CountdownRing";
 import { ConnectionBadge, ConnectionLine } from "../../src/components/ConnectionBadge";
+import { PriceClaimSheet } from "../../src/components/PriceClaimSheet";
 import { PaymentSummary } from "../../src/components/PaymentSummary";
 import { TrackingMap } from "../../src/components/TrackingMap";
 import {
@@ -427,6 +428,13 @@ export default function ErrandDetail() {
               </>
             )}
           </Card>
+        ) : null}
+
+        {/* What the runner paid. Only for shopping-style errands with a list:
+            a fixed-menu vendor order already carries known prices. */}
+        {isRunner && errand.status === "ACCEPTED" && errand.items.length > 0 &&
+         errand.vendor_id == null ? (
+          <PriceClaimSheet errand={errand} onSubmitted={invalidate} />
         ) : null}
 
         {/* Actions */}
