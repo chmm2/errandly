@@ -61,7 +61,7 @@ async def test_runner_summary_gated_to_parties_and_active_run(client, make_user)
     assert (await client.get(f"/errands/{eid}", headers=stranger)).status_code == 404
 
     # After completion the name stays but the phone is withheld again
-    await client.post(f"/errands/{eid}/pickup", headers=runner)
+    await client.post(f"/errands/{eid}/pickup", json={"amount_spent": 0}, headers=runner)
     await client.post(f"/errands/{eid}/deliver", headers=runner)
     await client.post(f"/errands/{eid}/complete", headers=requester)
     done = (await client.get(f"/errands/{eid}", headers=requester)).json()
@@ -81,8 +81,9 @@ async def test_runner_card_shows_photo_and_delivery_count(client, make_user):
 
     # complete one delivery so the count is > 0
     e1 = (await client.post("/errands", json=errand_payload(), headers=requester)).json()
-    for step in ("accept", "pickup", "deliver"):
-        await client.post(f"/errands/{e1['id']}/{step}", headers=runner)
+    for step, body in (("accept", None), ("pickup", {"amount_spent": 0}), ("deliver", None)):
+        resp = await client.post(f"/errands/{e1['id']}/{step}", json=body, headers=runner)
+        assert resp.status_code == 200, f"{step}: {resp.text}"
     await client.post(f"/errands/{e1['id']}/complete", headers=requester)
 
     # a second, active errand: the requester sees the runner's photo + tally

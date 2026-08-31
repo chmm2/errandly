@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -19,6 +20,7 @@ from app.modules.errands.schemas import (
     ErrandOut,
     HandoffSecretOut,
     MyErrands,
+    PickupIn,
     RateRequest,
 )
 from app.modules.errands.service import ErrandError
@@ -111,12 +113,21 @@ async def accept(
 @router.post("/{errand_id}/pickup", response_model=ErrandOut)
 async def pickup(
     errand_id: uuid.UUID,
+    data: PickupIn,
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
+    """Mark picked up and declare what was paid.
+
+    The amount is required. Settlement reimburses what the runner declares,
+    so leaving it optional means the common path is the one where nobody
+    knows what the errand actually cost.
+    """
     try:
-        return await service.pickup_errand(db, redis, user, errand_id)
+        return await service.pickup_errand(
+            db, redis, user, errand_id, Decimal(str(data.amount_spent))
+        )
     except ErrandError as e:
         _raise(e)
 

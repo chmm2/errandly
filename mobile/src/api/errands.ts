@@ -45,6 +45,8 @@ export interface Errand {
   reward: number;
   fulfillment_type: FulfillmentType;
   collect_amount: number;
+  /** What the runner declared paying at pickup. Null until they declare it. */
+  amount_spent: number | null;
   has_handoff_secret: boolean;
   distance_m: number | null;
   runner_lat: number | null;
@@ -154,8 +156,16 @@ export async function acceptErrand(id: string): Promise<Errand> {
   return (await api.post<Errand>(`/errands/${id}/accept`)).data;
 }
 
-export async function pickupErrand(id: string): Promise<Errand> {
-  return (await api.post<Errand>(`/errands/${id}/pickup`)).data;
+/**
+ * Mark picked up, declaring what was actually paid at the counter.
+ *
+ * The amount is required by the server. Escrow holds the estimate plus
+ * headroom so a runner who paid over the estimate is still made whole, and
+ * none of that reaches them unless someone states the real figure.
+ */
+export async function pickupErrand(id: string, amountSpent: number): Promise<Errand> {
+  return (await api.post<Errand>(`/errands/${id}/pickup`, { amount_spent: amountSpent }))
+    .data;
 }
 
 export async function deliverErrand(id: string): Promise<Errand> {

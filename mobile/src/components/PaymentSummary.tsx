@@ -44,10 +44,16 @@ export function PaymentSummary({
   const collect = Number(errand.collect_amount) || 0;
   const reward = Number(errand.reward) || 0;
 
+  // Once the runner declares what they paid, that is the number settlement
+  // reimburses - so it is the number both sides should be shown. Before then
+  // the estimate is the honest answer, and it is labelled as one.
+  const declared = errand.amount_spent != null ? Number(errand.amount_spent) : null;
+  const spend = declared ?? items + collect;
+
   const settled = errand.status === "COMPLETED";
 
   if (isRequester) {
-    const total = items + collect + reward;
+    const total = spend + reward;
     return (
       <Card raised style={{ marginTop: space.lg }}>
         <Row justify="space-between" style={{ marginBottom: space.md }}>
@@ -58,16 +64,30 @@ export function PaymentSummary({
         </Row>
 
         <View style={{ gap: space.md }}>
-          {items > 0 ? (
-            <Line label="Items" value={rupees(items)} hint="What the runner bought for you" />
-          ) : null}
-          {collect > 0 ? (
+          {declared != null ? (
             <Line
-              label="Cash paid at pickup"
-              value={rupees(collect)}
-              hint="Your runner paid this out of pocket"
+              label="What your runner paid"
+              value={rupees(declared)}
+              hint="Declared at pickup"
             />
-          ) : null}
+          ) : (
+            <>
+              {items > 0 ? (
+                <Line
+                  label="Items"
+                  value={rupees(items)}
+                  hint="What the runner bought for you"
+                />
+              ) : null}
+              {collect > 0 ? (
+                <Line
+                  label="Cash paid at pickup"
+                  value={rupees(collect)}
+                  hint="Your runner paid this out of pocket"
+                />
+              ) : null}
+            </>
+          )}
           <Line label="Runner reward" value={rupees(reward)} />
         </View>
 
@@ -80,8 +100,11 @@ export function PaymentSummary({
     );
   }
 
-  // Runner's side — exactly what the ledger will credit.
-  const payout = reward + collect;
+  // Runner's side — exactly what the ledger will credit. Reimbursement follows
+  // the declaration, not collect_amount: a shopping order carries its spend as
+  // priced items, so quoting collect alone promised ₹0 back on the exact
+  // errands where the runner had fronted the most.
+  const payout = reward + spend;
   return (
     <Card raised style={{ marginTop: space.lg }}>
       <Row justify="space-between" style={{ marginBottom: space.md }}>
@@ -93,11 +116,15 @@ export function PaymentSummary({
 
       <View style={{ gap: space.md }}>
         <Line label="Reward" value={rupees(reward)} hint="For making the trip" />
-        {collect > 0 ? (
+        {spend > 0 ? (
           <Line
             label="Reimbursement"
-            value={rupees(collect)}
-            hint="The cash you paid at pickup, back"
+            value={rupees(spend)}
+            hint={
+              declared != null
+                ? "What you declared paying at pickup, back"
+                : "Estimated — confirmed when you mark it picked up"
+            }
           />
         ) : null}
       </View>

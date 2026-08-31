@@ -57,19 +57,41 @@ export default function Wallet() {
             reaches the runner only once it is delivered.
           </p>
 
-          <div className="mt-6 flex flex-wrap gap-4">
-            <div className="rounded-2xl bg-white/10 px-6 py-4 backdrop-blur-sm">
-              <div className="text-3xl font-extrabold">
+          {/* Two partitions, side by side and always both present. Held is
+              not a footnote on the balance - it is the other half of the
+              answer to "where is my money", and hiding the box at zero makes
+              the layout jump the moment an order is placed. */}
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl border border-white/15 bg-white/10 px-6 py-5 backdrop-blur-sm">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-white/70">
+                <span>💸</span> Available
+              </div>
+              <div className="mt-1 text-4xl font-extrabold">
                 ₹{(wallet?.balance ?? 0).toFixed(0)}
               </div>
-              <div className="text-xs text-white/80">available to spend</div>
-            </div>
-            {(wallet?.held ?? 0) > 0 && (
-              <div className="rounded-2xl bg-white/10 px-6 py-4 backdrop-blur-sm">
-                <div className="text-3xl font-extrabold">₹{wallet!.held.toFixed(0)}</div>
-                <div className="text-xs text-white/80">held on live orders</div>
+              <div className="mt-1 text-xs text-white/75">
+                Yours to spend or withdraw right now.
               </div>
-            )}
+            </div>
+
+            <div className="rounded-2xl border border-amber-300/40 bg-amber-400/15 px-6 py-5 backdrop-blur-sm">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-amber-100/90">
+                <span>🔒</span> Held in escrow
+              </div>
+              <div className="mt-1 text-4xl font-extrabold">
+                ₹{(wallet?.held ?? 0).toFixed(0)}
+              </div>
+              <div className="mt-1 text-xs text-white/75">
+                {(wallet?.held ?? 0) > 0
+                  ? "Locked against live orders. Anything unspent returns on completion."
+                  : "Nothing locked — you have no orders in flight."}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 text-sm text-white/70">
+            Total in wallet · ₹
+            {((wallet?.balance ?? 0) + (wallet?.held ?? 0)).toFixed(0)}
           </div>
         </div>
       </section>

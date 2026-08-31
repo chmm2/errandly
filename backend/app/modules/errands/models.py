@@ -107,6 +107,16 @@ class Errand(Base, TimestampMixin):
     collect_amount: Mapped[float] = mapped_column(
         Numeric(12, 2), nullable=False, server_default="0"
     )
+    # What the runner says they actually handed over at the counter, recorded
+    # when they mark the errand picked up. This - not the estimate - is what
+    # settlement reimburses, and it is the number the fraud checks judge.
+    #
+    # Nullable because it does not exist until pickup, and because errands
+    # placed before this field shipped never had one. A missing value means
+    # "never declared", which settlement must handle differently from a
+    # declared zero.
+    amount_spent: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+
     status: Mapped[str] = mapped_column(String(16), nullable=False, server_default="OPEN")
     version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
 

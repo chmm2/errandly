@@ -96,6 +96,20 @@ class ConnectionOut(BaseModel):
     trust: float = 0.0
 
 
+class PickupIn(BaseModel):
+    """What the runner paid, declared as they mark the errand picked up.
+
+    Required, not optional. The escrow headroom exists so a runner who paid
+    more than the estimate is still made whole, and that is unusable unless
+    someone says what was actually paid - without it the platform can only
+    reimburse its own guess. Declaring it at pickup rather than at delivery
+    also means it is on the record while the runner is still standing at the
+    counter, before the amount is worth arguing about.
+    """
+
+    amount_spent: float = Field(ge=0, le=100000)
+
+
 class ErrandOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -113,6 +127,8 @@ class ErrandOut(BaseModel):
     reward: float
     fulfillment_type: str
     collect_amount: float
+    # None until the runner declares it at pickup.
+    amount_spent: float | None = None
     has_handoff_secret: bool = False
     distance_m: float | None = None
     # Runner's last known position — populated on the detail endpoint only,

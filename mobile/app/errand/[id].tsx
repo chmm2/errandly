@@ -20,6 +20,7 @@ import {
 import { ChatPanel } from "../../src/components/ChatPanel";
 import { FindingRunner } from "../../src/components/CountdownRing";
 import { ConnectionBadge, ConnectionLine } from "../../src/components/ConnectionBadge";
+import { PickupDeclaration } from "../../src/components/PickupDeclaration";
 import { PriceClaimSheet } from "../../src/components/PriceClaimSheet";
 import { PaymentSummary } from "../../src/components/PaymentSummary";
 import { TrackingMap } from "../../src/components/TrackingMap";
@@ -124,7 +125,7 @@ export default function ErrandDetail() {
   );
 
   const pickup = useMutation({
-    mutationFn: () => pickupErrand(id!),
+    mutationFn: (amountSpent: number) => pickupErrand(id!, amountSpent),
     onSuccess: invalidate,
     onError: (err) => notify("Couldn't mark picked up", apiErrorMessage(err)),
   });
@@ -445,11 +446,10 @@ export default function ErrandDetail() {
         <View style={{ marginTop: space.xl, gap: space.sm }}>
           {isRunner && errand.status === "ACCEPTED" ? (
             <>
-              <Button
-                title="Mark picked up"
-                size="lg"
-                loading={pickup.isPending}
-                onPress={() => pickup.mutate()}
+              <PickupDeclaration
+                errand={errand}
+                busy={pickup.isPending}
+                onConfirm={(spent) => pickup.mutate(spent)}
               />
               <Button
                 title="Hand back to queue"

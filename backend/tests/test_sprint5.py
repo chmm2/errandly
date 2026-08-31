@@ -271,7 +271,7 @@ async def test_rating_updates_reputation(client, make_user):
     assert early.status_code == 409
 
     await client.post(f"/errands/{eid}/accept", headers=runner)
-    await client.post(f"/errands/{eid}/pickup", headers=runner)
+    await client.post(f"/errands/{eid}/pickup", json={"amount_spent": 0}, headers=runner)
     await client.post(f"/errands/{eid}/deliver", headers=runner)
     await client.post(f"/errands/{eid}/complete", headers=requester)
 

@@ -124,19 +124,25 @@ async def accept(client, errand_id, runner_headers):
     return resp.json()
 
 
-async def finish_run(client, errand_id, run_headers, r_headers):
+async def finish_run(client, errand_id, run_headers, r_headers, spent=0):
     """Drive an accepted errand to COMPLETED.
 
     Runners have a load cap of 2 concurrent runs, so a test that needs the same
     runner to offend repeatedly has to actually finish each errand rather than
     stacking them.
+
+    These tests settle by hand via settle(), so the amount declared at pickup
+    does not drive the payout here - but it is required by the endpoint, so it
+    has to be sent.
     """
-    for step, headers in (
-        ("pickup", run_headers),
-        ("deliver", run_headers),
-        ("complete", r_headers),
+    for step, headers, body in (
+        ("pickup", run_headers, {"amount_spent": spent}),
+        ("deliver", run_headers, None),
+        ("complete", r_headers, None),
     ):
-        resp = await client.post(f"/errands/{errand_id}/{step}", headers=headers)
+        resp = await client.post(
+            f"/errands/{errand_id}/{step}", json=body, headers=headers
+        )
         assert resp.status_code == 200, f"{step}: {resp.text}"
 
 

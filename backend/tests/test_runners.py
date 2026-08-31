@@ -162,7 +162,7 @@ async def test_load_cap_blocks_hoarding(client, make_user):
     assert "active runs" in blocked.json()["detail"]
 
     # Delivering one frees a slot
-    await client.post(f"/errands/{first['id']}/pickup", headers=runner)
+    await client.post(f"/errands/{first['id']}/pickup", json={"amount_spent": 0}, headers=runner)
     await client.post(f"/errands/{first['id']}/deliver", headers=runner)
     assert (await client.post(f"/errands/{third['id']}/accept", headers=runner)).status_code == 200
 

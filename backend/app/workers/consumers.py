@@ -146,16 +146,28 @@ async def handle_settlement(db: AsyncSession, event: dict) -> None:
     errand_id = uuid.UUID(payload["errand_id"])
     reward = Decimal(str(payload["reward"]))
 
+    # Imported here, as elsewhere in this module: the errands service pulls in
+    # the router's dependency graph, and importing it at module scope makes the
+    # worker import the web app.
+    from app.modules.errands import service as errands_service
+
     eligible, withheld = await fraud.eligible_reimbursement(db, errand_id)
     if eligible == 0 and withheld == 0:
-        # No claims filed - a gate or parcel pickup, or a runner who skipped
-        # the step. Fall back to what was estimated when the money was held.
-        #
-        # Read from the HOLD, not from this event. The event carries only
-        # collect_amount, so a catalogue order - whose spend lives in priced
-        # items - reimbursed ZERO and handed the whole basket back to the
-        # requester as surplus, with the runner already out of pocket for it.
-        eligible = await ledger.estimated_spend(db, errand_id)
+        # No itemised claims. Fall back to what the runner declared at pickup -
+        # they were the one at the counter, and the whole point of holding
+        # headroom is to cover a real price the estimate got wrong.
+        declared = await errands_service.declared_spend(db, errand_id)
+        if declared is not None:
+            eligible = declared
+        else:
+            # Nothing declared at all - an errand from before the pickup step
+            # required it. Reimburse the estimate rather than nothing.
+            #
+            # Read from the HOLD, not from this event. The event carries only
+            # collect_amount, so a catalogue order - whose spend lives in
+            # priced items - reimbursed ZERO and handed the whole basket back
+            # to the requester as surplus, runner already out of pocket.
+            eligible = await ledger.estimated_spend(db, errand_id)
 
     try:
         await ledger.release_hold(

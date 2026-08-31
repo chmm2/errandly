@@ -16,7 +16,7 @@ import {
 } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
 import { notify } from "../../src/lib/dialog";
-import { colors, font, radius, rupees, space } from "../../src/theme";
+import { colors, font, rupees, space } from "../../src/theme";
 
 /**
  * Every entry type the ledger can write, in the words a student would use.
@@ -113,26 +113,47 @@ export default function WalletScreen() {
       <Hero eyebrow="Your money" title="Wallet" />
 
       <View style={{ paddingHorizontal: space.lg }}>
-        {/* Balance */}
-        <Card raised style={s.balanceCard}>
-          <Caption style={{ color: colors.muted }}>Available to spend</Caption>
-          <Text style={s.balance}>
-            {isLoading ? "—" : rupees(data?.balance ?? 0)}
-          </Text>
+        {/* Two partitions, two boxes. Held is not a footnote on the balance:
+            it is the other half of the answer to "where is my money", and a
+            line of caption text under a big number reads as a disclaimer
+            rather than as an amount the wallet actually holds. */}
+        <Row gap={space.md} style={s.partitions}>
+          <Card raised style={s.partition}>
+            <Row gap={space.xs}>
+              <Text style={{ fontSize: 12 }}>💸</Text>
+              <Caption style={{ color: colors.muted }}>Available</Caption>
+            </Row>
+            <Text style={s.partitionAmount}>
+              {isLoading ? "—" : rupees(data?.balance ?? 0)}
+            </Text>
+            <Caption style={{ color: colors.muted }}>
+              Yours to spend right now
+            </Caption>
+          </Card>
 
-          {/* Escrow is money that has already left the balance. Showing it
-              explains where it went, rather than leaving a hole to guess at. */}
-          {(data?.held ?? 0) > 0 ? (
-            <View style={s.held}>
-              <Row gap={space.sm}>
-                <Text style={{ fontSize: 13 }}>🔒</Text>
-                <Caption style={{ flex: 1, color: colors.amberText }}>
-                  {rupees(data!.held)} held against errands in flight — released
-                  when they are confirmed
-                </Caption>
-              </Row>
-            </View>
-          ) : null}
+          <Card raised style={[s.partition, s.heldPartition]}>
+            <Row gap={space.xs}>
+              <Text style={{ fontSize: 12 }}>🔒</Text>
+              <Caption style={{ color: colors.amberText }}>Held</Caption>
+            </Row>
+            <Text style={[s.partitionAmount, { color: colors.amberText }]}>
+              {isLoading ? "—" : rupees(data?.held ?? 0)}
+            </Text>
+            <Caption style={{ color: colors.amberText }}>
+              {(data?.held ?? 0) > 0
+                ? "Locked on live orders — unspent money comes back"
+                : "No orders in flight"}
+            </Caption>
+          </Card>
+        </Row>
+
+        <Card raised style={s.balanceCard}>
+          <Caption style={{ color: colors.muted }}>Total in wallet</Caption>
+          <Text style={s.balance}>
+            {isLoading
+              ? "—"
+              : rupees((data?.balance ?? 0) + (data?.held ?? 0))}
+          </Text>
 
           <Row gap={space.sm} style={{ marginTop: space.lg }}>
             <View style={{ flex: 1 }}>
@@ -249,7 +270,18 @@ export default function WalletScreen() {
 }
 
 const s = StyleSheet.create({
-  balanceCard: { marginTop: space.xl, alignItems: "stretch" },
+  partitions: { marginTop: space.xl, alignItems: "stretch" },
+  partition: { flex: 1, alignItems: "flex-start" },
+  heldPartition: { backgroundColor: colors.amberBg },
+  partitionAmount: {
+    color: colors.ink,
+    fontSize: 26,
+    fontFamily: font.black,
+    letterSpacing: -0.5,
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  balanceCard: { marginTop: space.md, alignItems: "stretch" },
   balance: {
     color: colors.ink,
     fontSize: 40,
@@ -257,13 +289,6 @@ const s = StyleSheet.create({
     letterSpacing: -1,
     marginTop: 2,
   },
-  held: {
-    marginTop: space.md,
-    padding: space.md,
-    backgroundColor: colors.amberBg,
-    borderRadius: radius.lg,
-  },
-
   dayHeading: {
     fontFamily: font.bold,
     color: colors.muted,

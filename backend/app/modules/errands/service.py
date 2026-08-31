@@ -880,12 +880,16 @@ async def _runner_step(
     errand_id: uuid.UUID,
     to_status: str,
     event_type: str,
+    amount_spent: Decimal | None = None,
 ) -> Errand:
     errand = await db.scalar(select(Errand).where(Errand.id == errand_id).with_for_update())
     if errand is None or errand.deleted_at is not None or errand.campus_id != user.campus_id:
         raise ErrandError("Errand not found.", 404)
     if errand.runner_id != user.id:
         raise ErrandError("Only the assigned runner can do this.", 403)
+
+    if amount_spent is not None:
+        errand.amount_spent = amount_spent
 
     _transition(errand, to_status)
     if to_status == "DELIVERED":
@@ -900,9 +904,37 @@ async def _runner_step(
 
 
 async def pickup_errand(
-    db: AsyncSession, redis: Redis, user: User, errand_id: uuid.UUID
+    db: AsyncSession,
+    redis: Redis,
+    user: User,
+    errand_id: uuid.UUID,
+    amount_spent: Decimal,
 ) -> Errand:
-    return await _runner_step(db, redis, user, errand_id, "IN_PROGRESS", "PICKED_UP")
+    """Mark picked up, recording what the runner says they paid.
+
+    The declaration is the point of the step. Escrow holds the estimate plus
+    headroom precisely so a runner who paid over the estimate can still be
+    made whole, and none of that reaches them unless someone states the real
+    figure - otherwise settlement can only pay back the platform's own guess
+    and the headroom is decoration.
+    """
+    return await _runner_step(
+        db, redis, user, errand_id, "IN_PROGRESS", "PICKED_UP",
+        amount_spent=amount_spent,
+    )
+
+
+async def declared_spend(db: AsyncSession, errand_id: uuid.UUID) -> Decimal | None:
+    """What the runner said they paid, or None if they never said.
+
+    None is not zero. A runner who declared nothing has to be reimbursed from
+    the estimate instead, and collapsing the two would quietly pay ₹0 to
+    anyone whose errand predates the declaration step.
+    """
+    errand = await db.get(Errand, errand_id)
+    if errand is None or errand.amount_spent is None:
+        return None
+    return Decimal(str(errand.amount_spent))
 
 
 async def deliver_errand(
