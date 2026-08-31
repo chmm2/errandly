@@ -5,6 +5,23 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select, update
 
+from app.core.config import settings
+
+# Tests never send real email.
+#
+# Registration is the first step of most flows here, so a suite run against a
+# configured SMTP server sends a mail per user created - hundreds across a full
+# run. That is slow, it delivers to real inboxes, and it eventually fails
+# outright: a run on this project hit Gmail's daily sending cap and took seven
+# otherwise-passing tests down with a 550, in files that have nothing to do
+# with email.
+#
+# Blanking the host puts the app in its own dev mode, where the OTP comes back
+# on the X-Dev-OTP header instead. That is what the verification tests already
+# assert against, so this also fixes three failures that had been carried as
+# "known" for exactly this reason.
+settings.smtp_host = ""
+
 from app.core.database import SessionLocal
 from app.core.redis import redis_client
 from app.main import app

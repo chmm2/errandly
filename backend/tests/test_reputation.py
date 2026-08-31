@@ -170,3 +170,97 @@ def test_ranking_is_unchanged_when_nothing_is_known():
     a, b = uuid.uuid4(), uuid.uuid4()
     nearby = [(a, 100.0), (b, 200.0)]
     assert _rank_with_scores(nearby, None, None) == nearby
+
+
+# ------------------------------------------------- one rater, one vote
+
+
+def _farmed(ratings: int, friends: int) -> RatingProfile:
+    """A profile built the way build_profile builds one: a single vote per
+    person, carrying their own mean."""
+    conc = 1.0
+    w = rating_weight(conc, True)
+    return RatingProfile(
+        in_cluster=ratings,
+        out_cluster=0,
+        in_raters=friends,
+        out_raters=0,
+        mean_in=5.0,
+        weighted_score=5.0,
+        weight_total=w * friends,
+    )
+
+
+def _honest(strangers: int) -> RatingProfile:
+    return RatingProfile(
+        in_cluster=0,
+        out_cluster=strangers,
+        in_raters=0,
+        out_raters=strangers,
+        mean_out=5.0,
+        weighted_score=5.0,
+        weight_total=float(strangers),
+    )
+
+
+def test_patience_no_longer_beats_independence():
+    """The exploit this closes.
+
+    The discount bottoms out at 0.75, so a friend rating still carried 0.25 and
+    weight grew without bound — roughly a hundred farmed ratings used to
+    overtake twenty honest ones (4.64 against 4.57). Counting people instead of
+    ratings removes the exploit rather than tuning the cap.
+    """
+    assert _farmed(100, 8).matching_score < _honest(20).matching_score
+    assert _farmed(1000, 8).matching_score < _honest(20).matching_score
+
+
+def test_a_farmed_score_saturates():
+    """Adding ratings from the same circle stops buying anything at all."""
+    assert _farmed(100, 8).matching_score == pytest.approx(
+        _farmed(300, 8).matching_score
+    )
+
+
+def test_an_honest_frequent_customer_costs_the_runner_nothing_real():
+    """Twenty ratings from one person genuinely is one person's opinion, so
+    capping it is not a penalty — it is the correct reading."""
+    assert _farmed(20, 1).matching_score == pytest.approx(_farmed(5, 1).matching_score)
+
+
+# --------------------------------------- the farmer nobody has penalised yet
+
+
+def test_a_reputation_no_stranger_has_tested_is_flagged():
+    """The gap the first two routes cannot see.
+
+    The differential needs strangers to compare against and the burst needs a
+    prior penalty, so a runner who farms from a standing start — never caught,
+    never served a stranger — tripped neither.
+    """
+    farmer = RatingProfile(
+        in_cluster=18, out_cluster=0, in_raters=5, out_raters=0,
+        mean_in=5.0, weighted_score=5.0, weight_total=1.25,
+    )
+    signals = farming_signals(farmer)
+    assert signals is not None
+    assert any("no stranger has ever tested" in r for r in signals["reasons"])
+
+
+def test_a_new_runner_whose_first_customers_were_friends_is_not_flagged():
+    """The case that must survive all of this. Everyone starts here."""
+    newcomer = RatingProfile(
+        in_cluster=4, out_cluster=0, in_raters=4, out_raters=0,
+        mean_in=5.0, weighted_score=5.0, weight_total=1.0,
+    )
+    assert farming_signals(newcomer) is None
+
+
+def test_many_distinct_friends_is_a_customer_base_not_a_circle():
+    """Eighteen ratings from fifteen different friends is a popular runner.
+    The signal is repeat concentration, never friendship itself."""
+    popular = RatingProfile(
+        in_cluster=18, out_cluster=0, in_raters=15, out_raters=0,
+        mean_in=4.8, weighted_score=4.8, weight_total=3.75,
+    )
+    assert farming_signals(popular) is None

@@ -69,13 +69,40 @@ FARMING_MIN_OUT_CLUSTER = 3
 POST_PENALTY_DAYS = 14
 POST_PENALTY_BURST = 2
 
+# The third route, for the farmer the first two cannot see.
+#
+# The differential needs strangers to compare against; the burst needs a prior
+# penalty. Someone who farms reputation from a standing start - never caught,
+# never served a stranger - trips neither, and can build standing purely inside
+# their circle before ever meeting a victim. That is the ordering an unhurried
+# attacker would choose.
+#
+# What gives them away is accumulation without independence: a substantial
+# rating history in which nobody outside their circle has ever rated them, and
+# in which a few friends rate repeatedly. Set high enough that an ordinary new
+# runner whose first customers were friends is nowhere near it - they have
+# four or five ratings, not fifteen.
+UNPROVEN_MIN_IN_CLUSTER = 15
+UNPROVEN_MAX_OUT_CLUSTER = 1
+# Ratings per distinct friend. At 2.5, fifteen ratings come from six people or
+# fewer, which is a circle rather than a customer base.
+UNPROVEN_REPEAT_RATIO = 2.5
+
 
 @dataclass(frozen=True)
 class RatingProfile:
-    """Where a runner's reputation actually comes from."""
+    """Where a runner's reputation actually comes from.
+
+    `in_cluster`/`out_cluster` count RATINGS, and are what the admin console
+    reports because "9 of 12 ratings came from friends" is what a reviewer
+    wants to read. `in_raters`/`out_raters` count PEOPLE, and are what the
+    weighting uses - see build_profile for why the difference matters.
+    """
 
     in_cluster: int = 0
     out_cluster: int = 0
+    in_raters: int = 0
+    out_raters: int = 0
     mean_in: float | None = None
     mean_out: float | None = None
     post_penalty_in_cluster: int = 0
@@ -85,6 +112,17 @@ class RatingProfile:
     @property
     def total(self) -> int:
         return self.in_cluster + self.out_cluster
+
+    @property
+    def distinct_raters(self) -> int:
+        return self.in_raters + self.out_raters
+
+    @property
+    def repeat_ratio(self) -> float:
+        """Ratings per distinct rater. A handful of friends rating over and
+        over reads very differently from the same count spread across a
+        cohort, and only the first is cheap to manufacture."""
+        return self.total / self.distinct_raters if self.distinct_raters else 0.0
 
     @property
     def concentration(self) -> float:
@@ -101,7 +139,10 @@ class RatingProfile:
         """How much this score should be believed, in [0, 1).
 
         Effective sample size against a prior, so a runner carried entirely by
-        their own cluster is treated as unproven rather than as good.
+        their own cluster is treated as unproven rather than as good. The
+        sample counts PEOPLE, not ratings: twenty ratings from five friends is
+        five opinions, and treating it as twenty is what let volume defeat the
+        discount (see build_profile).
         """
         return self.weight_total / (self.weight_total + CONFIDENCE_PRIOR)
 
@@ -154,13 +195,33 @@ async def build_profile(db: AsyncSession, runner_id: uuid.UUID) -> RatingProfile
     total = len(ratings)
     concentration = len(inside) / total if total else 0.0
 
-    # The weight depends on concentration, which depends on the whole set, so
-    # it is computed once here rather than per rating in isolation.
+    # ONE RATER, ONE VOTE.
+    #
+    # Weight is accumulated per PERSON, not per rating: each rater contributes
+    # a single vote carrying their own mean. Without this the discount is
+    # defeated by patience - a friend rating still carries 0.25 after the
+    # maximum discount, so weight grew without bound and roughly a hundred
+    # farmed ratings overtook twenty honest ones. Measured before this change:
+    # 100 in-cluster ratings scored 4.64 against 4.57 for 20 stranger ratings.
+    #
+    # Counting people instead removes the exploit at its root rather than
+    # tuning the cap, and it is the same rule the price estimator and the
+    # store adjustment already use. It also costs an honest frequent customer
+    # nothing that is real: twenty ratings from one person genuinely is one
+    # person's opinion.
+    #
+    # The weight itself still depends on concentration, which depends on the
+    # whole set, so it is computed once here rather than per rating.
+    by_rater: dict[uuid.UUID, list[float]] = {}
+    for r in ratings:
+        by_rater.setdefault(r.rater_id, []).append(float(r.stars))
+
     weighted_sum = 0.0
     weight_total = 0.0
-    for r in ratings:
-        w = rating_weight(concentration, r.rater_id in friends)
-        weighted_sum += w * r.stars
+    for rater_id, stars in by_rater.items():
+        vote = sum(stars) / len(stars)
+        w = rating_weight(concentration, rater_id in friends)
+        weighted_sum += w * vote
         weight_total += w
 
     last_penalty = await db.scalar(
@@ -181,6 +242,8 @@ async def build_profile(db: AsyncSession, runner_id: uuid.UUID) -> RatingProfile
     return RatingProfile(
         in_cluster=len(inside),
         out_cluster=len(outside),
+        in_raters=len({r.rater_id for r in inside}),
+        out_raters=len({r.rater_id for r in outside}),
         mean_in=mean(inside),
         mean_out=mean(outside),
         post_penalty_in_cluster=burst,
@@ -221,6 +284,19 @@ def farming_signals(profile: RatingProfile) -> dict | None:
         reasons.append(
             f"{profile.post_penalty_in_cluster} high ratings from inside their own "
             f"circle within {POST_PENALTY_DAYS} days of a penalty"
+        )
+
+    # Standing built entirely inside the circle, with nobody outside it ever
+    # having rated them, and a few friends rating over and over.
+    if (
+        profile.in_cluster >= UNPROVEN_MIN_IN_CLUSTER
+        and profile.out_cluster <= UNPROVEN_MAX_OUT_CLUSTER
+        and profile.repeat_ratio >= UNPROVEN_REPEAT_RATIO
+    ):
+        reasons.append(
+            f"{profile.in_cluster} ratings from only {profile.in_raters} friends and "
+            f"{profile.out_cluster} from anyone else - a reputation no stranger has "
+            "ever tested"
         )
 
     if not reasons:

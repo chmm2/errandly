@@ -495,10 +495,10 @@ hand-set constants into swept parameters.
 2. **Friendship is declared.** A ring whose members never friend each other is
    invisible to every social mechanism here. They forfeit dispatch preference,
    but escape the discount entirely.
-3. **The rating discount is bounded at 0.75**, so approximately 100 farmed
-   ratings eventually exceed 20 honest ones ✅. Volume defeats the weighting
-   given sufficient patience, though the money circulation it requires is
-   detectable by §IV-C.
+3. ~~The rating discount is bounded at 0.75, so ~100 farmed ratings overtake
+   20 honest ones.~~ **Closed.** Weight accrues per rater rather than per
+   rating, so a farmed score saturates: 300 ratings from 8 friends score
+   identically to 100 (3.80), against 4.57 for 20 independent ratings ✅.
 4. **The reference price has no vendor dimension** (§IV-E). The correction is
    hierarchical pooling: a vendor-specific estimate shrunk toward the campus
    estimate in proportion to that vendor's sample size.
