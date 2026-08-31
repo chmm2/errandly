@@ -28,6 +28,7 @@ from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.modules.auth.models import User
 from app.modules.errands.models import Errand, Rating
 from app.modules.fraud import collusion, estimator, reputation, semantics
@@ -941,7 +942,16 @@ async def sweep_rating_farming(db: AsyncSession) -> list[FraudFlag]:
         # Ask the model only about cases arithmetic already surfaced. Running
         # it over every runner would cost a fortune and, worse, would put a
         # language judgement in front of people nothing was wrong with.
-        verdict = await semantics.assess_reviews(db, runner_id)
+        #
+        # Off by default: this channel was measured not to discriminate, and an
+        # advisory that clears fraudsters who write well while failing honest
+        # runners whose friends write nothing is worse than no advisory at all.
+        # See settings.review_analysis_enabled.
+        verdict = (
+            await semantics.assess_reviews(db, runner_id)
+            if settings.review_analysis_enabled
+            else None
+        )
 
         flag = FraudFlag(
             user_id=runner_id,

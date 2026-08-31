@@ -70,6 +70,20 @@ class Settings(BaseSettings):
     # 0.75 and reports injection attempts instead of following them.
     ollama_model: str = "qwen2.5:7b"
     semantic_analysis_enabled: bool = True
+    # The review-reading channel is OFF by default because it was measured not
+    # to work. Two independent runs on qwen2.5:7b separated genuine from farmed
+    # rating histories by -0.9 and +2.8 points - noise either side of zero -
+    # and it failed in both directions on the cases that matter: a farmed
+    # history with varied wording scored 72 and was cleared, while an honest
+    # runner whose friends rate without writing scored 30 and was not.
+    #
+    # The errand-text channel is a different question and is unaffected; it
+    # separated the same kind of pair by 41.7 points.
+    #
+    # Kept behind a flag rather than deleted: the prompt is worth another
+    # attempt, and evals/run_eval.py is where to iterate. Turn it on only when
+    # the harness shows real separation.
+    review_analysis_enabled: bool = False
 
     # App
     environment: str = "development"
