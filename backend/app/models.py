@@ -18,6 +18,7 @@ from app.modules.errands.models import (
     ErrandEvent,
     ErrandHandoffSecret,
     ErrandItem,
+    OfferLog,
     Rating,
 )
 from app.modules.fraud.models import (
@@ -53,6 +54,7 @@ __all__ = [
     "PushToken",
     "DailyStat",
     "ErrandItem",
+    "OfferLog",
     "Rating",
     "LedgerEntry",
     "EscrowHold",
