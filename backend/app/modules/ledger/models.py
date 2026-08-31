@@ -133,6 +133,12 @@ class EscrowHold(Base):
     collect_amount: Mapped[float] = mapped_column(
         Numeric(12, 2), nullable=False, server_default="0"
     )
+    # Headroom held on top of the estimated spend, so a shop charging more than
+    # expected does not leave the runner unpaid. Returned to the requester at
+    # settlement to whatever extent it was not needed.
+    buffer: Mapped[float] = mapped_column(
+        Numeric(12, 2), nullable=False, server_default="0"
+    )
     amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     released_amount: Mapped[float] = mapped_column(
         Numeric(12, 2), nullable=False, server_default="0"

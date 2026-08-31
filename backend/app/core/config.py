@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     # Self-registration is restricted to this email domain (student-only).
     student_email_domain: str = "vitstudent.ac.in"
 
+    # Escrow headroom. Shop prices move, and a runner who fronts cash must not
+    # be left out of pocket because the requester's wallet was sized to an
+    # estimate. A percentage of the ESTIMATED SPEND is held on top; the runner
+    # fee is not part of that base, because the fee is fixed and known and
+    # padding it would only lock money nobody can ever need.
+    escrow_buffer_pct: float = 0.15
+
     # Semantic fraud channel (modules/fraud/semantics.py). Optional in every
     # sense: with no provider configured the fraud system behaves exactly as it
     # does without it.

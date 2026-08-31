@@ -13,6 +13,7 @@ Two rules hold this together, and every function below exists to keep them:
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -21,8 +22,11 @@ from sqlalchemy import case, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.modules.auth.models import User
 from app.modules.ledger.models import ENTRY_DIRECTION, EscrowHold, LedgerEntry
+
+logger = logging.getLogger(__name__)
 
 TWO_PLACES = Decimal("0.01")
 
@@ -122,17 +126,41 @@ async def place_hold(
     items_total: Decimal,
     reward: Decimal,
     collect_amount: Decimal,
+    buffer_pct: float | None = None,
 ) -> EscrowHold:
     """Move the requester's money into escrow at order time.
 
     Held up front so a runner who fronts cash at the counter is not trusting the
     requester to still have funds an hour later. The hold is the runner's
     guarantee of payment.
+
+    The hold is deliberately larger than the estimate:
+
+        hold = spend_estimate + spend_estimate x buffer_pct + reward
+
+    Shop prices move, and the runner discovers that at the counter with their
+    own cash already spent. Without headroom a requester who budgeted exactly
+    could not cover a ₹25 difference, and the person out of pocket would be the
+    runner. Whatever the buffer is not needed for goes straight back at
+    settlement, so the cost to the requester is temporary and visible.
     """
     items_total = _money(items_total)
     reward = _money(reward)
     collect_amount = _money(collect_amount)
-    total = _money(items_total + reward + collect_amount)
+
+    # What the runner is expected to spend at the counter. Catalogue orders
+    # carry it as priced items; gate and parcel pickups carry it as the cash
+    # the requester says will change hands. Either way it is an ESTIMATE, and
+    # the estimate is the only thing the buffer applies to.
+    if buffer_pct is None:
+        buffer_pct = getattr(settings, "escrow_buffer_pct", 0.0)
+    spend_estimate = _money(items_total + collect_amount)
+    buffer = _money(spend_estimate * Decimal(str(buffer_pct)))
+
+    # The fee is deliberately outside the base. It is fixed and known, so
+    # padding it would lock money that could never be needed - the requester
+    # would simply have less to spend for no protection in return.
+    total = _money(spend_estimate + buffer + reward)
 
     if total <= 0:
         raise LedgerError("Nothing to hold for this errand.", 422)
@@ -172,11 +200,26 @@ async def place_hold(
         items_total=items_total,
         reward=reward,
         collect_amount=collect_amount,
+        buffer=buffer,
         amount=total,
     )
     db.add(hold)
     await db.flush()
     return hold
+
+
+async def estimated_spend(db: AsyncSession, errand_id: uuid.UUID) -> Decimal:
+    """What the runner was expected to spend, as recorded when money was held.
+
+    The hold is the authoritative record of the estimate - it is what the
+    requester's wallet was actually charged against, and unlike the errand row
+    it cannot drift afterwards. Excludes the fee and the buffer: this is the
+    outlay, not the ceiling.
+    """
+    hold = await db.get(EscrowHold, errand_id)
+    if hold is None:
+        return Decimal("0")
+    return _money(_money(hold.items_total) + _money(hold.collect_amount))
 
 
 async def _locked_hold(db: AsyncSession, errand_id: uuid.UUID) -> EscrowHold | None:
@@ -211,13 +254,29 @@ async def release_hold(
     reward = _money(reward)
     reimbursement = _money(reimbursement)
     withheld = _money(withheld)
-    payout = _money(reward + reimbursement)
     remaining = _money(hold.amount) - _money(hold.released_amount)
 
-    if payout > remaining:
-        raise LedgerError(
-            f"Payout ₹{payout} exceeds the ₹{remaining} still held for this errand.",
-            409,
+    # The fee is ring-fenced. A runner who overspends past the buffer has a
+    # problem with the reimbursement, not with being paid for the work, and
+    # silently eating their fee to cover the gap would punish them for a shop
+    # putting its prices up.
+    reward = min(reward, max(Decimal("0"), remaining))
+    room = max(Decimal("0"), remaining - reward)
+
+    # Cap rather than raise. Settlement runs on a Kafka consumer: raising here
+    # fails the event, which is redelivered, which fails again - an unpayable
+    # errand would retry forever and block the partition. Paying what is held
+    # and recording the gap is recoverable; a stuck consumer is not.
+    shortfall = max(Decimal("0"), reimbursement - room)
+    reimbursement = min(reimbursement, room)
+    payout = _money(reward + reimbursement)
+
+    if shortfall > 0:
+        logger.warning(
+            "errand %s: runner spent ₹%s more than was held; paying the held "
+            "amount and leaving the difference for an admin",
+            errand_id,
+            shortfall,
         )
 
     await _write_entry(

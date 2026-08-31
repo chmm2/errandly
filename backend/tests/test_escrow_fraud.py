@@ -169,13 +169,15 @@ async def test_placing_an_order_moves_money_into_escrow(client, campus, make_use
     assert resp.status_code == 201, resp.text
     errand_id = resp.json()["id"]
 
-    assert await balance_of(requester_id) == Decimal("370.00")
+    # 100 estimated spend + 15 headroom (15% of the spend, not the fee) + 30 fee.
+    assert await balance_of(requester_id) == Decimal("355.00")
 
     async with SessionLocal() as db:
         hold = await db.get(EscrowHold, uuid.UUID(errand_id))
     assert hold is not None
     assert hold.status == "HELD"
-    assert Decimal(str(hold.amount)) == Decimal("130.00")
+    assert Decimal(str(hold.buffer)) == Decimal("15.00")
+    assert Decimal(str(hold.amount)) == Decimal("145.00")
 
 
 async def test_an_unfunded_order_is_refused(client, campus, make_user):
@@ -197,11 +199,13 @@ async def test_cancelling_returns_the_full_hold(client, campus, make_user):
     await set_balance(requester_id, "500")
 
     errand = (await place_order(client, headers, reward=30, collect=100)).json()
-    assert await balance_of(requester_id) == Decimal("370.00")
+    assert await balance_of(requester_id) == Decimal("355.00")
 
     resp = await client.post(f"/errands/{errand['id']}/cancel", json={}, headers=headers)
     assert resp.status_code == 200, resp.text
 
+    # Headroom is returned along with everything else - it was only ever a
+    # reservation against a spend that never happened.
     assert await balance_of(requester_id) == Decimal("500.00")
     async with SessionLocal() as db:
         hold = await db.get(EscrowHold, uuid.UUID(errand["id"]))

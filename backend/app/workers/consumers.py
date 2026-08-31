@@ -148,9 +148,14 @@ async def handle_settlement(db: AsyncSession, event: dict) -> None:
 
     eligible, withheld = await fraud.eligible_reimbursement(db, errand_id)
     if eligible == 0 and withheld == 0:
-        # No claims filed (a non-catalog run, or a runner who skipped the
-        # step): fall back to the amount the requester agreed to up front.
-        eligible = Decimal(str(payload.get("collect_amount", 0) or 0))
+        # No claims filed - a gate or parcel pickup, or a runner who skipped
+        # the step. Fall back to what was estimated when the money was held.
+        #
+        # Read from the HOLD, not from this event. The event carries only
+        # collect_amount, so a catalogue order - whose spend lives in priced
+        # items - reimbursed ZERO and handed the whole basket back to the
+        # requester as surplus, with the runner already out of pocket for it.
+        eligible = await ledger.estimated_spend(db, errand_id)
 
     try:
         await ledger.release_hold(
