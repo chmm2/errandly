@@ -35,6 +35,11 @@ class WalletOut(BaseModel):
 
     balance: float
     held: float
+    # The headroom rate the server will apply, so an order screen can show
+    # what a basket will actually lock BEFORE it is placed. Sent rather than
+    # hardcoded in the client: the two drifting apart is how a checkout button
+    # starts quoting a total the wallet then disagrees with.
+    buffer_pct: float
     recent: list[LedgerEntryOut]
 
 

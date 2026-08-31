@@ -13,6 +13,7 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import update
 
+from app.core.config import settings
 from app.core.database import SessionLocal
 from app.modules.auth.models import User
 from app.modules.ledger import service as ledger
@@ -170,6 +171,10 @@ async def test_the_wallet_shows_both_partitions(client, campus, make_user):
     before = (await client.get("/ledger/me/wallet", headers=r_headers)).json()
     assert before["balance"] == 500.0
     assert before["held"] == 0.0
+    # The order screens quote the locked total before anything is placed, so
+    # the rate has to travel with the wallet. Hardcoding it in the client is
+    # how a checkout button starts promising a number the wallet disagrees with.
+    assert before["buffer_pct"] == settings.escrow_buffer_pct
 
     await client.post(
         "/errands",

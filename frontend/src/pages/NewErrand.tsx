@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { type Category, createErrand } from "../api/errands";
 import CampusDropPicker from "../components/CampusDropPicker";
+import HoldBreakdown from "../components/HoldBreakdown";
 import Navbar from "../components/Navbar";
 import { apiErrorMessage } from "../lib/api";
 
@@ -534,6 +535,11 @@ export default function NewErrand() {
               What you pay the runner on top of item cost. ₹20–₹50 is typical.
             </p>
           </div>
+
+          {/* What placing this will actually take out of the wallet. On a
+              shopping list there is no priced basket yet, so only the reward
+              is known - and that is exactly what this then shows. */}
+          <HoldBreakdown spend={Number(collectAmount || 0)} fee={Number(reward || 0)} />
 
           <div>
             <label className="mb-1.5 block text-sm font-semibold">

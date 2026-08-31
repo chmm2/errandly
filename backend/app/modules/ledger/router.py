@@ -96,6 +96,7 @@ async def my_wallet(
     return WalletOut(
         balance=float(balance),
         held=float(held or 0),
+        buffer_pct=settings.escrow_buffer_pct,
         recent=[LedgerEntryOut.model_validate(e) for e in rows.scalars()],
     )
 
