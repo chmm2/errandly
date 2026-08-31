@@ -306,6 +306,44 @@ async def search_students(
 # enough to outrank someone closer.
 HOP_DECAY = 0.45
 
+# --- how long a friendship takes to count for full trust --------------------
+#
+# A friendship carries less weight until it has been around a while, and the
+# direction matters: it is the BRAND-NEW edge that is weak evidence, not the
+# old one. An edge created yesterday could have been created for this errand.
+#
+# This is the tie that the farming work pushes attackers toward. Weighting
+# ratings by distinct rater made repetition worthless, so the cheapest evasion
+# became breadth — recruit eighty friends and have each rate once, which scores
+# exactly as an honest runner does. Every one of those ties has to be created,
+# and created recently. Maturity is what makes recruiting a network on Tuesday
+# not pay off on Wednesday.
+#
+# Deliberately NOT a decay on old edges. Age makes a friendship stronger
+# evidence, not weaker: a tie that has survived two years is more likely real
+# than one from last week. Penalising it would punish the ordinary population
+# to inconvenience nobody, since rebuilding a stale network costs an attacker
+# nothing anyway.
+FRIENDSHIP_MATURITY_DAYS = 30.0
+# A new friendship is not worthless — most are exactly what they look like.
+# It is discounted, and matures to full weight over the window above.
+NEW_FRIENDSHIP_FLOOR = 0.40
+
+
+def _maturity(age_days: float | None) -> float:
+    """How much a friendship of this age counts, in [NEW_FRIENDSHIP_FLOOR, 1].
+
+    Unknown age counts in full: edges written before `since` was recorded are
+    genuinely old, and treating missing data as suspicious would penalise the
+    earliest users of the platform for the platform's own gap.
+    """
+    if age_days is None:
+        return 1.0
+    if age_days >= FRIENDSHIP_MATURITY_DAYS:
+        return 1.0
+    ramp = max(0.0, age_days) / FRIENDSHIP_MATURITY_DAYS
+    return NEW_FRIENDSHIP_FLOOR + (1.0 - NEW_FRIENDSHIP_FLOOR) * ramp
+
 # Closure is the share of a neighbourhood's edges that stay inside it:
 #
 #     closure = internal / (internal + boundary)
@@ -438,6 +476,21 @@ async def connections_for(
     }
 
 
+def _path_age_days(row: dict) -> float | None:
+    """Age in days of the NEWEST friendship on the path, or None if every edge
+    on it predates the `since` field."""
+    newest = row.get("newest_since")
+    if newest is None:
+        return None
+    try:
+        when = datetime.fromisoformat(str(newest))
+    except (TypeError, ValueError):
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=UTC)
+    return max(0.0, (datetime.now(UTC) - when).total_seconds() / 86400.0)
+
+
 async def social_scores(
     requester_id: uuid.UUID, candidate_ids: list[uuid.UUID]
 ) -> dict[uuid.UUID, dict]:
@@ -457,11 +510,23 @@ async def social_scores(
     OPTIONAL MATCH path = shortestPath((me)-[:FRIEND*1..%d]-(c))
     WITH c, path
     WHERE path IS NOT NULL
-    WITH c, path, length(path) AS hops, nodes(path) AS ns
-    // The intermediary carrying the path (the hop just after me), if any.
-    WITH c, hops, CASE WHEN size(ns) > 2 THEN ns[1] ELSE null END AS via
+    WITH c, path, length(path) AS hops, nodes(path) AS ns,
+         // The NEWEST link on the path. A chain of trust is only as
+         // established as its most recently created tie: an old friendship
+         // reached through an edge made yesterday tells you about yesterday.
+         reduce(newest = null, r IN relationships(path) |
+                CASE WHEN r.since IS NULL THEN newest
+                     WHEN newest IS NULL OR datetime(r.since) > datetime(newest)
+                     THEN r.since ELSE newest END) AS newest_since,
+         // Null only when EVERY edge predates the field, which means the path
+         // is old rather than unknown.
+         size([r IN relationships(path) WHERE r.since IS NULL]) AS undated
+    WITH c, hops, newest_since, undated,
+         CASE WHEN size(ns) > 2 THEN ns[1] ELSE null END AS via
     RETURN c.id           AS runner_id,
            hops           AS hops,
+           newest_since   AS newest_since,
+           undated        AS undated,
            via.id         AS via_id,
            via.name       AS via_name,
            CASE WHEN via IS NULL THEN 0.0
@@ -496,10 +561,12 @@ async def social_scores(
                 int(r["via_degree"] or 0),
                 float(r.get("via_circulation") or 0.0),
             )
+        maturity = _maturity(_path_age_days(r))
         out[uuid.UUID(r["runner_id"])] = {
             "hops": hops,
-            "trust": round(base * (1.0 - penalty), 4),
+            "trust": round(base * (1.0 - penalty) * maturity, 4),
             "via": r.get("via_name"),
             "closure_penalty": round(penalty, 4),
+            "maturity": round(maturity, 4),
         }
     return out
