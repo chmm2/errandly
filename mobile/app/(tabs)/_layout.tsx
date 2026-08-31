@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Tabs } from "expo-router";
-import { Platform, StyleSheet, Text } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { fetchRequests } from "../../src/api/social";
@@ -8,9 +8,14 @@ import { useAuth } from "../../src/stores/auth";
 import { colors, font } from "../../src/theme";
 
 /**
- * Four tabs: the two roles the product has, your connections, and your
- * account. Shops isn't here — you reach it from Order → Food, the way the web
- * app does it.
+ * Five tabs: the two roles the product has, the wallet, your connections, and
+ * your account. Shops isn't here — you reach it from Order → Food, the way the
+ * web app does it.
+ *
+ * Wallet sits in the middle and is raised out of the bar. Money is the thing
+ * people check most and trust least, so it gets the position a thumb reaches
+ * without looking, and enough visual separation that it reads as its own
+ * thing rather than one more destination.
  */
 export default function TabsLayout() {
   const signedIn = !!useAuth((s) => s.accessToken);
@@ -61,6 +66,20 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="wallet"
+        options={{
+          title: "Wallet",
+          tabBarIcon: ({ focused }) => (
+            <View style={[s.walletBubble, focused && s.walletBubbleActive]}>
+              <Text style={{ fontSize: 21 }}>👛</Text>
+            </View>
+          ),
+          // The bubble carries the identity; a label under it would crowd the
+          // bar and sit at a different height from its neighbours.
+          tabBarLabel: () => null,
+        }}
+      />
+      <Tabs.Screen
         name="connects"
         options={{
           title: "Connects",
@@ -95,4 +114,24 @@ const s = StyleSheet.create({
   label: { fontSize: 11, lineHeight: 15, fontFamily: font.bold, marginTop: 3 },
   icon: { height: 24 },
   badge: { backgroundColor: colors.brand, fontSize: 10, fontFamily: font.bold },
+
+  // Lifted clear of the bar, with a ring in the page background so the bar
+  // appears to part around it rather than the bubble sitting on top of it.
+  walletBubble: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    marginTop: -22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.white,
+    borderWidth: 4,
+    borderColor: colors.bg,
+    shadowColor: "#101223",
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  walletBubbleActive: { backgroundColor: colors.brandSoft },
 });
