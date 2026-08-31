@@ -54,8 +54,11 @@ async def test_runner_summary_gated_to_parties_and_active_run(client, make_user)
     assert detail["runner"]["phone"] == "9998887777"
     assert detail["runner"]["reputation_score"] == 5.0
 
-    # A bystander never sees the runner block
-    assert (await client.get(f"/errands/{eid}", headers=stranger)).json()["runner"] is None
+    # A bystander never sees the runner block — and since the errand has been
+    # accepted, they no longer see the errand at all. Stripping the field was
+    # the old, weaker version of this: it still confirmed the errand existed
+    # and leaked its progress, items and amounts.
+    assert (await client.get(f"/errands/{eid}", headers=stranger)).status_code == 404
 
     # After completion the name stays but the phone is withheld again
     await client.post(f"/errands/{eid}/pickup", headers=runner)

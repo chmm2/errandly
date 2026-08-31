@@ -250,8 +250,12 @@ export default function ErrandDetail() {
           <FindingRunner createdAt={errand.created_at} expiresAt={errand.expires_at} />
         ) : null}
 
-        {/* Progress rail */}
-        {!terminal ? (
+        {/* Progress rail. Both parties, nobody else: a runner browsing open
+            work is deciding whether to take it, and where somebody else's
+            errand has got to is not part of that decision. The backend now
+            refuses non-parties a non-open errand outright, so this is the
+            second lock rather than the only one. */}
+        {!terminal && (isRequester || isRunner) ? (
           <Card raised style={{ marginTop: space.xl }}>
             {STEPS.map((step, i) => {
               const done = stepIndex >= i;

@@ -706,8 +706,27 @@ async def list_mine(db: AsyncSession, user: User) -> tuple[list[Errand], list[Er
 
 
 async def get_errand(db: AsyncSession, user: User, errand_id: uuid.UUID) -> Errand:
+    """One errand, if this user is allowed to see it.
+
+    Campus membership alone used to be the whole check, which meant any student
+    could fetch any errand on campus by id and read its requester, its assigned
+    runner, its progress, its items and its amounts — including runs they had
+    no part in and errands that finished months ago.
+
+    The rule is narrower: you see your own errands, and you see work that is
+    still open. An OPEN errand is an offer to the campus, so a runner deciding
+    whether to take it legitimately needs to read it. Once someone else has
+    accepted, it stops being an offer and becomes two people's business.
+
+    404 rather than 403, because confirming that an errand exists is itself
+    something a stranger should not learn.
+    """
     errand = await db.get(Errand, errand_id)
     if errand is None or errand.deleted_at is not None or errand.campus_id != user.campus_id:
+        raise ErrandError("Errand not found.", 404)
+
+    is_party = user.id in (errand.requester_id, errand.runner_id)
+    if not is_party and errand.status != "OPEN" and user.role != "ADMIN":
         raise ErrandError("Errand not found.", 404)
     await _attach_secret_flags(db, [errand])
     await _attach_items(db, [errand])
