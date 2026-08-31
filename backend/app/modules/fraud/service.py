@@ -102,10 +102,21 @@ MIN_TOLERANCE_ABS = Decimal("5.00")
 STORE_PRIOR = Decimal("6")
 # Distinct runners, not claims. This is the whole defence.
 STORE_MIN_RUNNERS = 3
-# Never let the store adjustment stray further than this from the campus
-# reference. A store cannot be talked into being three times dearer than campus
-# by its own claim history, however many claims it has.
-STORE_MAX_DRIFT = Decimal("0.60")
+# A sanity bound, not the operative control.
+#
+# The shrinkage above is what actually limits movement, and it does so in
+# proportion to independent evidence: three runners move a Rs10 reference to
+# Rs14, twenty move it to Rs19. Set too tight, this clamp overrides that and
+# blocks the honest case entirely - at 0.60 a shop genuinely charging Rs22
+# against a Rs10 campus median stayed permanently mispriced, and its honest
+# runners were flagged forever, no matter how many independently reported the
+# same price.
+#
+# So it sits well clear of plausible price variation and exists only to stop
+# something absurd. A group large enough to walk a store's reference this far
+# would need many distinct runners transacting repeatedly at one shop, which
+# is a shape find_rings now detects at any size.
+STORE_MAX_DRIFT = Decimal("1.50")
 
 
 def _store_label(store_key: str | None) -> str | None:
@@ -300,6 +311,28 @@ class Judgement(NamedTuple):
     eligible: Decimal
 
 
+async def store_observations(
+    db: AsyncSession, campus_id: uuid.UUID, item_key: str, store_key: str | None
+) -> int:
+    """How many distinct runners have priced this item at this shop.
+
+    Reported on a flag so a reviewer can see at a glance whether the reference
+    it was judged against is established or still forming. A claim that looks
+    high against a shop nobody has reported from is a different proposition
+    from the same claim against a shop twenty runners agree about.
+    """
+    if not store_key:
+        return 0
+    rows = await db.scalars(
+        select(RunnerPriceClaim.runner_id).where(
+            RunnerPriceClaim.campus_id == campus_id,
+            RunnerPriceClaim.item_key == item_key,
+            RunnerPriceClaim.store_key == store_key,
+        )
+    )
+    return len(set(rows))
+
+
 async def store_adjusted_reference(
     db: AsyncSession,
     campus_id: uuid.UUID,
@@ -453,6 +486,7 @@ async def submit_claims(
             else None
         )
         j = judge(unit_price, quantity, reference, ref_override=ref_unit)
+        seen_here = await store_observations(db, errand.campus_id, item_key, store_key)
 
         existing = await db.scalar(
             select(RunnerPriceClaim).where(
@@ -504,6 +538,7 @@ async def submit_claims(
                 claim=claim,
                 rule="CLAIM_ABOVE_REFERENCE",
                 delta_pct=j.delta_abs or Decimal("0"),
+                store_reports=seen_here,
             )
 
     # Someone whose claims cluster just under the line never trips the rule
@@ -547,6 +582,7 @@ async def raise_flag(
     rule: str,
     delta_pct: Decimal,
     details: dict | None = None,
+    store_reports: int = 0,
 ) -> FraudFlag:
     flag = FraudFlag(
         user_id=user_id,
@@ -568,6 +604,11 @@ async def raise_flag(
             # reviewing with strictly less information than the system used
             # to raise the flag.
             "store": _store_label(claim.store_key) if claim else None,
+            # How well established that shop's price is. A high-looking claim
+            # at a shop nobody has reported from is a different proposition
+            # from the same claim at one twenty runners agree about, and a
+            # reviewer should not have to go and find that out.
+            "store_reports": store_reports,
             "delta_pct": float(delta_pct),
         },
     )

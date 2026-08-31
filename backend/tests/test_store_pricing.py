@@ -81,11 +81,19 @@ async def test_an_unknown_store_is_judged_at_campus_prices():
     ) == Decimal("20.00")
 
 
-async def test_store_drift_is_bounded():
-    """However much history a store accumulates, it cannot become arbitrarily
-    dear. Without the clamp, a group able to produce enough distinct-runner
-    claims could walk a store's reference upward without limit."""
-    assert fraud.STORE_MAX_DRIFT <= Decimal("1")
+async def test_store_drift_is_bounded_but_not_the_operative_control():
+    """However much history a store accumulates it cannot become arbitrarily
+    dear — but the clamp must not be what limits ordinary variation either.
+
+    Set too tight it overrides the shrinkage and blocks the honest case: at
+    0.60 a shop genuinely charging Rs22 against a Rs10 campus median stayed
+    mispriced no matter how many independent runners reported it, and every one
+    of them was flagged. The real control is independence, below.
+    """
+    assert fraud.STORE_MAX_DRIFT > Decimal("1"), (
+        "too tight a clamp permanently misprices genuinely dearer shops"
+    )
+    assert fraud.STORE_MAX_DRIFT <= Decimal("3"), "still a bound, not a licence"
     assert fraud.STORE_MIN_RUNNERS >= 3, (
         "the defence is independence: fewer than three runners is not consensus"
     )

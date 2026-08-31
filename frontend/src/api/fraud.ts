@@ -95,6 +95,10 @@ export interface Flag {
     // Which shop it was bought at. The reference above is store-adjusted, so
     // this is what makes the comparison interpretable to a reviewer.
     store?: string | null;
+    // How many distinct runners have priced this item at that shop. Low means
+    // the reference is still forming, which is usually why an honest claim
+    // looks high.
+    store_reports?: number | null;
     delta_pct?: number | null;
     // PERSISTENT_NEAR_THRESHOLD — the evidence is a distribution, not a price
     near_line_claims?: number;

@@ -141,6 +141,24 @@ function FlagCard({
               {d.store && (
                 <div className="mt-1">
                   bought at <span className="font-bold text-ink">{d.store}</span>
+                  {d.store_reports != null && (
+                    <>
+                      {" · "}
+                      {d.store_reports < 3 ? (
+                        /* The usual reason an honest claim looks high: this
+                           shop has too little history for its own price to
+                           have formed yet, so the claim was judged against the
+                           campus median instead. */
+                        <span className="font-semibold text-amber-700">
+                          only {d.store_reports} runner
+                          {d.store_reports === 1 ? "" : "s"} have priced this here —
+                          judged against the campus reference
+                        </span>
+                      ) : (
+                        <span>{d.store_reports} runners have priced this here</span>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>
