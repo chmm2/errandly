@@ -318,3 +318,39 @@ def test_a_long_chain_does_not_exhaust_the_stack():
     nodes, edges = _loop(5000)
     found = [c for c in strongly_connected_components(nodes, edges) if len(c) >= 3]
     assert len(found) == 1 and len(found[0]) == 5000
+
+
+# ------------------------------------------------ evidence ages out
+
+from datetime import UTC, datetime, timedelta
+
+from app.modules.fraud.collusion import MONEY_WINDOW_DAYS, _window_start
+
+
+def test_money_evidence_is_time_bounded():
+    """Circulation and ring detection were all-time, which was inconsistent
+    with the rest of the system and unfair in a specific way: strikes and flags
+    already age out over 30 days, so the PENALTY decayed while the EVIDENCE
+    never did. A ring that stopped eight months ago stayed flagged forever, and
+    a user whose first errands happened to be with friends carried that ratio
+    with no way back.
+    """
+    start = datetime.fromisoformat(_window_start())
+    age = datetime.now(UTC) - start
+    assert timedelta(days=MONEY_WINDOW_DAYS - 1) <= age <= timedelta(
+        days=MONEY_WINDOW_DAYS + 1
+    )
+
+
+def test_the_window_is_long_enough_to_outlast_a_pause():
+    """Short windows are gameable: a ring could stop for a few weeks and come
+    back clean. Two semesters means pausing long enough to clear the evidence
+    costs most of the value of having a ring at all."""
+    assert MONEY_WINDOW_DAYS >= 90
+
+
+def test_the_window_is_short_enough_that_conduct_can_change():
+    """Someone penalised as a student should not carry it indefinitely. A year
+    of clean behaviour has to mean something, or there is no way back and no
+    incentive to stop."""
+    assert MONEY_WINDOW_DAYS <= 365

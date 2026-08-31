@@ -120,6 +120,12 @@ def _emit_order_event(db: AsyncSession, errand: Errand, event_type: str) -> None
             "category": errand.category,
             "reward": float(errand.reward),
             "collect_amount": float(errand.collect_amount or 0),
+            # When the transition happened. Consumers that age evidence need
+            # this: without it every PAID edge the graph projection wrote
+            # carried a null date, so circulation and ring detection could only
+            # ever be all-time, and a pattern from a year ago weighed the same
+            # as one from yesterday.
+            "at": datetime.now(UTC).isoformat(),
         },
     )
 

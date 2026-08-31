@@ -35,6 +35,7 @@ over a campus-sized graph.
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime, timedelta
 import uuid
 from dataclasses import dataclass, field
 
@@ -52,6 +53,22 @@ CIRCULATION_KNEE = 0.60
 # A user needs at least this much settled value before circulation means
 # anything. Someone with two completed errands, both for a friend, reads as
 # 100% internal and is simply new.
+# How far back the money evidence reaches.
+#
+# Circulation and ring detection were all-time, which is inconsistent with the
+# rest of the system and unfair in a specific way: strikes and flags already
+# age out over 30 days, so the PENALTY decayed while the EVIDENCE never did. A
+# ring that circulated eight months ago and stopped stayed flagged forever, and
+# a user whose first errands happened to be with friends carried that ratio for
+# the rest of their time on campus with no way back.
+#
+# Two semesters. Long enough that a genuine pattern cannot hide by pausing for
+# a few weeks, short enough that behaviour a year old stops being treated as
+# current conduct. Edges with no timestamp are counted rather than dropped:
+# older rows predate the field, and silently discarding evidence would be the
+# more dangerous default.
+MONEY_WINDOW_DAYS = 180
+
 MIN_CIRCULATION_VALUE = 300.0
 MIN_CIRCULATION_TXNS = 4
 
@@ -107,6 +124,7 @@ def circulation_penalty(circulation: float) -> float:
 REFRESH_CIRCULATION = """
 MATCH (u:User)
 OPTIONAL MATCH (u)-[p:PAID]-(other:User)
+WHERE p IS NULL OR p.at IS NULL OR datetime(p.at) >= datetime($since)
 WITH u, other, p
 WITH u,
      sum(coalesce(p.amount, 0.0)) AS total_value,
@@ -132,6 +150,7 @@ SET u.paid_value     = total_value,
 FRIEND_PAYMENT_EDGES = """
 MATCH (a:User)-[p:PAID]->(b:User)
 WHERE (a)-[:FRIEND]-(b)
+  AND (p.at IS NULL OR datetime(p.at) >= datetime($since))
 RETURN a.id AS src, b.id AS dst,
        a.name AS src_name, b.name AS dst_name,
        sum(coalesce(p.amount, 0.0))    AS value,
@@ -202,6 +221,11 @@ def strongly_connected_components(
     return result
 
 
+def _window_start() -> str:
+    """ISO timestamp for the start of the money-evidence window."""
+    return (datetime.now(UTC) - timedelta(days=MONEY_WINDOW_DAYS)).isoformat()
+
+
 async def refresh_circulation() -> None:
     """Recompute per-user circulation. Timer job, alongside the graph metrics.
 
@@ -214,6 +238,7 @@ async def refresh_circulation() -> None:
             REFRESH_CIRCULATION,
             min_value=MIN_CIRCULATION_VALUE,
             min_txns=MIN_CIRCULATION_TXNS,
+            since=_window_start(),
         )
         logger.info("graph: refreshed payment circulation")
     except Exception:
@@ -246,7 +271,7 @@ async def find_rings() -> list[Ring]:
     design. That is the safe direction: an outage must not manufacture
     accusations.
     """
-    rows = await run_read(FRIEND_PAYMENT_EDGES)
+    rows = await run_read(FRIEND_PAYMENT_EDGES, since=_window_start())
     if not rows:
         return []
 
