@@ -58,6 +58,9 @@ class ReferencePrice(Base, TimestampMixin):
         ),
         CheckConstraint("source IN ('ADMIN','AUTO')", name="ck_reference_source"),
         CheckConstraint("tolerance_abs > 0", name="ck_reference_tolerance"),
+        CheckConstraint(
+            "tolerance_pct >= 0 AND tolerance_pct <= 1", name="ck_reference_tolerance_pct"
+        ),
         Index("ix_reference_campus", "campus_id"),
     )
 
@@ -75,12 +78,20 @@ class ReferencePrice(Base, TimestampMixin):
     reference_price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     band_min: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     band_max: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
-    # How many rupees above the reference a single claim may sit before it is
-    # flagged outright. Absolute, not a percentage: a flat rupee line is the
-    # one a runner at a counter can actually hold in their head, and it is the
-    # one an admin can defend to a student without doing arithmetic.
+    # The MOST the allowance may ever be, in rupees. Originally this was the
+    # allowance itself, but a flat line does not survive a canteen menu: it is
+    # +80% on a 25-rupee puff and +4% on a 500-rupee grocery run. It is now the
+    # ceiling on a percentage-scaled allowance, so expensive items behave as
+    # before while cheap ones stop being effectively unprotected.
     tolerance_abs: Mapped[float] = mapped_column(
         Numeric(10, 2), nullable=False, server_default="20.00"
+    )
+    # Share of the reference a claim may exceed it by. The allowance is this
+    # scaled value, floored and then capped by tolerance_abs above - see
+    # fraud/service.py:effective_tolerance. Set 0 to disable scaling for one
+    # item and fall back to the flat ceiling.
+    tolerance_pct: Mapped[float] = mapped_column(
+        Numeric(4, 3), nullable=False, server_default="0.400"
     )
     source: Mapped[str] = mapped_column(String(8), nullable=False, server_default="ADMIN")
     sample_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
@@ -153,6 +164,7 @@ class RunnerPriceClaim(Base):
         UniqueConstraint("errand_id", "item_key", name="uq_claim_errand_item"),
         Index("ix_claim_runner_created", "runner_id", "created_at"),
         Index("ix_claim_item", "campus_id", "item_key"),
+        Index("ix_claim_store_item", "campus_id", "store_key", "item_key"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -169,6 +181,12 @@ class RunnerPriceClaim(Base):
     )
     raw_name: Mapped[str] = mapped_column(String(120), nullable=False)
     item_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    # Where it was bought. A vendor id when the errand named one, otherwise the
+    # normalized pickup label the requester typed. Prices genuinely differ
+    # between outlets, and without this the campus median sits in the gap
+    # between them: an honest runner at the dearer shop looks permanently
+    # elevated while a runner inflating at the cheaper one looks normal.
+    store_key: Mapped[str | None] = mapped_column(String(120), nullable=True)
     claimed_unit_price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
 

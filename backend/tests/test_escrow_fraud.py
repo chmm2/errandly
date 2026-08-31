@@ -93,13 +93,21 @@ async def price_item(
     return patched.json()
 
 
-async def place_order(client, headers, reward=30, collect=100, title="Canteen run"):
+async def place_order(
+    client, headers, reward=30, collect=100, title="Canteen run", pickup=None
+):
+    # A distinct store per order by default. Claims now teach a per-store
+    # reference, so orders sharing a pickup label share a learned price and
+    # tests become order-dependent - one test's inflated claims would move the
+    # reference a later test is judged against. Pass `pickup` explicitly when a
+    # test actually means "the same shop".
+    pickup = pickup or f"Shop {uuid.uuid4().hex[:8]}"
     resp = await client.post(
         "/errands",
         json={
             "category": "CUSTOM",
             "title": title,
-            "pickup_label": "Main Gate",
+            "pickup_label": pickup,
             "drop_lat": NEAR["lat"],
             "drop_lng": NEAR["lng"],
             "reward": reward,
@@ -433,10 +441,14 @@ async def test_the_rupee_line_is_absolute_not_proportional(client, campus, make_
 async def test_walking_the_line_is_flagged_as_a_pattern(client, campus, make_user):
     """The rule that makes a flat threshold hard to game.
 
-    Every claim here is legal — ₹18 over a ₹20 line, never once crossing it.
-    No money is withheld and no individual claim is fraud. But the runner's
+    Every claim here is legal — ₹7 over an ₹8 allowance, never once crossing
+    it. No money is withheld and no individual claim is fraud. But the runner's
     claims cluster against the line, which is not what real prices do, and the
     pattern gets raised for a human to look at.
+
+    The allowance is 40% of a ₹20 reference, so ₹27 is the most that can be
+    claimed without flagging. An earlier version of this test used ₹38, which
+    was legal under the flat ₹20 line this replaced.
     """
     runner_id, run_headers = await make_user("Runner")
     _, r_headers = await make_user("Requester")
@@ -449,7 +461,7 @@ async def test_walking_the_line_is_flagged_as_a_pattern(client, campus, make_use
         await accept(client, errand["id"], run_headers)
         resp = await client.post(
             f"/fraud/errands/{errand['id']}/claims",
-            json={"lines": [{"name": item, "unit_price": 38, "quantity": 1}]},
+            json={"lines": [{"name": item, "unit_price": 27, "quantity": 1}]},
             headers=run_headers,
         )
         assert resp.status_code == 200, resp.text
@@ -469,7 +481,7 @@ async def test_walking_the_line_is_flagged_as_a_pattern(client, campus, make_use
         )
     assert len(flags) == 1, "the pattern should be raised exactly once"
     assert flags[0].details["near_line_claims"] == 4
-    assert flags[0].details["avg_rupees_over"] == 18.0
+    assert flags[0].details["avg_rupees_over"] == 7.0
 
 
 async def test_an_honest_runner_near_the_line_once_is_not_flagged(

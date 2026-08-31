@@ -21,6 +21,7 @@ import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from statistics import median
 from typing import NamedTuple
 
 from redis.asyncio import Redis
@@ -48,6 +49,75 @@ from app.modules.runners.models import RunnerProfile
 logger = logging.getLogger(__name__)
 
 TWO_PLACES = Decimal("0.01")
+
+# The allowance scales with the item. A flat rupee line cannot work across a
+# canteen menu: 20 rupees is +80% on a 25-rupee puff and +4% on a 500-rupee
+# grocery run, so cheap items - which are most of the traffic - were barely
+# protected. Measured before this change, a 10-rupee tea claimed at 29 (+190%)
+# was paid in full.
+#
+# So the allowance is a share of the reference, bounded at both ends:
+#
+#     tolerance = clamp(reference x tolerance_pct, MIN_TOLERANCE_ABS, tolerance_abs)
+#
+# The floor keeps very cheap items from having a near-zero allowance that any
+# rounding would trip. The ceiling is `tolerance_abs`, whose meaning changes
+# from "the line" to "the most the line may ever be" - so a large grocery run
+# behaves exactly as it did before.
+MIN_TOLERANCE_ABS = Decimal("5.00")
+
+# --- per-store adjustment ---------------------------------------------------
+# The campus reference answers "what does this item cost here", but an item does
+# not have one price: it is 23 at one canteen and 30 at another. A single median
+# lands in the gap and is wrong in both directions - the honest runner at the
+# dearer shop looks permanently elevated, and the runner inflating at the
+# cheaper one looks normal.
+#
+# So the reference is nudged toward what that store is actually observed to
+# charge, shrunk by how much evidence exists for it:
+#
+#     ref_store = w x median(store claims) + (1 - w) x campus_reference
+#     w         = n / (n + STORE_PRIOR)
+#
+# Partial pooling rather than a separate reference per store: splitting outright
+# would fragment small samples until almost everything fell back to
+# NO_REFERENCE. With two observations the store barely moves the number; with
+# twenty it mostly decides it. Same shrinkage the reputation module uses for
+# rating confidence.
+#
+# Verdict is deliberately NOT filtered here, and that took a wrong turn first.
+# Excluding FLAGGED claims - the obvious rule, and the right one for the campus
+# estimator - deadlocks a genuinely dear shop: every honest claim at its real
+# price is flagged against the campus number, so no unflagged evidence can ever
+# accumulate and the store stays permanently mispriced. Measured: four honest
+# runners reporting 30 at a 20-reference item moved the store estimate not at
+# all.
+#
+# What keeps this safe is not the verdict filter but INDEPENDENCE. One runner
+# claiming 30 two hundred times contributes one 30, exactly as in the campus
+# estimator; the store only moves when several different runners agree, which a
+# lone inflater cannot manufacture. A ring of colluding runners could - and that
+# is what the collusion graph is for, not this.
+STORE_PRIOR = Decimal("6")
+# Distinct runners, not claims. This is the whole defence.
+STORE_MIN_RUNNERS = 3
+# Never let the store adjustment stray further than this from the campus
+# reference. A store cannot be talked into being three times dearer than campus
+# by its own claim history, however many claims it has.
+STORE_MAX_DRIFT = Decimal("0.60")
+
+
+def store_key_for(errand) -> str | None:
+    """Which outlet an errand's purchases come from.
+
+    A vendor id when the errand named one; otherwise the pickup label the
+    requester typed, normalized so "Main Canteen" and "main canteen " are the
+    same store.
+    """
+    if getattr(errand, "vendor_id", None):
+        return f"vendor:{errand.vendor_id}"
+    label = (getattr(errand, "pickup_label", None) or "").strip().lower()
+    return f"label:{normalize_mod.normalize(label)}"[:120] if label else None
 
 # How far back a flag counts against someone. Old mistakes stop mattering -
 # a permanent record for one bad week would be punishment without end.
@@ -219,15 +289,80 @@ class Judgement(NamedTuple):
     eligible: Decimal
 
 
+async def store_adjusted_reference(
+    db: AsyncSession,
+    campus_id: uuid.UUID,
+    item_key: str,
+    store_key: str | None,
+    reference: ReferencePrice,
+) -> Decimal:
+    """The campus reference, moved toward what this store actually charges.
+
+    Returns the campus reference unchanged when the store is unknown or barely
+    observed, so a new outlet is judged by campus prices until it has a record
+    of its own.
+    """
+    base = _money(reference.reference_price)
+    if not store_key:
+        return base
+
+    rows = await db.execute(
+        select(RunnerPriceClaim.runner_id, RunnerPriceClaim.claimed_unit_price).where(
+            RunnerPriceClaim.campus_id == campus_id,
+            RunnerPriceClaim.item_key == item_key,
+            RunnerPriceClaim.store_key == store_key,
+        )
+    )
+    by_runner: dict[uuid.UUID, list[Decimal]] = {}
+    for runner_id, price in rows:
+        by_runner.setdefault(runner_id, []).append(Decimal(str(price)))
+    if len(by_runner) < STORE_MIN_RUNNERS:
+        return base
+
+    # One runner, one vote: their own median first, then the median across
+    # runners, so volume from a single reporter buys no influence.
+    per_runner = [Decimal(str(median(v))) for v in by_runner.values()]
+    observed = Decimal(str(median(per_runner)))
+    n = Decimal(len(by_runner))
+    w = n / (n + STORE_PRIOR)
+    blended = _money(w * observed + (Decimal("1") - w) * base)
+
+    # Clamp the drift so a store's own history cannot carry it arbitrarily far.
+    lo = _money(base * (Decimal("1") - STORE_MAX_DRIFT))
+    hi = _money(base * (Decimal("1") + STORE_MAX_DRIFT))
+    return max(lo, min(blended, hi))
+
+
+def effective_tolerance(reference: ReferencePrice) -> Decimal:
+    """How far above the reference a single claim may sit before it is flagged.
+
+    A share of the item's own price, floored so cheap items keep a usable
+    allowance and capped by the admin's `tolerance_abs` so an expensive item
+    does not acquire an enormous one.
+    """
+    pct = Decimal(str(reference.tolerance_pct or 0))
+    ceiling = _money(reference.tolerance_abs)
+    if pct <= 0:
+        return ceiling  # percentage disabled for this item: the old behaviour
+    scaled = _money(Decimal(str(reference.reference_price)) * pct)
+    return max(MIN_TOLERANCE_ABS, min(scaled, ceiling))
+
+
 def judge(
-    claimed_unit_price: Decimal, quantity: int, reference: ReferencePrice | None
+    claimed_unit_price: Decimal,
+    quantity: int,
+    reference: ReferencePrice | None,
+    ref_override: Decimal | None = None,
 ) -> Judgement:
     """Judge one claimed line against the campus reference.
 
-    The rule is a flat rupee line: more than `tolerance_abs` over the reference
-    is flagged outright and the excess is withheld. Between the reference and
-    that line the claim is paid in full but recorded as ELEVATED, because the
-    pattern of where a runner sits inside the allowance is itself evidence.
+    More than the allowance over the reference is flagged outright and the
+    excess withheld; between the reference and that line the claim is paid in
+    full but recorded as ELEVATED, because where a runner habitually sits
+    inside the allowance is itself evidence.
+
+    The allowance scales with the item price - see MIN_TOLERANCE_ABS above for
+    why a flat line could not work.
 
     With no reference we cannot call anything fraud - an unpriced item is our
     gap, not the runner's. The claim is paid and becomes evidence toward the
@@ -239,11 +374,14 @@ def judge(
     if reference is None:
         return Judgement("NO_REFERENCE", None, None, None, claimed_total)
 
-    ref_unit = _money(reference.reference_price)
+    # The store-adjusted value when the caller computed one, else the campus
+    # reference. The allowance still scales off the ADMIN reference, not the
+    # adjusted one, so a store cannot widen its own allowance by being dear.
+    ref_unit = _money(ref_override) if ref_override is not None else _money(reference.reference_price)
     if ref_unit <= 0:
         return Judgement("NO_REFERENCE", None, None, None, claimed_total)
 
-    threshold = _money(reference.tolerance_abs)
+    threshold = effective_tolerance(reference)
     delta_abs = _money(claimed_unit_price - ref_unit)
     delta_pct = ((claimed_unit_price - ref_unit) / ref_unit * 100).quantize(TWO_PLACES)
 
@@ -287,6 +425,7 @@ async def submit_claims(
 
     keys = await known_keys(db, errand.campus_id)
     aliases = await approved_aliases(db, errand.campus_id)
+    store_key = store_key_for(errand)
     claims: list[RunnerPriceClaim] = []
 
     for raw_name, unit_price, quantity in lines:
@@ -295,7 +434,14 @@ async def submit_claims(
             raise FraudError(f"Could not read an item name from '{raw_name}'.", 422)
 
         reference = await get_reference(db, errand.campus_id, item_key)
-        j = judge(unit_price, quantity, reference)
+        ref_unit = (
+            await store_adjusted_reference(
+                db, errand.campus_id, item_key, store_key, reference
+            )
+            if reference
+            else None
+        )
+        j = judge(unit_price, quantity, reference, ref_override=ref_unit)
 
         existing = await db.scalar(
             select(RunnerPriceClaim).where(
@@ -303,7 +449,9 @@ async def submit_claims(
                 RunnerPriceClaim.item_key == item_key,
             )
         )
-        ref_snapshot = _money(reference.reference_price) if reference else None
+        # Snapshot the value actually judged against, not the campus one, so an
+        # admin reviewing the flag sees the number the runner was held to.
+        ref_snapshot = _money(ref_unit) if ref_unit is not None else None
         if existing is None:
             claim = RunnerPriceClaim(
                 errand_id=errand.id,
@@ -311,6 +459,7 @@ async def submit_claims(
                 campus_id=errand.campus_id,
                 raw_name=raw_name[:120],
                 item_key=item_key,
+                store_key=store_key,
                 claimed_unit_price=_money(unit_price),
                 quantity=quantity,
                 reference_snapshot=ref_snapshot,
