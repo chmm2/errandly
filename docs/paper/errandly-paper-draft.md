@@ -171,7 +171,7 @@ control:
 | 2 | Keep every claim just below the flagging line | Distribution-based detection of clustering against the threshold (IV-E) |
 | 3 | Accept the flag; reputation falls; dispatch priority falls | Strike ladder; rank demotion (IV-F) |
 | 4 | Restore reputation through genuine errands for friends | Provenance-weighted reputation (IV-D) |
-| 5 | Circulate the same value within the group, harvesting rewards per lap | Closed-cycle detection over settlement edges (IV-C) |
+| 5 | Circulate value within the group so the ratings above cost nothing | Closed-cycle detection over settlement edges (IV-C) |
 | 6 | Make farmed errands resemble genuine ones | Semantic channel, advisory only (IV-G) |
 
 The loop closes because reputation gates access to work: repairing it is not
@@ -269,6 +269,28 @@ requiring multiple circuits and a minimum value on the narrowest leg. This is a
 specific accusation about identified people, so it raises a flag for human
 review rather than acting autonomously. All members are flagged: the structure
 is symmetric and identifies no ringleader.
+
+It is worth being precise about *why* a cycle is suspicious, because the obvious
+reading is wrong. The platform is a pure custodian: it holds a requester's funds
+and releases them to the runner, and injects nothing. A closed cycle is
+therefore **exactly zero-sum** — no participant gains a rupee by circulating
+money, and no money is stolen in the cycle at all.
+
+The motive is not extraction but **cost avoidance**. Manufacturing reputation
+requires completed errands carrying good ratings, and ratings can only be relied
+upon when the requester is a confederate — but each such errand costs that
+confederate real money. Circulation removes that cost: when A pays B, B pays C
+and C pays A, each has paid out approximately what they received, while the
+group has produced three completed errands and three sincere five-star ratings
+at a net cost of approximately zero.
+
+The cycle is therefore not the fraud; it is what makes the reputation farming of
+§IV-D economically sustainable. This distinguishes it sharply from an honest
+friend group, whose money *leaks outward* to the wider campus and for whom
+internal errands remain a genuine expense. It also explains why no funds are
+withheld on a ring flag: nothing was misappropriated in the cycle. The
+extraction occurs later, against strangers, using the priority that the
+manufactured reputation buys.
 
 **The conjunction is the mechanism.** Neither signal penalises alone. Closed but
 not circulating is an ordinary friend group; circulating but open is someone who
