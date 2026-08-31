@@ -9,7 +9,6 @@ project is not marked processed and gets another attempt on redelivery.
 import logging
 import uuid
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.graph import run_write

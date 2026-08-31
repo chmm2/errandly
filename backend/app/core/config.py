@@ -51,6 +51,26 @@ class Settings(BaseSettings):
     # Self-registration is restricted to this email domain (student-only).
     student_email_domain: str = "vitstudent.ac.in"
 
+    # Semantic fraud channel (modules/fraud/semantics.py). Optional in every
+    # sense: with no provider configured the fraud system behaves exactly as it
+    # does without it.
+    #   "ollama"    - a model on campus hardware; no student text leaves the
+    #                 building, which matters when the evidence is notes and
+    #                 reviews written by identifiable people.
+    #   "anthropic" - hosted, better at the nuanced calls, kept as a reference.
+    #   ""          - infer from whether an API key is present.
+    llm_provider: str = ""
+    anthropic_api_key: str = ""
+    # host.docker.internal, not localhost: the backend runs in a container and
+    # Ollama runs on the host.
+    ollama_url: str = "http://host.docker.internal:11434"
+    # qwen2.5:7b, not a 3B: measured on the real prompt, llama3.2:3b
+    # returned reads_as_genuine=True for a history its own observations had
+    # just called repetitive and suspicious. 7B separates the same pair by
+    # 0.75 and reports injection attempts instead of following them.
+    ollama_model: str = "qwen2.5:7b"
+    semantic_analysis_enabled: bool = True
+
     # App
     environment: str = "development"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"

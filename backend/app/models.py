@@ -20,7 +20,15 @@ from app.modules.errands.models import (
     ErrandItem,
     Rating,
 )
-from app.modules.ledger.models import LedgerEntry
+from app.modules.fraud.models import (
+    FraudFlag,
+    ItemAlias,
+    ReferencePrice,
+    ReferencePriceProposal,
+    RunnerPriceClaim,
+    UserStrike,
+)
+from app.modules.ledger.models import EscrowHold, LedgerEntry
 from app.modules.notifications.models import Notification, PushToken
 from app.modules.outbox.models import OutboxEvent, ProcessedEvent
 from app.modules.runners.models import RunnerProfile
@@ -47,6 +55,13 @@ __all__ = [
     "ErrandItem",
     "Rating",
     "LedgerEntry",
+    "EscrowHold",
+    "ReferencePrice",
+    "ReferencePriceProposal",
+    "RunnerPriceClaim",
+    "FraudFlag",
+    "ItemAlias",
+    "UserStrike",
     "Vendor",
     "MenuItem",
     "Friendship",

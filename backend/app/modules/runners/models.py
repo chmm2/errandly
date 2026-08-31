@@ -34,3 +34,9 @@ class RunnerProfile(Base, TimestampMixin):
     location_updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Set by the fraud escalation ladder. Kept here rather than on users so a
+    # price-fraud block stops someone RUNNING without touching their ability to
+    # order lunch — the punishment should fit what they did.
+    fraud_blocked_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )

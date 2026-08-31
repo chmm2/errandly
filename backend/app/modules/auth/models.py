@@ -38,6 +38,14 @@ class User(Base, TimestampMixin):
         CheckConstraint(
             "reputation_score >= 0 AND reputation_score <= 5", name="ck_users_reputation"
         ),
+        CheckConstraint(
+            "effective_reputation >= 0 AND effective_reputation <= 5",
+            name="ck_users_effective_reputation",
+        ),
+        CheckConstraint(
+            "rating_confidence >= 0 AND rating_confidence <= 1",
+            name="ck_users_rating_confidence",
+        ),
         CheckConstraint("role IN ('STUDENT','VENDOR','ADMIN')", name="ck_users_role"),
         CheckConstraint(
             "role <> 'STUDENT' OR student_id IS NOT NULL", name="ck_users_student_id_required"
@@ -62,6 +70,15 @@ class User(Base, TimestampMixin):
         Numeric(4, 2), nullable=False, server_default="5.00"
     )
     rating_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    # Provenance-weighted reputation, and how much independent evidence backs
+    # it. reputation_score above stays the plain average shown on a profile;
+    # these two are what ranking reads. See modules/fraud/reputation.py.
+    effective_reputation: Mapped[float] = mapped_column(
+        Numeric(4, 2), nullable=False, server_default="3.50"
+    )
+    rating_confidence: Mapped[float] = mapped_column(
+        Numeric(4, 3), nullable=False, server_default="0.000"
+    )
     email_verified_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

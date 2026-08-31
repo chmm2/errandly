@@ -2,6 +2,7 @@ import json
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 from geoalchemy2 import WKTElement
 from redis.asyncio import Redis
@@ -19,6 +20,9 @@ from app.modules.errands.models import (
     Rating,
 )
 from app.modules.errands.schemas import ErrandCreate
+from app.modules.fraud import integrity as fraud_integrity
+from app.modules.fraud import reputation as fraud_reputation
+from app.modules.ledger import service as ledger
 from app.modules.outbox import service as outbox
 from app.modules.runners import service as runners_service
 from app.modules.runners.models import RunnerProfile
@@ -195,8 +199,27 @@ async def _offer_to_nearby_runners(
     if exclude_runner:
         nearby = [(rid, dist) for rid, dist in nearby if rid != exclude_runner][:OFFER_FANOUT]
 
-    scores = await _safe_scores(errand.requester_id, [rid for rid, _ in nearby])
-    nearby = _rank_with_scores(nearby, scores)
+    candidate_ids = [rid for rid, _ in nearby]
+
+    # Don't re-pair a requester with someone they share an open collusion ring
+    # with. Narrow on purpose: neither person is excluded from anything else,
+    # and both keep taking work from the rest of campus at a rank cost only.
+    # None means the lookup failed, and excludes nobody.
+    co_ringed = await fraud_integrity.co_ringed_with(db, errand.requester_id, candidate_ids)
+    if co_ringed:
+        nearby = [(rid, dist) for rid, dist in nearby if rid not in co_ringed]
+        if not nearby:
+            logger.info(
+                "errand %s: every nearby runner shares an open ring with the requester",
+                errand.id,
+            )
+            return 0
+        candidate_ids = [rid for rid, _ in nearby]
+
+    scores = await _safe_scores(errand.requester_id, candidate_ids)
+    reputations = await _reputations(db, candidate_ids)
+    penalties = await fraud_integrity.penalties(db, candidate_ids)
+    nearby = _rank_with_scores(nearby, scores, reputations, penalties)
 
     if max_hops is not None and scores is not None:
         nearby = [(r, d) for r, d in nearby if scores.get(r, {}).get("hops", 99) <= max_hops]
@@ -247,16 +270,75 @@ def _connection_payload(scores: dict | None, runner_id: uuid.UUID) -> dict:
     }
 
 
+# How far a full star of reputation can move a runner up the queue. Smaller
+# than SOCIAL_WEIGHT_M on purpose: reputation should decide between comparable
+# candidates, not let an excellent runner across campus beat a decent one at
+# the door. Measured from NEUTRAL_REPUTATION, so this both rewards and demotes.
+REPUTATION_WEIGHT_M = 800.0
+NEUTRAL_REPUTATION = 3.5
+
+
 def _rank_with_scores(
-    nearby: list[tuple[uuid.UUID, float]], scores: dict | None
+    nearby: list[tuple[uuid.UUID, float]],
+    scores: dict | None,
+    reputations: dict[uuid.UUID, float] | None = None,
+    penalties: dict[uuid.UUID, float] | None = None,
 ) -> list[tuple[uuid.UUID, float]]:
-    """Order candidates by distance offset by social trust. See SOCIAL_WEIGHT_M."""
-    if not scores or len(nearby) < 2:
+    """Order candidates by distance, offset by trust, reputation and standing.
+
+    Four terms, deliberately in the same unit — metres of effective distance —
+    so their relative influence is legible rather than buried in a weighted sum
+    of incomparable scales:
+
+        effective = distance
+                  - trust      x SOCIAL_WEIGHT_M
+                  - (rep - 3.5) x REPUTATION_WEIGHT_M
+                  + open-flag penalty (see fraud/integrity.py)
+
+    The last term is the only one that adds: an unreviewed flag pushes a runner
+    down the queue and can never pull them up it. It is also the only one
+    bounded — capped so that accumulating suspicion can demote someone but
+    never quietly amount to a ban.
+
+    The reputation used is the PROVENANCE-WEIGHTED one, shrunk toward neutral
+    when little independent evidence backs it. That is what closes the loop the
+    price flags always implied but never had: a penalty lowers the score, the
+    score lowers the ranking, and the runner is genuinely offered less work.
+    Before this, a flagged runner lost a star and was offered exactly as much.
+    """
+    if len(nearby) < 2 or (not scores and not reputations and not penalties):
         return nearby
-    return sorted(
-        nearby,
-        key=lambda item: item[1] - scores.get(item[0], {}).get("trust", 0.0) * SOCIAL_WEIGHT_M,
+
+    def effective(item: tuple[uuid.UUID, float]) -> float:
+        runner_id, distance_m = item
+        trust = (scores or {}).get(runner_id, {}).get("trust", 0.0)
+        rep = (reputations or {}).get(runner_id, NEUTRAL_REPUTATION)
+        penalty = (penalties or {}).get(runner_id, 0.0)
+        return (
+            distance_m
+            - trust * SOCIAL_WEIGHT_M
+            - (rep - NEUTRAL_REPUTATION) * REPUTATION_WEIGHT_M
+            + penalty
+        )
+
+    return sorted(nearby, key=effective)
+
+
+async def _reputations(
+    db: AsyncSession, runner_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, float]:
+    """Provenance-weighted reputation per candidate, for ranking.
+
+    Read from Postgres rather than recomputed here: the weighting needs a
+    runner's whole rating history, which is far too much work for an offer
+    that has to go out in milliseconds. It is refreshed when a rating lands.
+    """
+    if not runner_ids:
+        return {}
+    rows = await db.execute(
+        select(User.id, User.effective_reputation).where(User.id.in_(runner_ids))
     )
+    return {uid: float(rep) for uid, rep in rows}
 
 
 # How much social trust can outweigh distance. At 1500 a direct friend
@@ -447,13 +529,18 @@ async def _attach_items(db: AsyncSession, errands: list[Errand]) -> None:
 
 
 async def create_errand(db: AsyncSession, redis: Redis, user: User, data: ErrandCreate) -> Errand:
-    # You can't order while you're mid-delivery for someone else. The web
-    # client enforces this by locking the Order/Run toggle; enforce it here so
-    # every client gets the same rule.
-    running = await runners_service.active_load(db, user.id)
-    if running:
+    # Carrying a run commits you to it. Both clients lock the Order/Run toggle,
+    # but a client-side lock is a courtesy, not a control — anyone with devtools
+    # or curl walks straight through it. The rule is enforced here, where every
+    # client gets it and none can bypass it.
+    #
+    # Deliberately one-directional: having placed an order never stops you
+    # taking a run. It is the accepted delivery that someone else is waiting
+    # on, so that is the only thing that locks.
+    if await runners_service.active_load(db, user.id) > 0:
         raise ErrandError(
-            "Finish the run you're on before posting your own errand.", 409
+            "Finish or release the run you're on before ordering.",
+            409,
         )
 
     order_items = await _validate_order_items(db, user, data) if data.items else []
@@ -494,6 +581,30 @@ async def create_errand(db: AsyncSession, redis: Redis, user: User, data: Errand
                 note=(li.note.strip()[:200] if li.note and li.note.strip() else None),
             )
         )
+
+    # Escrow the requester's money BEFORE the errand is offered to anyone. A
+    # runner who fronts cash at the counter is relying on this hold existing —
+    # an unfunded order must never reach the feed.
+    #
+    # Only catalog lines carry a price; hand-typed list lines are deliberately
+    # priceless, and collect_amount is what covers those. It is already part of
+    # the hold, so a shopping-list errand is still fully funded up front.
+    items_total = sum(
+        Decimal(str(i.unit_price_snapshot)) * i.quantity for i in order_items
+    )
+    try:
+        await ledger.place_hold(
+            db,
+            errand_id=errand.id,
+            requester_id=user.id,
+            items_total=items_total,
+            reward=Decimal(str(data.reward)),
+            collect_amount=Decimal(str(data.collect_amount)),
+        )
+    except ledger.LedgerError as e:
+        await db.rollback()
+        raise ErrandError(e.message, e.status_code) from e
+
     if data.otp:
         db.add(ErrandHandoffSecret(errand_id=errand.id, otp_ciphertext=encrypt_str(data.otp)))
     _record(db, errand, user, "CREATED", {"category": data.category, "reward": data.reward})
@@ -826,6 +937,11 @@ async def rate_errand(
     total = float(runner.reputation_score) * runner.rating_count + stars
     runner.rating_count += 1
     runner.reputation_score = round(total / runner.rating_count, 2)
+    # The plain average above is what the runner sees. Ranking reads the
+    # provenance-weighted figure, refreshed here so the offer path never has to
+    # recompute a whole rating history.
+    await db.flush()
+    await fraud_reputation.recompute(db, runner.id)
     _record(db, errand, user, "RATED", {"stars": stars})
     await db.commit()
 
@@ -933,6 +1049,10 @@ async def cancel_errand(
 
     _transition(errand, "CANCELLED")
     errand.cancelled_at = datetime.now(UTC)
+    # Escrow returns to the requester in the same transaction as the state
+    # change — a cancelled order that quietly keeps someone's money is the
+    # bug this ordering exists to make impossible.
+    await ledger.refund_hold(db, errand_id=errand.id, memo="Order cancelled")
     _record(db, errand, user, "CANCELLED", {"reason": reason} if reason else None)
     _emit_order_event(db, errand, "CANCELLED")
     # The ORDER_CANCELLED event notifies the runner; when the RUNNER is the one

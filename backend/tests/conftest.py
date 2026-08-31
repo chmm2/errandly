@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -9,6 +10,7 @@ from app.core.redis import redis_client
 from app.main import app
 from app.modules.auth.models import User
 from app.modules.campus.models import Campus
+from app.modules.ledger import service as ledger
 
 
 @pytest.fixture
@@ -52,6 +54,13 @@ def make_user(client, campus):
             await db.execute(
                 update(User).where(User.id == user_id).values(account_status="ACTIVE")
             )
+            await db.commit()
+        # Every order now escrows the requester's money up front, so a test
+        # user with an empty wallet cannot place one. Fund generously - no test
+        # here is about running out of money, and the ones that are top up
+        # their own way.
+        async with SessionLocal() as db:
+            await ledger.topup(db, user_id, Decimal("100000"), memo="Test funding")
             await db.commit()
         login = await client.post(
             "/auth/login", json={"email": email, "password": "password123"}

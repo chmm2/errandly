@@ -37,6 +37,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.graph import run_read
 from app.modules.auth.models import User
+from app.modules.fraud import collusion
 from app.modules.outbox import service as outbox
 from app.modules.social.models import Friendship, pair
 
@@ -316,12 +317,18 @@ HOP_DECAY = 0.45
 # collusion unit. Closure is size-independent: what marks a ring is that its
 # edges do not leave it, whether there are four members or ten.
 CLOSURE_KNEE = 0.55
-# Cap on the discount. Never 1.0: a real friendship is still weak evidence even
-# inside a ring, and a full discount would make the ranker discontinuous.
+# Cap on the discount from STRUCTURE ALONE. Never 1.0: a closed neighbourhood
+# is only capable of collusion, and a full discount on a suspicion would make
+# the ranker discontinuous.
 MAX_CLOSURE_PENALTY = 0.7
+# Cap once money-flow evidence corroborates the shape. Higher because the
+# question has changed: not "could this group collude" but "is value going
+# round in it". Still short of 1.0 — even a corroborated ring may contain
+# someone who simply has friends, and a 1.0 would erase them from matching.
+MAX_CORROBORATED_PENALTY = 0.95
 
 
-def _closure_penalty(closure: float, degree: int) -> float:
+def _closure_penalty(closure: float, degree: int, circulation: float = 0.0) -> float:
     """How much to discount trust flowing through this neighbourhood.
 
     Rises with closure and is *not* diluted by degree — an earlier version
@@ -331,15 +338,54 @@ def _closure_penalty(closure: float, degree: int) -> float:
 
     Structure alone cannot separate a genuine four-person friend group from a
     four-person collusion ring: both look identically closed. What distinguishes
-    them is whether *value circulates* inside the group — which needs the PAID
-    edges the settlement projection writes, and is the fraud work's half of this
-    function. Until that lands, this term is a soft prior, not a verdict, which
-    is why MAX_CLOSURE_PENALTY sits well below 1.0.
+    them is whether *value circulates* inside the group, and `circulation` is
+    that measurement — the share of a user's settled platform money that moved
+    between them and their own friends (see modules/fraud/collusion.py).
+
+    Circulation does not create a penalty on its own. An open, sociable group
+    that happens to trade internally is not suspicious, and a closed group that
+    barely transacts is only a shape. The penalty escalates where BOTH hold:
+    the neighbourhood is sealed AND the money goes round inside it. That
+    conjunction is what lifts the cap from 0.7 to 0.95 — structure asks the
+    question, money flow answers it.
     """
     if degree < 2 or closure <= CLOSURE_KNEE:
         return 0.0
     excess = (closure - CLOSURE_KNEE) / (1.0 - CLOSURE_KNEE)
-    return min(MAX_CLOSURE_PENALTY, excess * MAX_CLOSURE_PENALTY)
+    structural = min(MAX_CLOSURE_PENALTY, excess * MAX_CLOSURE_PENALTY)
+
+    corroboration = collusion.circulation_penalty(circulation)
+    if corroboration <= 0.0:
+        return structural
+
+    # Interpolate from the structural prior toward the corroborated cap, in
+    # proportion to how strong the money-flow evidence is.
+    headroom = MAX_CORROBORATED_PENALTY - structural
+    return min(MAX_CORROBORATED_PENALTY, structural + headroom * corroboration)
+
+
+def _direct_penalty(closure: float, degree: int, circulation: float) -> float:
+    """Discount on a DIRECT friendship.
+
+    The closure penalty above only ever applied to the intermediary carrying a
+    multi-hop path, which leaves a hole exactly where collusion lives: in a
+    three-person ring every member is one hop from every other, there is no
+    intermediary, and the ranker offered them each other's errands first at
+    full trust.
+
+    Structure alone must never discount a direct friend. A close-knit friend
+    group is the most ordinary thing on a campus and the strongest honest trust
+    signal the platform has — penalising it on shape would punish exactly the
+    students the feature exists to serve. Only money-flow evidence justifies a
+    discount here, scaled by how sealed the group is: the conjunction, never
+    either half alone.
+    """
+    if degree < 2:
+        return 0.0
+    corroboration = collusion.circulation_penalty(circulation)
+    if corroboration <= 0.0:
+        return 0.0
+    return min(MAX_CORROBORATED_PENALTY, closure * corroboration * MAX_CORROBORATED_PENALTY)
 
 
 def degree_label(degree: int | None) -> str:
@@ -421,8 +467,13 @@ async def social_scores(
            CASE WHEN via IS NULL THEN 0.0
                 ELSE coalesce(via.closure, 0.0) END AS via_closure,
            CASE WHEN via IS NULL THEN 0
-                ELSE coalesce(via.degree, 0) END       AS via_degree
-    """ % settings.social_max_hops
+                ELSE coalesce(via.degree, 0) END       AS via_degree,
+           CASE WHEN via IS NULL THEN 0.0
+                ELSE coalesce(via.circulation, 0.0) END AS via_circulation,
+           coalesce(c.closure, 0.0)     AS c_closure,
+           coalesce(c.degree, 0)        AS c_degree,
+           coalesce(c.circulation, 0.0) AS c_circulation
+    """ % settings.social_max_hops  # noqa: UP031 — Cypher is full of braces
 
     rows = await run_read(
         cypher, me=str(requester_id), candidates=[str(c) for c in candidate_ids]
@@ -432,7 +483,19 @@ async def social_scores(
     for r in rows:
         hops = int(r["hops"])
         base = HOP_DECAY ** (hops - 1)  # direct friend (1 hop) = 1.0
-        penalty = _closure_penalty(float(r["via_closure"] or 0.0), int(r["via_degree"] or 0))
+        if r.get("via_id") is None:
+            # Direct friend: no intermediary to judge, so judge the candidate.
+            penalty = _direct_penalty(
+                float(r.get("c_closure") or 0.0),
+                int(r.get("c_degree") or 0),
+                float(r.get("c_circulation") or 0.0),
+            )
+        else:
+            penalty = _closure_penalty(
+                float(r["via_closure"] or 0.0),
+                int(r["via_degree"] or 0),
+                float(r.get("via_circulation") or 0.0),
+            )
         out[uuid.UUID(r["runner_id"])] = {
             "hops": hops,
             "trust": round(base * (1.0 - penalty), 4),

@@ -300,14 +300,18 @@ working when Neo4j is down.
 
 ## 8. What is NOT done
 
-- **Nothing reads `PAID` edges.** They are written and indexed; no query
-  consumes them.
-- **No money-flow term in `closure_penalty`.** Widen `_closure_penalty()` —
-  its callers do not need to change.
-- **No integrity gating.** The deck's O2 says "gate out integrity-flagged
-  runners". There is no flag, no event, and no filter. Suggested shape: a
-  `RunnerFlagged` / `IntegrityCleared` event → a property on `(:User)` or an
-  edge weight → filter in `_within_hops` or `_rank_with_scores`.
+> **Update (fraud/escrow side, `feat/payments-fraud-detection`):** the first two
+> items below are now done — see §11. The rest still stand.
+
+- ~~**Nothing reads `PAID` edges.**~~ Done: `modules/fraud/collusion.py`.
+- ~~**No money-flow term in `closure_penalty`.**~~ Done, plus a `_direct_penalty()`
+  for the one-hop case the original could not reach.
+- ~~**No integrity gating.**~~ Done — see `docs/HANDOFF-fraud-gating.md`. Not
+  the shape suggested here: no graph property and no hard filter. An open flag
+  became a fourth term in `_rank_with_scores` (metres, capped), plus one narrow
+  refusal to re-pair a requester with someone they share an open
+  `COLLUSION_RING` with. Unreviewed suspicion demotes; only a human suspends.
+  The `None` vs `{}` rule in §6 is preserved.
 - **No GDS plugin.** Deliberately not installed: it downloads at container
   boot, so an offline start would fail the whole stack. `degree` and `closure`
   are plain Cypher. **Louvain community detection needs it** — add
@@ -361,3 +365,71 @@ MATCH (a)-[p:PAID]->(b) RETURN a.name, b.name, p.amount, p.at;
   for this reason — keep it in any UI you build.
 - Friendship edges are **undirected**, so requester→runner hops equal
   runner→requester hops. One score serves both directions.
+
+
+---
+
+## 11. Money-flow half — collusion detection
+
+Implemented on `feat/payments-fraud-detection` in `backend/app/modules/fraud/collusion.py`.
+This closes the gap §5 named: *structure says a group is capable of collusion,
+never that it is colluding.*
+
+### Two signals, deliberately separate
+
+**Circulation** — per user, the share of their settled platform value that moved
+between them and their own friends. Stored on `(:User)` beside `degree` and
+`closure`, refreshed on the same timer, read by the trust ranker. A gradient: it
+discounts, it does not accuse. Knee at 0.60, and it stays 0 below
+`MIN_CIRCULATION_VALUE`/`MIN_CIRCULATION_TXNS` so a new student with two errands
+for a friend does not read as 100% internal.
+
+**Closed money cycles** — a directed `PAID` cycle whose members are all mutual
+friends, requiring `MIN_RING_LAPS` circuits and `MIN_RING_LEG_VALUE` on the
+narrowest leg. This is a specific accusation about specific people, so it raises
+a `COLLUSION_RING` flag for a human rather than acting on its own. Every member
+is flagged, not one: the shape is symmetric and the graph shows no ringleader.
+
+No money is withheld on a ring flag. A cycle is strong evidence about a *group*
+but names no single dishonest errand, and those payouts settled long ago.
+
+### The conjunction is the point
+
+Neither half penalises anything alone. Closed-but-not-circulating is an ordinary
+friend group; circulating-but-open is someone who trades with friends among many
+others. Measured, on identical three-person triangles:
+
+| | circulation | trust member→member | flagged |
+|---|---|---|---|
+| money goes round inside | 1.00 | **0.05** | yes |
+| money goes out to campus | 0.00 | **1.00** | no |
+
+That is the discrimination structure alone could not make.
+
+### One correction to §5
+
+`_closure_penalty()` only ever judged the **intermediary** on a multi-hop path.
+In a three-person ring every member is one hop from every other, so there is no
+intermediary and the penalty never fired — the ranker offered ring members each
+other's errands at full trust, which is the exact path the fraud runs on.
+`_direct_penalty()` covers the one-hop case, and is gated on money flow only:
+structure alone must never discount a direct friend, or every close friend group
+on campus gets punished for being close.
+
+### Caps
+
+`MAX_CLOSURE_PENALTY` stays 0.7 for structure alone. With money-flow
+corroboration the cap rises to `MAX_CORROBORATED_PENALTY = 0.95` — the question
+has changed from "could this group collude" to "is value going round in it".
+Still short of 1.0: a corroborated ring may contain someone who simply has
+friends, and 1.0 would erase them from matching entirely.
+
+### Still open
+
+- ~~**Integrity gating** (§8) is still not done.~~ Landed — see
+  `docs/HANDOFF-fraud-gating.md`. The dyad block reads the `members` list on
+  `COLLUSION_RING` flags, so it inherits the 3-cycle limit below exactly: a
+  4-member ring with no triangle raises no flag and therefore gates nothing.
+- **Rings larger than 3.** The cycle search is a 3-cycle. A 4+ member ring is
+  found only if it contains a triangle. GDS would be the honest tool here.
+- **Constants untuned**, same caveat as §8.

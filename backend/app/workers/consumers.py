@@ -17,6 +17,7 @@ import json
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 from aiokafka import AIOKafkaConsumer
 from sqlalchemy import select
@@ -26,15 +27,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import app.models  # noqa: F401 — register ALL mappers (workers skip the API's import graph)
 from app.core.config import settings
 from app.core.database import SessionLocal
+from app.core.graph import ensure_schema
 from app.core.redis import redis_client
 from app.core.resilience import retry_with_backoff
 from app.modules.analytics.models import DailyStat
+from app.modules.campus.models import Campus
 from app.modules.errands.models import Errand, ErrandEvent
-from app.modules.ledger.models import LedgerEntry
+from app.modules.fraud import collusion
+from app.modules.fraud import integrity as fraud_integrity
+from app.modules.fraud import service as fraud
+from app.modules.ledger import service as ledger
 from app.modules.notifications import service as notifications
 from app.modules.outbox.models import ProcessedEvent
 from app.modules.runners import service as runners_service
-from app.core.graph import ensure_schema
 from app.modules.social.projection import handle_social, refresh_graph_metrics
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s worker %(levelname)s %(message)s")
@@ -121,8 +126,17 @@ async def handle_analytics(db: AsyncSession, event: dict) -> None:
 # ------------------------------------------------------------------ settlement
 
 async def handle_settlement(db: AsyncSession, event: dict) -> None:
-    """Money moves ONLY here, only on ORDER_COMPLETED, and only once — the
-    processed_events gate makes a Kafka redelivery pay nobody twice."""
+    """Money moves ONLY here, only on ORDER_COMPLETED, and only once.
+
+    Two gates make a Kafka redelivery harmless: processed_events at the consumer
+    level, and a unique (errand, user, entry_type) in the ledger itself. Either
+    alone would do; both means a bug in one is not a payout bug.
+
+    Reimbursement is drawn from the runner's JUDGED claims, never from the
+    amount they asked for. A claim flagged as above the campus reference pays
+    out at the reference and the excess stays in escrow for admin review — so
+    inflating a price delays money rather than producing it.
+    """
     if event["event_type"] != "ORDER_COMPLETED":
         return
     payload = event["payload"]
@@ -130,33 +144,46 @@ async def handle_settlement(db: AsyncSession, event: dict) -> None:
         return
     runner_id = uuid.UUID(payload["runner_id"])
     errand_id = uuid.UUID(payload["errand_id"])
-    db.add(
-        LedgerEntry(
-            user_id=runner_id, errand_id=errand_id,
-            entry_type="REWARD", amount=payload["reward"],
+    reward = Decimal(str(payload["reward"]))
+
+    eligible, withheld = await fraud.eligible_reimbursement(db, errand_id)
+    if eligible == 0 and withheld == 0:
+        # No claims filed (a non-catalog run, or a runner who skipped the
+        # step): fall back to the amount the requester agreed to up front.
+        eligible = Decimal(str(payload.get("collect_amount", 0) or 0))
+
+    try:
+        await ledger.release_hold(
+            db,
+            errand_id=errand_id,
+            runner_id=runner_id,
+            reward=reward,
+            reimbursement=eligible,
+            withheld=withheld,
+            memo=f"Delivery reward for {payload['title']}",
         )
-    )
-    if payload.get("collect_amount", 0) > 0:
-        db.add(
-            LedgerEntry(
-                user_id=runner_id, errand_id=errand_id,
-                entry_type="REIMBURSEMENT", amount=payload["collect_amount"],
-            )
+    except ledger.LedgerError:
+        logger.exception("settlement failed for errand %s", errand_id)
+        raise
+
+    body = f"₹{reward:.0f} reward"
+    if eligible > 0:
+        body += f" + ₹{eligible:.0f} reimbursed"
+    body += f" for {payload['title']}."
+    if withheld > 0:
+        body += (
+            f" ₹{withheld:.0f} is held pending review — your reported price was "
+            "above the campus reference."
         )
+
     await notifications.create_and_push(
         db,
         redis_client,
         runner_id,
         "SETTLEMENT",
-        "Paid out 💰",
-        f"₹{payload['reward']:.0f} reward"
-        + (
-            f" + ₹{payload['collect_amount']:.0f} reimbursed"
-            if payload.get("collect_amount", 0) > 0
-            else ""
-        )
-        + f" for {payload['title']}.",
-        {"errand_id": payload["errand_id"]},
+        "Paid out 💰" if withheld == 0 else "Paid out — part held",
+        body,
+        {"errand_id": payload["errand_id"], "withheld": float(withheld)},
     )
 
 
@@ -233,7 +260,6 @@ async def broaden_stale_offers() -> None:
     likelier to land with them, without ever letting it starve: by 90 seconds
     it is an ordinary open offer, well inside the poster's deadline.
     """
-    from app.modules.errands import service as errands_service  # avoid import cycle
 
     async with SessionLocal() as db:
         now = datetime.now(UTC)
@@ -308,12 +334,22 @@ async def _offer_tier(db, errand, max_hops: int | None, radius_m: int) -> int:
         limit=BROADEN_FANOUT,
         exclude=errand.requester_id,
     )
-    scores = await errands_service._safe_scores(
-        errand.requester_id, [rid for rid, _ in nearby]
+    # The escalation tiers gate exactly as the first offer does. Skipping it
+    # here would leave the whole thing bypassable by waiting: a flagged runner
+    # simply collects the broadened offer a tier later instead.
+    co_ringed = await fraud_integrity.co_ringed_with(
+        db, errand.requester_id, [rid for rid, _ in nearby]
     )
+    if co_ringed:
+        nearby = [(rid, dist) for rid, dist in nearby if rid not in co_ringed]
+
+    candidate_ids = [rid for rid, _ in nearby]
+    scores = await errands_service._safe_scores(errand.requester_id, candidate_ids)
     if max_hops is not None and scores is not None:
         nearby = [(r, d) for r, d in nearby if scores.get(r, {}).get("hops", 99) <= max_hops]
-    nearby = errands_service._rank_with_scores(nearby, scores)
+        candidate_ids = [rid for rid, _ in nearby]
+    penalties = await fraud_integrity.penalties(db, candidate_ids)
+    nearby = errands_service._rank_with_scores(nearby, scores, None, penalties)
 
     payload = {
         "type": "offer",
@@ -374,12 +410,69 @@ async def expire_stale_open_errands() -> None:
             await errands_service.publish_status(redis_client, errand)
 
 
+# Reference prices move on the order of days, not seconds — re-estimating
+# every enforcer tick would be wasted work. Once an hour is plenty.
+REFERENCE_REFRESH_INTERVAL = 3600
+
 # 30s sweeps × 20 = graph metrics refresh every ~10 minutes.
 METRICS_EVERY_N_SWEEPS = 20
 
 
+async def sweep_rating_farming() -> None:
+    """Look for runners whose reputation is carried by their own circle."""
+    async with SessionLocal() as db:
+        try:
+            raised = await fraud.sweep_rating_farming(db)
+            await db.commit()
+            if raised:
+                logger.info("rating farming: raised %d flag(s)", len(raised))
+        except Exception:
+            await db.rollback()
+            raise
+
+
+async def sweep_collusion_rings() -> None:
+    """Look for closed money cycles among mutual friends and flag their members."""
+    async with SessionLocal() as db:
+        try:
+            raised = await fraud.sweep_collusion_rings(db)
+            await db.commit()
+            if raised:
+                logger.info("collusion: raised %d flag(s)", len(raised))
+        except Exception:
+            await db.rollback()
+            raise
+
+
+async def refresh_reference_prices() -> None:
+    """Re-estimate every campus's reference prices from recent honest claims.
+
+    The estimator only ever moves a price INSIDE its admin-approved band; when
+    the evidence points outside, it files a proposal instead. So this job can
+    run unattended without any risk of it widening its own bounds.
+    """
+    async with SessionLocal() as db:
+        campus_ids = list(await db.scalars(select(Campus.id)))
+        for campus_id in campus_ids:
+            try:
+                count = await fraud.refresh_all_references(db, campus_id)
+                await db.commit()
+                logger.info("refreshed %d reference price(s) for campus %s", count, campus_id)
+                # Same slow clock: unpriced names are a backlog to work
+                # through, not an event to react to.
+                proposed = await fraud.suggest_item_aliases(db, campus_id)
+                await db.commit()
+                if proposed:
+                    logger.info("proposed %d item alias(es) for review", len(proposed))
+            except Exception:
+                await db.rollback()
+                logger.exception("reference refresh failed for campus %s", campus_id)
+
+
+
 async def scheduler() -> None:
     logger.info("scheduler up (interval %ss)", SCHEDULER_INTERVAL)
+    last_reference_refresh = 0.0
     nonlocal_tick = [0]
     while True:
         try:
@@ -396,6 +489,27 @@ async def scheduler() -> None:
         nonlocal_tick[0] = (nonlocal_tick[0] + 1) % METRICS_EVERY_N_SWEEPS
         if nonlocal_tick[0] == 0:
             await refresh_graph_metrics()
+            # Circulation reads the FRIEND and PAID edges the refresh above
+            # just settled, so it follows it rather than running on its own
+            # clock — a ring's closure and its money flow should describe the
+            # same instant.
+            await collusion.refresh_circulation()
+            try:
+                await sweep_collusion_rings()
+            except Exception:
+                logger.exception("collusion ring sweep failed")
+            try:
+                await sweep_rating_farming()
+            except Exception:
+                logger.exception("rating farming sweep failed")
+
+        now = asyncio.get_running_loop().time()
+        if now - last_reference_refresh >= REFERENCE_REFRESH_INTERVAL:
+            last_reference_refresh = now
+            try:
+                await refresh_reference_prices()
+            except Exception:
+                logger.exception("reference price refresh failed")
 
         await asyncio.sleep(SCHEDULER_INTERVAL)
 
