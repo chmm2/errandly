@@ -1,6 +1,8 @@
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import type { Errand } from "../api/errands";
+import { fetchEscrow } from "../api/ledger";
 
 interface Props {
   errand: Errand;
@@ -24,6 +26,15 @@ export default function PickupDeclaration({ errand, busy, onConfirm }: Props) {
   const expected = expectedSpend(errand);
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(String(expected || ""));
+
+  // The ceiling comes from the hold itself rather than being recomputed here.
+  // It is the exact figure settlement measures against, and a client doing its
+  // own arithmetic will eventually disagree with it.
+  const { data: escrow } = useQuery({
+    queryKey: ["escrow", errand.id],
+    queryFn: () => fetchEscrow(errand.id),
+    enabled: open,
+  });
 
   if (expected <= 0) {
     return (
@@ -53,6 +64,12 @@ export default function PickupDeclaration({ errand, busy, onConfirm }: Props) {
   // a blank that silently submits the estimate would defeat asking at all.
   const valid = value.trim() !== "" && Number.isFinite(spent) && spent >= 0;
   const over = valid && spent > expected;
+
+  // Past the hold nobody gets paid on delivery: the requester never committed
+  // that much, so it goes to an admin instead.
+  const ceiling = escrow ? Number(escrow.amount) : null;
+  const owed = spent + Number(errand.reward || 0);
+  const pastCeiling = valid && ceiling != null && owed > ceiling;
 
   return (
     <div className="w-full rounded-xl border border-brand/40 bg-brand-soft p-3">
@@ -94,11 +111,24 @@ export default function PickupDeclaration({ errand, busy, onConfirm }: Props) {
         </button>
       </div>
 
-      {over && (
-        <p className="mt-2 text-xs font-semibold text-amber-700">
-          ₹{(spent - expected).toFixed(0)} over the estimate. Covered by the headroom
-          held on this order, as long as it is within it.
-        </p>
+      {pastCeiling ? (
+        <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-3">
+          <p className="text-xs font-bold text-red-700">
+            More than the ₹{ceiling!.toFixed(0)} held for this order.
+          </p>
+          <p className="mt-1 text-xs text-red-700">
+            Paying you ₹{owed.toFixed(0)} would charge your requester more than they
+            agreed to lock, so nothing is paid out on delivery — an admin reviews it
+            first. Report it anyway if it is what you really paid.
+          </p>
+        </div>
+      ) : (
+        over && (
+          <p className="mt-2 text-xs font-semibold text-amber-700">
+            ₹{(spent - expected).toFixed(0)} over the estimate. Covered by the headroom
+            held on this order.
+          </p>
+        )
       )}
     </div>
   );

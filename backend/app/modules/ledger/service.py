@@ -318,6 +318,46 @@ async def release_hold(
     return hold
 
 
+async def remaining_hold(db: AsyncSession, errand_id: uuid.UUID) -> Decimal:
+    """What is still locked against this errand, and therefore payable.
+
+    This is the hard ceiling on the whole settlement. The requester agreed to
+    lock exactly this much and no more; anything past it is money the platform
+    does not have and never asked them for.
+    """
+    hold = await db.get(EscrowHold, errand_id)
+    if hold is None:
+        return Decimal("0")
+    return max(Decimal("0"), _money(hold.amount) - _money(hold.released_amount))
+
+
+async def block_settlement(
+    db: AsyncSession, *, errand_id: uuid.UUID
+) -> EscrowHold | None:
+    """Freeze a hold instead of settling it, pending an admin decision.
+
+    Used when what the runner is owed exceeds what the requester has locked.
+    Neither automatic outcome is acceptable there: paying in full would charge
+    the requester money they never agreed to lock, and paying the capped amount
+    would silently make the runner absorb a difference that might be a shop's
+    price rise or might be an inflated claim. This code cannot tell which, so
+    it moves nothing and says so.
+
+    NOT settled_at - the hold is frozen, not finished. Status PENDING_REVIEW
+    keeps the full amount inside the requester's held partition, so the money
+    stays visibly theirs until someone decides where it goes.
+    """
+    hold = await _locked_hold(db, errand_id)
+    if hold is None:
+        raise LedgerError("No escrow hold for this errand.", 404)
+    if hold.status in ("RELEASED", "REFUNDED"):
+        return hold
+
+    hold.status = "PENDING_REVIEW"
+    await db.flush()
+    return hold
+
+
 async def refund_hold(
     db: AsyncSession, *, errand_id: uuid.UUID, memo: str | None = None
 ) -> EscrowHold | None:

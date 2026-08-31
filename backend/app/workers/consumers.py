@@ -125,6 +125,82 @@ async def handle_analytics(db: AsyncSession, event: dict) -> None:
 
 # ------------------------------------------------------------------ settlement
 
+async def _block_over_ceiling(
+    db,
+    redis_client,
+    *,
+    errand_id,
+    runner_id,
+    title: str,
+    payable: Decimal,
+    ceiling: Decimal,
+    reward: Decimal,
+) -> None:
+    """Freeze a settlement the requester's hold cannot cover, and say so.
+
+    The gap is the interesting number: it is what the runner says they are out
+    of pocket beyond anything the requester ever agreed to lock. It is also
+    exactly what a runner inflating a claim would produce, which is why this
+    ends with a person looking at it rather than a rule paying it.
+    """
+    gap = (payable - ceiling).quantize(Decimal("0.01"))
+    hold = await ledger.block_settlement(db, errand_id=errand_id)
+    requester_id = hold.requester_id
+
+    # Severity scales with how far past the ceiling the claim goes, relative to
+    # the ceiling itself - ₹50 over on a ₹100 order is a different proposition
+    # from ₹50 over on a ₹2000 one.
+    delta_pct = (
+        (gap / ceiling * 100) if ceiling > 0 else Decimal("100")
+    ).quantize(Decimal("0.01"))
+
+    await fraud.raise_flag(
+        db,
+        user_id=runner_id,
+        errand_id=errand_id,
+        claim=None,
+        rule="PAYOUT_EXCEEDS_HOLD",
+        delta_pct=delta_pct,
+        details={
+            "payable": float(payable),
+            "held": float(ceiling),
+            "gap": float(gap),
+            "reward": float(reward),
+            "delta_pct": float(delta_pct),
+        },
+    )
+
+    await notifications.create_and_push(
+        db,
+        redis_client,
+        runner_id,
+        "SETTLEMENT",
+        "Payout on hold ⏸",
+        f"You reported spending more than was held for {title}. "
+        f"₹{ceiling:.0f} was locked; paying you would need ₹{payable:.0f}. "
+        f"Nothing has moved — an admin is reviewing the ₹{gap:.0f} difference.",
+        {"errand_id": str(errand_id), "gap": float(gap)},
+    )
+    await notifications.create_and_push(
+        db,
+        redis_client,
+        requester_id,
+        "SETTLEMENT",
+        "Order under review ⏸",
+        f"Your runner reported paying more than the ₹{ceiling:.0f} held for "
+        f"{title}. Your money stays held and you have not been charged the "
+        f"extra ₹{gap:.0f} — an admin is reviewing it.",
+        {"errand_id": str(errand_id), "gap": float(gap)},
+    )
+
+    logger.warning(
+        "errand %s: payout ₹%s exceeds hold ₹%s — settlement blocked for review",
+        errand_id,
+        payable,
+        ceiling,
+    )
+
+
 async def handle_settlement(db: AsyncSession, event: dict) -> None:
     """Money moves ONLY here, only on ORDER_COMPLETED, and only once.
 
@@ -168,6 +244,27 @@ async def handle_settlement(db: AsyncSession, event: dict) -> None:
             # priced items - reimbursed ZERO and handed the whole basket back
             # to the requester as surplus, runner already out of pocket.
             eligible = await ledger.estimated_spend(db, errand_id)
+
+    # The requester locked a fixed amount and agreed to nothing beyond it. If
+    # what the runner is owed exceeds that, there is no correct automatic
+    # outcome: paying in full would charge the requester money they never
+    # committed, and paying the capped amount makes the runner quietly absorb
+    # a gap that is either a shop's price rise or an inflated claim. Freeze it
+    # and let an admin decide, with both people told why.
+    ceiling = await ledger.remaining_hold(db, errand_id)
+    payable = eligible + reward
+    if payable > ceiling:
+        await _block_over_ceiling(
+            db,
+            redis_client,
+            errand_id=errand_id,
+            runner_id=runner_id,
+            title=payload["title"],
+            payable=payable,
+            ceiling=ceiling,
+            reward=reward,
+        )
+        return
 
     try:
         await ledger.release_hold(

@@ -1,7 +1,9 @@
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
 import type { Errand } from "../api/errands";
+import { fetchEscrow } from "../api/wallet";
 import { colors, font, radius, rupees, space } from "../theme";
 import { Body, Button, Caption, Card, Heading } from "./ui";
 
@@ -33,6 +35,14 @@ export function PickupDeclaration({
   const expected = expectedSpend(errand);
   const [value, setValue] = useState(expected > 0 ? String(expected) : "");
 
+  // The ceiling comes from the hold itself rather than being recomputed here.
+  // It is the exact figure settlement measures against, and a client that
+  // does its own arithmetic will eventually disagree with it.
+  const { data: escrow } = useQuery({
+    queryKey: ["escrow", errand.id],
+    queryFn: () => fetchEscrow(errand.id),
+  });
+
   if (expected <= 0) {
     return (
       <Button
@@ -49,6 +59,13 @@ export function PickupDeclaration({
   // would defeat the point of asking at all.
   const valid = value.trim() !== "" && Number.isFinite(spent) && spent >= 0;
   const over = valid && spent > expected;
+
+  // Past the hold, nobody gets paid on delivery - the requester never
+  // committed that much, so it goes to an admin instead. Saying so here beats
+  // letting the runner find out when their payout does not arrive.
+  const ceiling = escrow ? Number(escrow.amount) : null;
+  const owed = spent + Number(errand.reward || 0);
+  const pastCeiling = valid && ceiling != null && owed > ceiling;
 
   return (
     <Card raised style={s.card}>
@@ -72,10 +89,21 @@ export function PickupDeclaration({
         />
       </View>
 
-      {over ? (
+      {pastCeiling ? (
+        <View style={s.blocked}>
+          <Body style={s.blockedText}>
+            This is more than the {rupees(ceiling!)} held for this order. Paying you{" "}
+            {rupees(owed)} would charge your requester more than they agreed to lock,
+            so nothing will be paid out on delivery — an admin reviews it first.
+          </Body>
+          <Caption style={{ color: colors.redText, marginTop: space.xs }}>
+            Report it anyway if it is what you really paid. Do not inflate it.
+          </Caption>
+        </View>
+      ) : over ? (
         <Body style={s.over}>
           {rupees(spent - expected)} over the estimate — covered by the headroom held
-          on this order, as long as it is within it.
+          on this order.
         </Body>
       ) : null}
 
@@ -122,4 +150,13 @@ const s = StyleSheet.create({
     color: colors.amberText,
     fontSize: 13,
   },
+  blocked: {
+    marginTop: space.sm,
+    padding: space.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.redBg,
+    borderWidth: 1,
+    borderColor: colors.redBorder,
+  },
+  blockedText: { color: colors.redText, fontSize: 13 },
 });

@@ -22,6 +22,7 @@ import { FindingRunner } from "../../src/components/CountdownRing";
 import { ConnectionBadge, ConnectionLine } from "../../src/components/ConnectionBadge";
 import { PickupDeclaration } from "../../src/components/PickupDeclaration";
 import { PriceClaimSheet } from "../../src/components/PriceClaimSheet";
+import { OverspendNotice } from "../../src/components/OverspendNotice";
 import { PaymentSummary } from "../../src/components/PaymentSummary";
 import { TrackingMap } from "../../src/components/TrackingMap";
 import {
@@ -467,6 +468,10 @@ export default function ErrandDetail() {
               loading={deliver.isPending}
               onPress={() => deliver.mutate()}
             />
+          ) : null}
+
+          {isRequester && errand.status === "DELIVERED" ? (
+            <OverspendNotice errand={errand} />
           ) : null}
 
           {isRequester && errand.status === "DELIVERED" ? (
