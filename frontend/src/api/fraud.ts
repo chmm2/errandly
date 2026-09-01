@@ -263,3 +263,30 @@ export const STRIKE_LABELS: Record<Strike["action"], string> = {
   RUNNER_SUSPENDED: "Running paused",
   ACCOUNT_SUSPENDED: "Account suspended",
 };
+
+export interface ReferenceSuggestion {
+  reference_id: string;
+  item_key: string;
+  display_name: string;
+  reference_price: number;
+  band_min: number;
+  band_max: number;
+  score: number;
+  /** Set when the hit came through an approved alias rather than the name. */
+  matched_via: string | null;
+}
+
+/**
+ * Type-ahead over the admin's non-MRP price list.
+ *
+ * Fuzzy server-side, so a misspelling still finds the priced item. That
+ * matters more than it looks: a typo that misses drops the line back to
+ * unpriced free text, and an unpriced line escapes the reference-price
+ * mechanism entirely.
+ */
+export async function searchReferences(q: string): Promise<ReferenceSuggestion[]> {
+  const { data } = await api.get<ReferenceSuggestion[]>("/fraud/references/search", {
+    params: { q, limit: 8 },
+  });
+  return data;
+}

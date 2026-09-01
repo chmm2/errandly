@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +12,7 @@ from app.core.redis import get_redis
 from app.modules.auth.dependencies import require_active_user, require_admin
 from app.modules.auth.models import User
 from app.modules.errands.models import Errand
+from app.modules.fraud import search
 from app.modules.fraud import service as fraud
 from app.modules.fraud.models import (
     FraudFlag,
@@ -32,6 +33,7 @@ from app.modules.fraud.schemas import (
     ReferencePriceIn,
     ReferencePriceOut,
     ReferencePriceUpdate,
+    ReferenceSuggestion,
     StandingOut,
     StrikeOut,
 )
@@ -133,6 +135,30 @@ async def list_references(
         .order_by(ReferencePrice.display_name)
     )
     return [ReferencePriceOut.model_validate(r) for r in rows.scalars()]
+
+
+@router.get("/references/search", response_model=list[ReferenceSuggestion])
+async def search_references(
+    q: str = Query(default="", max_length=120),
+    limit: int = Query(default=8, ge=1, le=20),
+    user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Type-ahead over the admin's non-MRP price list.
+
+    Open to any verified student, unlike the rest of /references: a requester
+    has to be able to find a priced item while building a shopping list, and
+    the reference price is not a secret - it is the number the runner will be
+    judged against, so showing it up front is the honest thing to do.
+
+    Fuzzy on purpose. If a typo dropped the requester onto an unpriced
+    free-text line, the order would silently escape the reference-price
+    mechanism entirely, which is the one thing this table exists to prevent.
+    """
+    hits = await search.search_references(
+        db, campus_id=user.campus_id, query=q, limit=limit
+    )
+    return [ReferenceSuggestion(**vars(h)) for h in hits]
 
 
 @router.post("/references", response_model=ReferencePriceOut, status_code=201)

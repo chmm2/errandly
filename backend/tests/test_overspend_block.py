@@ -89,7 +89,7 @@ async def _settle(errand_id, runner_id, reward, collect, title="Canteen run"):
 
 
 async def test_a_payout_past_the_hold_moves_no_money(client, campus, make_user):
-    """₹300 estimate holds ₹375. Declaring ₹400 needs ₹430 — nothing moves."""
+    """₹300 stated cash holds ₹330. Declaring ₹400 needs ₹430 — nothing moves."""
     requester_id, r_headers = await make_user("Requester")
     runner_id, run_headers = await make_user("Runner")
     await _fund(requester_id, "1000")
@@ -97,11 +97,11 @@ async def test_a_payout_past_the_hold_moves_no_money(client, campus, make_user):
     runner_before = await _balance(runner_id)
     eid = await _run(client, r_headers, run_headers, collect=300, reward=30, spent=400)
 
-    assert await _balance(requester_id) == Decimal("625.00"), "still holding 375"
+    assert await _balance(requester_id) == Decimal("670.00"), "still holding 330"
     await _settle(eid, runner_id, 30, 300)
 
     assert await _balance(runner_id) == runner_before, "the runner is paid nothing yet"
-    assert await _balance(requester_id) == Decimal("625.00"), (
+    assert await _balance(requester_id) == Decimal("670.00"), (
         "the requester is charged nothing beyond what they locked"
     )
 
@@ -124,8 +124,8 @@ async def test_the_money_stays_in_the_requesters_held_partition(
     await _settle(eid, runner_id, 30, 300)
 
     wallet = (await client.get("/ledger/me/wallet", headers=r_headers)).json()
-    assert wallet["balance"] == 625.0
-    assert wallet["held"] == 375.0, "still ring-fenced against the disputed order"
+    assert wallet["balance"] == 670.0
+    assert wallet["held"] == 330.0, "still ring-fenced against the disputed order"
     assert wallet["balance"] + wallet["held"] == 1000.0, "nothing vanished"
 
 
@@ -146,16 +146,16 @@ async def test_the_block_raises_a_flag_for_an_admin(client, campus, make_user):
         assert flag is not None, "an admin has to be told there is something to decide"
         assert flag.status == "OPEN"
         assert flag.user_id == runner_id
-        # 400 + 30 = 430 owed against 375 held.
-        assert flag.details["held"] == 375.0
+        # 400 + 30 = 430 owed against 330 held.
+        assert flag.details["held"] == 330.0
         assert flag.details["payable"] == 430.0
-        assert flag.details["gap"] == 55.0
+        assert flag.details["gap"] == 100.0
 
 
 async def test_an_admin_siding_with_the_runner_pays_at_most_the_hold(
     client, campus, make_user
 ):
-    """The ceiling survives review. The requester committed ₹375 and cannot be
+    """The ceiling survives review. The requester committed ₹330 and cannot be
     made to pay the ₹430 the runner asked for, whoever is believed."""
     requester_id, r_headers = await make_user("Requester")
     runner_id, run_headers = await make_user("Runner")
@@ -171,10 +171,10 @@ async def test_an_admin_siding_with_the_runner_pays_at_most_the_hold(
         )
         await db.commit()
 
-    assert await _balance(runner_id) - runner_before == Decimal("375.00"), (
+    assert await _balance(runner_id) - runner_before == Decimal("330.00"), (
         "the whole hold, and not a rupee more"
     )
-    assert await _balance(requester_id) == Decimal("625.00")
+    assert await _balance(requester_id) == Decimal("670.00")
 
     async with SessionLocal() as db:
         hold = await db.get(EscrowHold, eid)
@@ -184,17 +184,17 @@ async def test_an_admin_siding_with_the_runner_pays_at_most_the_hold(
 async def test_a_payout_inside_the_hold_still_settles_normally(
     client, campus, make_user
 ):
-    """The guard must not catch honest overspend the headroom was built for."""
+    """The guard must not catch an ordinary order that fits inside its hold."""
     requester_id, r_headers = await make_user("Requester")
     runner_id, run_headers = await make_user("Runner")
     await _fund(requester_id, "1000")
 
     runner_before = await _balance(runner_id)
-    eid = await _run(client, r_headers, run_headers, collect=300, reward=30, spent=340)
+    eid = await _run(client, r_headers, run_headers, collect=300, reward=30, spent=290)
     await _settle(eid, runner_id, 30, 300)
 
-    assert await _balance(runner_id) - runner_before == Decimal("370.00")
-    assert await _balance(requester_id) == Decimal("630.00"), "unused ₹5 returned"
+    assert await _balance(runner_id) - runner_before == Decimal("320.00")
+    assert await _balance(requester_id) == Decimal("680.00"), "unused ₹10 returned"
 
     async with SessionLocal() as db:
         hold = await db.get(EscrowHold, eid)

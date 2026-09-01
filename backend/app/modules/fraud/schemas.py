@@ -50,6 +50,23 @@ class ClaimResult(BaseModel):
     message: str | None = None
 
 
+class ReferenceSuggestion(BaseModel):
+    """One hit from the non-MRP price list, as a requester sees it.
+
+    Carries the band as well as the reference so the order screen can say what
+    the runner is allowed to spend, not merely what the item usually costs.
+    """
+
+    reference_id: uuid.UUID
+    item_key: str
+    display_name: str
+    reference_price: float
+    band_min: float
+    band_max: float
+    score: float
+    matched_via: str | None = None
+
+
 class ReferencePriceIn(BaseModel):
     item_key: str | None = Field(default=None, max_length=120)
     display_name: str = Field(min_length=1, max_length=120)

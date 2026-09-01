@@ -139,6 +139,13 @@ class EscrowHold(Base):
     buffer: Mapped[float] = mapped_column(
         Numeric(12, 2), nullable=False, server_default="0"
     )
+    # The slice of the estimate the headroom was charged on - the non-MRP
+    # goods. Stored rather than derived: buffer / pct only reconstructs it
+    # while the percentage is unchanged, and a receipt has to survive a
+    # retune.
+    buffer_base: Mapped[float] = mapped_column(
+        Numeric(12, 2), nullable=False, server_default="0"
+    )
     amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     released_amount: Mapped[float] = mapped_column(
         Numeric(12, 2), nullable=False, server_default="0"

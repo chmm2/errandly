@@ -93,14 +93,23 @@ export interface HoldQuote {
  *
  * The button on a checkout screen has to name the number the wallet will
  * actually move, or the requester watches more money disappear than they
- * agreed to. Headroom applies to the spend alone - the fee is fixed and known,
- * so padding it would reserve money that no outcome could ever need.
+ * agreed to. Headroom applies to `bufferBase` alone - the non-MRP goods. The
+ * fee is fixed, an MRP packet carries its price printed on it, and stated cash
+ * is exact, so padding any of them would reserve money no outcome could need.
  */
-export function quoteHold(spend: number, fee: number, bufferPct: number): HoldQuote {
+export function quoteHold(
+  spend: number,
+  fee: number,
+  bufferPct: number,
+  bufferBase = 0,
+): HoldQuote {
   const round2 = (n: number) => Math.round(n * 100) / 100;
   const safeSpend = Math.max(0, round2(spend || 0));
   const safeFee = Math.max(0, round2(fee || 0));
-  const buffer = round2(safeSpend * (bufferPct || 0));
+  // Clamped to the spend, mirroring the server: headroom can never be charged
+  // on more than the order is worth.
+  const base = Math.min(safeSpend, Math.max(0, round2(bufferBase || 0)));
+  const buffer = round2(base * (bufferPct || 0));
   return {
     spend: safeSpend,
     buffer,

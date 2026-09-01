@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     # estimate. A percentage of the ESTIMATED SPEND is held on top; the runner
     # fee is not part of that base, because the fee is fixed and known and
     # padding it would only lock money nobody can ever need.
-    escrow_buffer_pct: float = 0.15
+    escrow_buffer_pct: float = 0.16
 
     # Semantic fraud channel (modules/fraud/semantics.py). Optional in every
     # sense: with no provider configured the fraud system behaves exactly as it

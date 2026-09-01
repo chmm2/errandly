@@ -149,8 +149,18 @@ class ErrandItem(Base):
     menu_item_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("menu_items.id", ondelete="SET NULL"), nullable=True
     )
+    # Set when the requester picked this line off the admin's non-MRP price
+    # list. It is what makes the line eligible for escrow headroom: an MRP
+    # packet has its price printed on it, so there is nothing to discover at
+    # the counter and nothing to pad.
+    reference_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("reference_prices.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     name_snapshot: Mapped[str] = mapped_column(String(120), nullable=False)
-    # Priceless for shopping-list lines (grocery/stationery/pharmacy).
+    # Priceless for hand-typed lines; carries the reference price when the line
+    # was picked from the non-MRP list, and the menu price for catalogue lines.
     unit_price_snapshot: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     # Runner flips this false when a store is out of an item.

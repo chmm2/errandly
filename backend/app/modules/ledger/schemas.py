@@ -55,6 +55,7 @@ class EscrowOut(BaseModel):
     reward: float
     collect_amount: float
     buffer: float
+    buffer_base: float
     amount: float
     released_amount: float
     status: str

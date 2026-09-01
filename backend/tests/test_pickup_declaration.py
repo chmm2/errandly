@@ -116,8 +116,9 @@ async def test_settlement_pays_the_declared_amount_not_the_estimate(
 ):
     """The headroom exists for exactly this: ₹300 estimated, ₹340 really paid.
 
-    Reimbursing the estimate would leave the runner ₹40 short of their own
-    money, which is the situation the buffer was added to prevent.
+    The declared figure is what settlement pays, whichever side of the
+    estimate it falls on. Here the runner found it cheaper than quoted, and the
+    difference has to go back to the requester rather than being kept.
     """
     requester_id, r_headers = await make_user("Requester")
     runner_id, run_headers = await make_user("Runner")
@@ -130,13 +131,13 @@ async def test_settlement_pays_the_declared_amount_not_the_estimate(
     await client.post(f"/errands/{errand['id']}/accept", headers=run_headers)
     await client.post(
         f"/errands/{errand['id']}/pickup",
-        json={"amount_spent": 340},
+        json={"amount_spent": 280},
         headers=run_headers,
     )
 
     async with SessionLocal() as db:
         declared = await errands.declared_spend(db, uuid.UUID(errand["id"]))
-        assert declared == Decimal("340.00")
+        assert declared == Decimal("280.00")
 
         await ledger.release_hold(
             db,
@@ -148,8 +149,8 @@ async def test_settlement_pays_the_declared_amount_not_the_estimate(
         await db.commit()
 
         earned = await ledger.balance(db, runner_id) - before
-        assert earned == Decimal("370.00"), (
-            "₹340 actually paid + ₹30 fee, not the ₹300 estimate"
+        assert earned == Decimal("310.00"), (
+            "₹280 actually paid + ₹30 fee, not the ₹300 estimate"
         )
 
 

@@ -15,11 +15,18 @@ class OrderItemIn(BaseModel):
 
 
 class ListItemIn(BaseModel):
-    """A hand-typed shopping-list line (no menu, no price)."""
+    """A shopping-list line.
+
+    `reference_id` is set when the requester picked the item off the admin's
+    non-MRP price list rather than typing a name nobody has priced. The server
+    re-reads the price from that row - the client never sends an amount, so a
+    tampered request cannot inflate what gets held.
+    """
 
     name: str = Field(min_length=1, max_length=120)
     quantity: int = Field(default=1, ge=1, le=99)
     note: str | None = Field(default=None, max_length=200)
+    reference_id: uuid.UUID | None = None
 
 
 class ErrandCreate(BaseModel):
@@ -168,6 +175,10 @@ class ErrandItemOut(BaseModel):
 
     id: uuid.UUID
     menu_item_id: uuid.UUID | None
+    # Set when the line was priced off the admin non-MRP list - which is also
+    # what made it eligible for escrow headroom, so the clients need it to
+    # explain the hold.
+    reference_id: uuid.UUID | None = None
     name_snapshot: str
     unit_price_snapshot: float | None
     quantity: int

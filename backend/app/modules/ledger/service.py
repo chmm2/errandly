@@ -127,6 +127,7 @@ async def place_hold(
     reward: Decimal,
     collect_amount: Decimal,
     buffer_pct: float | None = None,
+    buffer_base: Decimal | None = None,
 ) -> EscrowHold:
     """Move the requester's money into escrow at order time.
 
@@ -134,15 +135,23 @@ async def place_hold(
     requester to still have funds an hour later. The hold is the runner's
     guarantee of payment.
 
-    The hold is deliberately larger than the estimate:
+    The hold carries headroom, but only over `buffer_base`:
 
-        hold = spend_estimate + spend_estimate x buffer_pct + reward
+        hold = spend_estimate + buffer_base x buffer_pct + reward
 
     Shop prices move, and the runner discovers that at the counter with their
     own cash already spent. Without headroom a requester who budgeted exactly
     could not cover a ₹25 difference, and the person out of pocket would be the
     runner. Whatever the buffer is not needed for goes straight back at
     settlement, so the cost to the requester is temporary and visible.
+
+    `buffer_base` is the NON-MRP part of the order - loose-priced goods whose
+    real cost is discovered at the counter. An MRP item carries its price
+    printed on the packet, so there is nothing to discover and nothing to pad;
+    holding extra against it would lock money no outcome could ever need. Cash
+    stated for a gate or parcel pickup is exact for the same reason. Callers
+    that pass nothing get no headroom at all, which is the safe default: money
+    is only ever tied up when a caller can say why.
     """
     items_total = _money(items_total)
     reward = _money(reward)
@@ -150,12 +159,17 @@ async def place_hold(
 
     # What the runner is expected to spend at the counter. Catalogue orders
     # carry it as priced items; gate and parcel pickups carry it as the cash
-    # the requester says will change hands. Either way it is an ESTIMATE, and
-    # the estimate is the only thing the buffer applies to.
+    # the requester says will change hands.
     if buffer_pct is None:
         buffer_pct = getattr(settings, "escrow_buffer_pct", 0.0)
     spend_estimate = _money(items_total + collect_amount)
-    buffer = _money(spend_estimate * Decimal(str(buffer_pct)))
+
+    # Only the uncertain part is padded. Clamped to the estimate so a caller
+    # cannot pad more than the order is worth, and floored at zero so a bad
+    # value cannot subtract from the hold.
+    base = _money(buffer_base or 0)
+    base = max(Decimal("0"), min(base, spend_estimate))
+    buffer = _money(base * Decimal(str(buffer_pct)))
 
     # The fee is deliberately outside the base. It is fixed and known, so
     # padding it would lock money that could never be needed - the requester
@@ -197,6 +211,7 @@ async def place_hold(
     hold = EscrowHold(
         errand_id=errand_id,
         requester_id=requester_id,
+        buffer_base=base,
         items_total=items_total,
         reward=reward,
         collect_amount=collect_amount,

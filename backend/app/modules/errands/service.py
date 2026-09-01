@@ -22,6 +22,7 @@ from app.modules.errands.models import (
 from app.modules.errands.schemas import ErrandCreate
 from app.modules.fraud import integrity as fraud_integrity
 from app.modules.fraud import reputation as fraud_reputation
+from app.modules.fraud.models import ReferencePrice
 from app.modules.ledger import service as ledger
 from app.modules.outbox import service as outbox
 from app.modules.runners import service as runners_service
@@ -576,13 +577,43 @@ async def create_errand(db: AsyncSession, redis: Redis, user: User, data: Errand
         db.add(item)
     # Hand-typed shopping-list lines: structured (so the runner can mark one
     # out of stock), but priceless — the runner pays the real shelf price.
+    #
+    # A line picked off the admin's non-MRP price list is repriced HERE, from
+    # that row, not from anything the client sent. The reference is the number
+    # the runner's claim will later be judged against, so letting a request
+    # body set it would let a requester pre-authorise their own overcharge.
+    wanted = {li.reference_id for li in data.list_items if li.reference_id}
+    references: dict[uuid.UUID, ReferencePrice] = {}
+    if wanted:
+        rows = await db.execute(
+            select(ReferencePrice).where(
+                ReferencePrice.id.in_(wanted),
+                # Campus-scoped: another campus's price list is not ours to
+                # quote, and an id from one must not resolve here.
+                ReferencePrice.campus_id == user.campus_id,
+            )
+        )
+        references = {r.id: r for r in rows.scalars()}
+
+    non_mrp_total = Decimal("0")
     for li in data.list_items:
+        ref = references.get(li.reference_id) if li.reference_id else None
+        if li.reference_id and ref is None:
+            raise ErrandError("That priced item is no longer on the list.", 422)
+
+        unit = Decimal(str(ref.reference_price)) if ref else None
+        if ref is not None:
+            non_mrp_total += unit * li.quantity
+
         db.add(
             ErrandItem(
                 errand_id=errand.id,
                 menu_item_id=None,
-                name_snapshot=li.name.strip()[:120],
-                unit_price_snapshot=None,
+                reference_id=ref.id if ref else None,
+                # The admin's display name when there is one, so the runner
+                # reads the same words the price was set against.
+                name_snapshot=(ref.display_name if ref else li.name.strip())[:120],
+                unit_price_snapshot=unit,
                 quantity=li.quantity,
                 note=(li.note.strip()[:200] if li.note and li.note.strip() else None),
             )
@@ -592,12 +623,17 @@ async def create_errand(db: AsyncSession, redis: Redis, user: User, data: Errand
     # runner who fronts cash at the counter is relying on this hold existing —
     # an unfunded order must never reach the feed.
     #
-    # Only catalog lines carry a price; hand-typed list lines are deliberately
-    # priceless, and collect_amount is what covers those. It is already part of
-    # the hold, so a shopping-list errand is still fully funded up front.
+    # Catalogue lines carry a menu price; non-MRP list lines carry the admin
+    # reference. Hand-typed lines nobody has priced stay priceless, and
+    # collect_amount is what covers those.
     items_total = sum(
         Decimal(str(i.unit_price_snapshot)) * i.quantity for i in order_items
-    )
+    ) + non_mrp_total
+
+    # Headroom is charged on the non-MRP subtotal alone. A menu item and a
+    # sealed MRP packet both have a price that is already known, so padding
+    # them would lock money that no outcome could need; a loose-priced item is
+    # the only thing whose real cost is discovered at the counter.
     try:
         await ledger.place_hold(
             db,
@@ -606,6 +642,7 @@ async def create_errand(db: AsyncSession, redis: Redis, user: User, data: Errand
             items_total=items_total,
             reward=Decimal(str(data.reward)),
             collect_amount=Decimal(str(data.collect_amount)),
+            buffer_base=non_mrp_total,
         )
     except ledger.LedgerError as e:
         await db.rollback()

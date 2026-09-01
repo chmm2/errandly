@@ -7,6 +7,12 @@ interface Props {
   spend: number;
   /** The runner's fee. Shown, but never padded. */
   fee: number;
+  /**
+   * The non-MRP slice of `spend` - loose-priced goods whose real cost is
+   * discovered at the counter. Headroom is charged on this alone; an MRP
+   * packet and a stated cash amount are already exact.
+   */
+  padded?: number;
 }
 
 /**
@@ -18,13 +24,16 @@ interface Props {
  * says plainly that it comes back, and warns before the order fails when the
  * available partition cannot cover it.
  */
-export default function HoldBreakdown({ spend, fee }: Props) {
+export default function HoldBreakdown({ spend, fee, padded }: Props) {
   const { data: wallet } = useQuery({ queryKey: ["wallet"], queryFn: fetchWallet });
 
   // Until the wallet answers, assume no headroom rather than inventing one:
   // quoting 15% the server might not apply is its own kind of wrong.
   const pct = wallet?.buffer_pct ?? 0;
-  const q = quoteHold(spend, fee, pct);
+  // Default to padding nothing rather than everything: headroom is only
+  // charged where a caller can point at the uncertain goods.
+  const base = padded ?? 0;
+  const q = quoteHold(spend, fee, pct, base);
   if (q.total <= 0) return null;
 
   const available = wallet?.balance;
@@ -40,7 +49,7 @@ export default function HoldBreakdown({ spend, fee }: Props) {
       {q.buffer > 0 && (
         <div className="flex justify-between py-0.5">
           <span className="text-muted">
-            Price headroom ({Math.round(pct * 100)}%)
+            Price headroom ({Math.round(pct * 100)}% of ₹{base.toFixed(0)})
           </span>
           <span className="font-medium">+₹{q.buffer.toFixed(0)}</span>
         </div>
@@ -58,9 +67,10 @@ export default function HoldBreakdown({ spend, fee }: Props) {
 
       {q.buffer > 0 && (
         <p className="mt-2 text-xs text-muted">
-          The headroom covers the price being higher at the counter than we
-          estimated. Whatever the runner does not spend comes back to you the
-          moment the order completes.
+          Loose-priced items can cost more at the counter than the campus
+          price list says, so a little extra is held against them. Fixed-price
+          items are never padded. Whatever the runner does not spend comes back
+          the moment the order completes.
         </p>
       )}
 
