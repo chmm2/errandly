@@ -1,14 +1,17 @@
 import json
 import logging
+import random
 import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import Any
 
 from geoalchemy2 import WKTElement
 from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.crypto import decrypt_str, encrypt_str
 from app.modules.auth.models import User
 from app.modules.errands.models import (
@@ -17,6 +20,7 @@ from app.modules.errands.models import (
     ErrandEvent,
     ErrandHandoffSecret,
     ErrandItem,
+    OfferLog,
     Rating,
 )
 from app.modules.errands.schemas import ErrandCreate
@@ -226,12 +230,35 @@ async def _offer_to_nearby_runners(
     scores = await _safe_scores(errand.requester_id, candidate_ids)
     reputations = await _reputations(db, candidate_ids)
     penalties = await fraud_integrity.penalties(db, candidate_ids)
-    nearby = _rank_with_scores(nearby, scores, reputations, penalties)
 
-    if max_hops is not None and scores is not None:
+    # A small fraction of rounds go out socially blind. See `should_explore`.
+    exploring = should_explore()
+    ranking_scores = None if exploring else scores
+    nearby = _rank_with_scores(nearby, ranking_scores, reputations, penalties)
+
+    # An exploring round ignores the hop ceiling too. Ranking without the boost
+    # while still refusing to offer past 2 hops would not be a control group at
+    # all — the strangers whose absence is the whole problem would still never
+    # be offered anything, and the sample would stay exactly as biased.
+    if max_hops is not None and scores is not None and not exploring:
         nearby = [(r, d) for r, d in nearby if scores.get(r, {}).get("hops", 99) <= max_hops]
         if not nearby:
             return 0
+
+    # After filtering, so the log holds the set that was actually offered
+    # rather than the set that was considered. `scores` (not `ranking_scores`)
+    # is passed on purpose: the trust the graph reported is worth recording
+    # even on a round that declined to act on it.
+    await _record_offer_log(
+        db,
+        errand=errand,
+        ranked=nearby,
+        scores=scores,
+        reputations=reputations,
+        penalties=penalties,
+        max_hops=None if exploring else max_hops,
+        exploring=exploring,
+    )
 
     payload = {
         "type": "offer",
@@ -317,18 +344,160 @@ def _rank_with_scores(
         return nearby
 
     def effective(item: tuple[uuid.UUID, float]) -> float:
-        runner_id, distance_m = item
-        trust = (scores or {}).get(runner_id, {}).get("trust", 0.0)
-        rep = (reputations or {}).get(runner_id, NEUTRAL_REPUTATION)
-        penalty = (penalties or {}).get(runner_id, 0.0)
-        return (
-            distance_m
-            - trust * SOCIAL_WEIGHT_M
-            - (rep - NEUTRAL_REPUTATION) * REPUTATION_WEIGHT_M
-            + penalty
-        )
+        return _terms_for(item[0], item[1], scores, reputations, penalties)["effective"]
 
     return sorted(nearby, key=effective)
+
+
+def _terms_for(
+    runner_id: uuid.UUID,
+    distance_m: float,
+    scores: dict | None,
+    reputations: dict[uuid.UUID, float] | None,
+    penalties: dict[uuid.UUID, float] | None,
+    apply_trust: bool = True,
+) -> dict[str, Any]:
+    """The four terms behind one candidate's rank, and their sum.
+
+    Single source of truth: ranking sorts on `effective` and the offer log
+    stores the whole dict. Were the log to recompute the formula separately the
+    two would drift, and a counterfactual built on a stale copy of the ranking
+    rule is worse than no counterfactual at all.
+
+    `apply_trust` is False on an exploring round, where the social term is
+    deliberately not applied. `trust` is still recorded — what the graph thought
+    is worth keeping even when the round declined to act on it — but it is left
+    out of `effective`, which must always be the score that actually decided the
+    order. A log whose score disagrees with the ordering it claims to explain is
+    worse than no log.
+    """
+    social = (scores or {}).get(runner_id) or {}
+    trust = float(social.get("trust", 0.0))
+    rep = float((reputations or {}).get(runner_id, NEUTRAL_REPUTATION))
+    penalty = float((penalties or {}).get(runner_id, 0.0))
+    return {
+        "runner_id": str(runner_id),
+        "distance_m": round(float(distance_m), 1),
+        "trust": round(trust, 4),
+        "trust_applied": apply_trust,
+        "hops": social.get("hops"),
+        "reputation": round(rep, 3),
+        "penalty": round(penalty, 1),
+        "effective": round(
+            float(distance_m)
+            - (trust * SOCIAL_WEIGHT_M if apply_trust else 0.0)
+            - (rep - NEUTRAL_REPUTATION) * REPUTATION_WEIGHT_M
+            + penalty,
+            1,
+        ),
+    }
+
+
+def should_explore() -> bool:
+    """Whether this dispatch round ignores friendship entirely.
+
+    Errandly boosts friends up the offer queue and then reads "friends
+    transacting with each other" as evidence of a collusion ring — so the
+    router manufactures the signal the detector trusts. The stronger the boost
+    the worse it gets: at the live weight the policy already expects almost
+    every errand in a friend group to stay inside it, and once you expect
+    everything, nothing can be surprising. A real ring stops being
+    distinguishable from ordinary friendship, not because it hid but because
+    the router does its work for it.
+
+    So a slice of rounds is offered blind, keeping a control group in the data.
+    It is a real cost — those requesters get a worse-matched runner — paid to
+    keep collusion detectable at all.
+
+    Read from settings on every call rather than captured at import, so the
+    rate can be changed without a deploy and pinned to 0 in tests.
+    """
+    rate = settings.offer_explore_rate
+    if rate <= 0:
+        return False
+    return random.random() < min(rate, 1.0)
+
+
+async def _record_offer_log(
+    db: AsyncSession,
+    *,
+    errand: Errand,
+    ranked: list[tuple[uuid.UUID, float]],
+    scores: dict | None,
+    reputations: dict[uuid.UUID, float] | None,
+    penalties: dict[uuid.UUID, float] | None,
+    max_hops: int | None,
+    exploring: bool = False,
+) -> None:
+    """Store why this offer round went out in the order it did.
+
+    Best-effort by design. This is analytics: nothing reads it on a request
+    path, so a failure here must cost an errand nothing. It runs in a SAVEPOINT
+    so a bad write rolls back only itself and leaves the caller's transaction —
+    which is in the middle of dispatching an errand — untouched.
+    """
+    if not ranked:
+        return
+    try:
+        async with db.begin_nested():
+            round_no = (
+                await db.scalar(
+                    select(func.count())
+                    .select_from(OfferLog)
+                    .where(OfferLog.errand_id == errand.id)
+                )
+            ) or 0
+            db.add(
+                OfferLog(
+                    errand_id=errand.id,
+                    requester_id=errand.requester_id,
+                    campus_id=errand.campus_id,
+                    round_no=round_no + 1,
+                    max_hops=max_hops,
+                    exploring=exploring,
+                    candidates=[
+                        {
+                            **_terms_for(
+                                rid,
+                                dist,
+                                scores,
+                                reputations,
+                                penalties,
+                                apply_trust=not exploring,
+                            ),
+                            "rank": i,
+                        }
+                        for i, (rid, dist) in enumerate(ranked)
+                    ],
+                )
+            )
+    except Exception:
+        logger.warning("offer log not written for errand %s", errand.id, exc_info=True)
+
+
+async def mark_offer_accepted(
+    db: AsyncSession, errand_id: uuid.UUID, runner_id: uuid.UUID
+) -> None:
+    """Stamp the taker onto the most recent offer round for this errand.
+
+    Which round they accepted from matters: a runner who took an errand on the
+    third, widened round was chosen under a different candidate set from one who
+    took it immediately, and treating those as the same observation would bias
+    exactly the estimate this table exists to support.
+    """
+    try:
+        async with db.begin_nested():
+            row = await db.scalar(
+                select(OfferLog)
+                .where(OfferLog.errand_id == errand_id)
+                .order_by(OfferLog.created_at.desc())
+                .limit(1)
+            )
+            if row is not None and row.accepted_runner_id is None:
+                row.accepted_runner_id = runner_id
+                row.accepted_at = datetime.now(UTC)
+    except Exception:
+        logger.warning("offer acceptance not recorded for %s", errand_id, exc_info=True)
 
 
 async def _reputations(
@@ -947,6 +1116,9 @@ async def accept_errand(
         errand.accepted_at = datetime.now(UTC)
         _record(db, errand, user, "ACCEPTED")
         _emit_order_event(db, errand, "ACCEPTED")
+        # Close the loop on the offer round this runner took: without the
+        # outcome the candidate set is a question with no answer.
+        await mark_offer_accepted(db, errand.id, user.id)
         await db.commit()
         await db.refresh(errand)
         await publish_status(redis, errand)

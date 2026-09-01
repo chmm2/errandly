@@ -22,6 +22,12 @@ from app.core.config import settings
 # "known" for exactly this reason.
 settings.smtp_host = ""
 
+# Exploration is a coin flip taken inside dispatch, so leaving it on would make
+# every test that asserts anything about offer ordering fail a few percent of
+# the time — the worst kind of failure, since it looks like a real regression
+# and passes on re-run. Tests that need exploration turn it on explicitly.
+settings.offer_explore_rate = 0.0
+
 from app.core.database import SessionLocal
 from app.core.redis import redis_client
 from app.main import app
