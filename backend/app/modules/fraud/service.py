@@ -31,7 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.modules.auth.models import User
 from app.modules.errands.models import Errand, Rating
-from app.modules.fraud import collusion, estimator, reputation, semantics
+from app.modules.fraud import collusion, estimator, policy, reputation, semantics
 from app.modules.fraud import normalize as normalize_mod
 from app.modules.fraud.models import (
     STRIKE_ACTIONS,
@@ -882,6 +882,27 @@ async def sweep_collusion_rings(db: AsyncSession) -> list[FraudFlag]:
         # stack a fresh accusation on every tick for the same finding.
         signature = "-".join(sorted(str(m)[:8] for m in members))
 
+        # Did our own matcher already explain this? Matching offers errands to
+        # friends first, so a closed friend group circulates money whether or
+        # not anybody colludes. The offer log lets us ask what the routing
+        # policy itself predicted, and admit only the unexplained part as
+        # evidence about the people.
+        #
+        # Exculpatory only, and silent when uninformed: None (too little logged
+        # history) leaves the old behaviour untouched, and a high excess never
+        # raises severity or manufactures a flag. The cycle evidence must still
+        # stand on its own.
+        excess = await policy.excess_for_group(db, members)
+        if excess is not None and excess.explained:
+            logger.info(
+                "collusion: ring %s suppressed - the routing policy explains it "
+                "(observed %.0f%% vs expected %.0f%% in-group, z=%.1f over %d "
+                "rounds, %d socially blind)",
+                signature, excess.observed_share * 100, excess.expected_share * 100,
+                excess.z, excess.rounds, excess.explored_rounds,
+            )
+            continue
+
         # Read what these people actually asked each other for. Structure and
         # money flow are identical for a real friend group and a farming ring;
         # the errand text is the only place they differ. Advisory: it annotates
@@ -916,6 +937,7 @@ async def sweep_collusion_rings(db: AsyncSession) -> list[FraudFlag]:
                     "total_value": round(ring.total_value, 2),
                     "min_leg_value": round(ring.min_leg_value, 2),
                     "closure": round(ring.closure, 3),
+                    **({"policy": excess.as_details()} if excess else {}),
                     **semantic,
                 },
             )

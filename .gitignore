@@ -36,3 +36,14 @@ data/
 
 # FCM service-account private key — never commit (google-services.json is fine, this is not)
 mobile/fcm-service-account*.json
+
+# Generated report and deck artefacts — rebuilt by docs/report/*.py.
+# The generators and figures are tracked; the Word/PowerPoint/PDF output is not,
+# because it is large, binary, and regenerated on every run.
+docs/report/*.docx
+docs/report/*.pptx
+docs/report/*.pdf
+docs/report/deck_png/
+docs/report/deck_chris_png/
+docs/report/deck_v2_png/
+docs/report/deck_sk_png/

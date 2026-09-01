@@ -85,6 +85,17 @@ MIN_RING_SIZE = 3
 MIN_RING_LEG_VALUE = 150.0
 MIN_RING_LAPS = 2
 
+# The alternative qualification: repetition instead of value. A leg carrying
+# little or no money still counts once it has happened this many times, which
+# closes the zero-rupee cycle a value-only floor let through.
+#
+# Set well above ordinary reciprocity. Five errands in ONE direction between the
+# same two people over the money window is already unusual, and it is not the
+# accusation on its own — the leg still has to be part of a closed cycle of
+# three or more mutual friends, and the group still has to survive the check on
+# whether our own routing explains it (see fraud/policy.py).
+MIN_RING_LEG_TXNS = 5
+
 
 @dataclass(frozen=True)
 class Ring:
@@ -288,8 +299,22 @@ async def find_rings() -> list[Ring]:
             continue
         value = float(r.get("value") or 0.0)
         txns = int(r.get("txns") or 0)
-        # An edge only counts toward a ring if it is substantial on its own.
-        if value < MIN_RING_LEG_VALUE or txns < MIN_RING_LAPS:
+        # An edge only counts toward a ring if it is substantial on its own —
+        # by VALUE or by FREQUENCY, either being enough.
+        #
+        # A value-only floor was dodgeable, and cheaply. Errand rewards may be
+        # zero (reward is validated ge=0 and the DB constraint is reward >= 0),
+        # so a group cycling zero-rupee errands never reached MIN_RING_LEG_VALUE
+        # and was discarded here — before any human could see it. That is the
+        # wrong thing to floor, because the motive for a ring is REPUTATION, not
+        # money: a completed errand buys the same history and the same rating
+        # opportunity whether it carried 600 rupees or nothing at all.
+        #
+        # Frequency cannot be priced around. Ten zero-rupee errands in one
+        # direction is a stronger signal than two large ones, so a leg now
+        # qualifies on repetition alone.
+        substantial = value >= MIN_RING_LEG_VALUE or txns >= MIN_RING_LEG_TXNS
+        if txns < MIN_RING_LAPS or not substantial:
             continue
         nodes.update((src, dst))
         adjacency.setdefault(src, set()).add(dst)

@@ -65,7 +65,10 @@ def make_user(client, campus):
         reg = await client.post(
             "/auth/register",
             json={
-                "student_id": f"23BCE{uuid.uuid4().hex[:5]}",
+                # 5 hex characters collide against a dev database holding thousands
+                # of leftover test users - roughly one failed registration per
+                # full-suite run, landing on a different test each time.
+                "student_id": f"23BCE{uuid.uuid4().hex[:12]}",
                 "email": email,
                 "display_name": name,
                 "password": "password123",
