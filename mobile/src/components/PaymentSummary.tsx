@@ -92,10 +92,7 @@ export function PaymentSummary({
         </View>
 
         <Divider style={{ marginVertical: space.lg }} />
-        <Line label="Total to pay your runner" value={rupees(total)} strong />
-        <Caption style={{ marginTop: space.sm }}>
-          Hand this over in cash when your errand arrives.
-        </Caption>
+        <Line label="Total for this errand" value={rupees(total)} strong />
       </Card>
     );
   }
@@ -132,14 +129,7 @@ export function PaymentSummary({
       <Divider style={{ marginVertical: space.lg }} />
       <Line label="You receive" value={rupees(payout)} strong />
 
-      {items > 0 ? (
-        <View style={s.collectNote}>
-          <Caption style={{ color: colors.amberText }}>
-            Collect {rupees(items)} for the items directly from the customer at handover — that
-            part isn't settled through the app.
-          </Caption>
-        </View>
-      ) : (
+      {(
         <Caption style={{ marginTop: space.sm }}>
           Credited to your balance once the customer confirms handover.
         </Caption>

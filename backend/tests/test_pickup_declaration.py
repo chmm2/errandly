@@ -49,9 +49,14 @@ async def _place(client, headers, *, collect: int, reward: int = 30) -> dict:
     ).json()
 
 
-async def test_pickup_requires_the_amount(client, campus, make_user):
-    """Not optional. Left optional, the common path is the one where nobody
-    knows what the errand cost."""
+async def test_pickup_asks_for_nothing(client, campus, make_user):
+    """Marking an errand picked up carries no amount.
+
+    A lump sum cannot be checked against anything. Prices are reported per
+    item instead, where each one can be judged against the reference for that
+    item at that store - and fixed-price goods need no report at all, so
+    demanding one here would be asking the runner to retype the menu.
+    """
     requester_id, r_headers = await make_user("Requester")
     _, run_headers = await make_user("Runner")
     await _fund(requester_id, "1000")
@@ -60,7 +65,20 @@ async def test_pickup_requires_the_amount(client, campus, make_user):
     await client.post(f"/errands/{errand['id']}/accept", headers=run_headers)
 
     bare = await client.post(f"/errands/{errand['id']}/pickup", headers=run_headers)
-    assert bare.status_code == 422, "a pickup with no declared spend must not go through"
+    assert bare.status_code == 200, bare.text
+    assert bare.json()["status"] == "IN_PROGRESS"
+    assert bare.json()["amount_spent"] is None, "nothing was declared, so nothing is recorded"
+
+
+async def test_a_nonsense_amount_is_still_refused(client, campus, make_user):
+    """Optional is not unchecked. A body that names an amount must still make
+    sense, or a negative number would credit the runner by subtraction."""
+    requester_id, r_headers = await make_user("Requester")
+    _, run_headers = await make_user("Runner")
+    await _fund(requester_id, "1000")
+
+    errand = await _place(client, r_headers, collect=300)
+    await client.post(f"/errands/{errand['id']}/accept", headers=run_headers)
 
     negative = await client.post(
         f"/errands/{errand['id']}/pickup",

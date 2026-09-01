@@ -945,15 +945,18 @@ async def pickup_errand(
     redis: Redis,
     user: User,
     errand_id: uuid.UUID,
-    amount_spent: Decimal,
+    amount_spent: Decimal | None = None,
 ) -> Errand:
-    """Mark picked up, recording what the runner says they paid.
+    """Mark picked up.
 
-    The declaration is the point of the step. Escrow holds the estimate plus
-    headroom precisely so a runner who paid over the estimate can still be
-    made whole, and none of that reaches them unless someone states the real
-    figure - otherwise settlement can only pay back the platform's own guess
-    and the headroom is decoration.
+    Ordinarily nothing is declared here. The runner prices the non-MRP lines
+    one by one instead, and a per-item price is a far better record than a
+    lump sum: it can be judged against the reference for that item at that
+    store, where a total can only be taken on trust. MRP goods need no
+    declaration at all.
+
+    An amount is still accepted for an errand with no lines to price, so
+    settlement has something better than the platform's own estimate.
     """
     return await _runner_step(
         db, redis, user, errand_id, "IN_PROGRESS", "PICKED_UP",

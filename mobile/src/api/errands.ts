@@ -71,6 +71,8 @@ export interface Errand {
 export interface OrderLine {
   id: string;
   menu_item_id: string | null;
+  /** Set when the line was priced off the admin non-MRP list. */
+  reference_id?: string | null;
   name_snapshot: string;
   unit_price_snapshot: number | null;
   quantity: number;
@@ -163,9 +165,15 @@ export async function acceptErrand(id: string): Promise<Errand> {
  * headroom so a runner who paid over the estimate is still made whole, and
  * none of that reaches them unless someone states the real figure.
  */
-export async function pickupErrand(id: string, amountSpent: number): Promise<Errand> {
-  return (await api.post<Errand>(`/errands/${id}/pickup`, { amount_spent: amountSpent }))
-    .data;
+/**
+ * Mark an errand picked up. No amount travels with it.
+ *
+ * Prices are reported per item instead - a per-item figure can be judged
+ * against the reference for that item at that store, where a lump sum can
+ * only be taken on trust. Fixed-price goods need no report at all.
+ */
+export async function pickupErrand(id: string): Promise<Errand> {
+  return (await api.post<Errand>(`/errands/${id}/pickup`, {})).data;
 }
 
 export async function deliverErrand(id: string): Promise<Errand> {

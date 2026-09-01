@@ -1,8 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
 import type { Errand } from "../api/errands";
 import { type ClaimLine, type ClaimResult, submitClaims } from "../api/fraud";
+import { fetchEscrow } from "../api/wallet";
 import { apiErrorMessage } from "../lib/api";
 import { colors, font, radius, rupees, space } from "../theme";
 import { Body, Button, Caption, Card, ErrorNote, Heading, Row } from "./ui";
@@ -42,10 +44,21 @@ export function PriceClaimSheet({
     setLines((prev) => prev.map((l, i) => (i === index ? { ...l, ...patch } : l)));
   }
 
+  const { data: escrow } = useQuery({
+    queryKey: ["escrow", errand.id],
+    queryFn: () => fetchEscrow(errand.id),
+  });
+
   const priced = lines.filter((l) => l.name.trim() && l.unit_price > 0);
   const itemsTotal = priced.reduce((sum, l) => sum + l.unit_price * l.quantity, 0);
   const customerPays = itemsTotal + errand.reward;
   const complete = priced.length === lines.length && lines.length > 0;
+
+  // Past what the requester locked, nobody is paid on delivery: the money was
+  // never committed, so it goes to an admin instead. Saying so here beats
+  // letting the runner discover it when their payout does not arrive.
+  const ceiling = escrow ? Number(escrow.amount) : null;
+  const overCeiling = ceiling != null && customerPays > ceiling;
 
   async function submit() {
     setBusy(true);
@@ -65,25 +78,25 @@ export function PriceClaimSheet({
 
   return (
     <Card style={{ marginTop: space.lg }}>
-      <Heading>What did you pay?</Heading>
+      <Heading>Report what you paid</Heading>
       <Caption style={{ marginTop: space.xs }}>
-        Enter the price per item as printed at the counter. We add it up and the
-        customer pays that plus your fee.
+        Enter the price per item as printed at the counter. We add it up, and it
+        is reimbursed to your wallet with your fee when the customer confirms.
       </Caption>
 
       <View style={{ gap: space.md, marginTop: space.lg }}>
         {lines.map((line, i) => (
           <View key={`${line.name}-${i}`}>
-            <Row gap={space.md}>
-              <View style={{ flex: 1 }}>
-                <Body numberOfLines={1} style={{ fontFamily: font.semi }}>
-                  {line.name}
-                </Body>
-                <Caption>
-                  {/* Quantity comes from the order, not the runner. */}
-                  {line.quantity} × unit price
-                </Caption>
-              </View>
+            <Row gap={space.sm} align="center">
+              {/* One sentence, read left to right: "2 x Chicken Puff at [ ]".
+                  The quantity comes from the customer's order, not from the
+                  runner, so a total cannot be inflated without touching a
+                  unit price that gets checked. */}
+              <Body style={s.lineLabel} numberOfLines={2}>
+                <Text style={{ fontFamily: font.bold }}>{line.quantity}× </Text>
+                <Text style={{ fontFamily: font.semi }}>{line.name}</Text>
+                <Text style={{ color: colors.muted }}> at</Text>
+              </Body>
 
               <View style={s.priceBox}>
                 <Text style={s.rupee}>₹</Text>
@@ -123,10 +136,23 @@ export function PriceClaimSheet({
           <Body style={{ fontFamily: font.semi }}>{rupees(errand.reward)}</Body>
         </Row>
         <Row justify="space-between" style={s.grandRow}>
-          <Body style={{ fontFamily: font.bold }}>Customer pays</Body>
+          <Body style={{ fontFamily: font.bold }}>You receive</Body>
           <Text style={s.grand}>{rupees(customerPays)}</Text>
         </Row>
       </View>
+
+      {overCeiling ? (
+        <View style={s.warn}>
+          <Body style={{ color: colors.redText, fontSize: 13 }}>
+            That comes to {rupees(customerPays)}, more than the {rupees(ceiling!)}
+            {" "}held for this errand.
+          </Body>
+          <Caption style={{ color: colors.redText, marginTop: space.xs }}>
+            You can still report it if it is what you really paid — but nothing
+            is paid out on delivery. An admin reviews the difference first.
+          </Caption>
+        </View>
+      ) : null}
 
       {error ? (
         <View style={{ marginTop: space.md }}>
@@ -221,6 +247,7 @@ function ClaimOutcome({ result, reward }: { result: ClaimResult; reward: number 
 }
 
 const s = StyleSheet.create({
+  lineLabel: { flex: 1, flexShrink: 1 },
   priceBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -228,7 +255,12 @@ const s = StyleSheet.create({
     borderColor: colors.line,
     borderRadius: radius.lg,
     paddingHorizontal: space.sm,
-    minWidth: 88,
+    // A fixed width, not a minimum. The input inside is flex:1, and against a
+    // merely-minimum width that grows until the item name has one character
+    // per line - which is exactly what it did.
+    width: 96,
+    flexGrow: 0,
+    flexShrink: 0,
     backgroundColor: colors.white,
   },
   rupee: { color: colors.muted, fontSize: font.body, fontFamily: font.semi },
@@ -240,7 +272,7 @@ const s = StyleSheet.create({
     fontSize: font.body,
     fontFamily: font.bold,
   },
-  lineTotal: { minWidth: 62, alignItems: "flex-end" },
+  lineTotal: { width: 62, flexGrow: 0, flexShrink: 0, alignItems: "flex-end" },
   lineTotalText: { color: colors.ink, fontSize: font.body, fontFamily: font.bold },
 
   totals: {
@@ -264,6 +296,14 @@ const s = StyleSheet.create({
   },
   verdictText: { fontSize: font.tiny, fontFamily: font.bold },
 
+  warn: {
+    marginTop: space.md,
+    padding: space.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.redBg,
+    borderWidth: 1,
+    borderColor: colors.redBorder,
+  },
   note: {
     marginTop: space.md,
     padding: space.md,

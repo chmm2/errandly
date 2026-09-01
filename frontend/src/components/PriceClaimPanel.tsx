@@ -1,6 +1,8 @@
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { type ClaimLine, type ClaimResult, submitClaims } from "../api/fraud";
+import { fetchEscrow } from "../api/ledger";
 import { apiErrorMessage } from "../lib/api";
 
 /**
@@ -25,6 +27,18 @@ export default function PriceClaimPanel({ errandId }: { errandId: string }) {
 
   const filled = lines.filter((l) => l.name.trim() && l.unit_price > 0);
   const runningTotal = filled.reduce((sum, l) => sum + l.unit_price * l.quantity, 0);
+
+  // The ceiling comes from the hold itself rather than being recomputed here:
+  // it is the exact figure settlement measures against, and a client doing its
+  // own arithmetic will eventually disagree with it.
+  const { data: escrow } = useQuery({
+    queryKey: ["escrow", errandId],
+    queryFn: () => fetchEscrow(errandId),
+    enabled: open,
+  });
+  const ceiling = escrow ? Number(escrow.amount) : null;
+  const owed = runningTotal + (escrow ? Number(escrow.reward) : 0);
+  const overCeiling = ceiling != null && owed > ceiling;
 
   async function submit() {
     setBusy(true);
@@ -175,6 +189,19 @@ export default function PriceClaimPanel({ errandId }: { errandId: string }) {
       {error && (
         <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
           {error}
+        </div>
+      )}
+
+      {overCeiling && (
+        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+          <p className="text-xs font-bold text-red-700">
+            ₹{owed.toFixed(0)} is more than the ₹{ceiling!.toFixed(0)} held for this
+            errand.
+          </p>
+          <p className="mt-1 text-xs text-red-700">
+            Report it anyway if it is what you really paid — but nothing is paid out
+            on delivery. An admin reviews the difference first.
+          </p>
         </div>
       )}
 

@@ -104,17 +104,20 @@ class ConnectionOut(BaseModel):
 
 
 class PickupIn(BaseModel):
-    """What the runner paid, declared as they mark the errand picked up.
+    """Marking an errand picked up. Nothing has to be declared here.
 
-    Required, not optional. The escrow headroom exists so a runner who paid
-    more than the estimate is still made whole, and that is unusable unless
-    someone says what was actually paid - without it the platform can only
-    reimburse its own guess. Declaring it at pickup rather than at delivery
-    also means it is on the record while the runner is still standing at the
-    counter, before the amount is worth arguing about.
+    The runner prices the non-MRP lines individually instead, and that is a
+    better record than one lump sum: a total cannot be checked against
+    anything, while a per-item price can be judged against the reference for
+    that item at that store. MRP goods and stated cash need no declaration at
+    all - their price is already fixed and known.
+
+    `amount_spent` survives as an optional shortcut for an errand with no
+    itemised lines to price. When claims exist they win, because they are the
+    figure that was actually judged.
     """
 
-    amount_spent: float = Field(ge=0, le=100000)
+    amount_spent: float | None = Field(default=None, ge=0, le=100000)
 
 
 class ErrandOut(BaseModel):

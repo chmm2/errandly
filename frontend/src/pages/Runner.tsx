@@ -17,7 +17,6 @@ import { setPhoto } from "../api/auth";
 import { fetchEarnings } from "../api/ledger";
 import { fetchRunnerProfile, setAvailability, updateLocation } from "../api/runners";
 import Navbar from "../components/Navbar";
-import PickupDeclaration from "../components/PickupDeclaration";
 import PriceClaimPanel from "../components/PriceClaimPanel";
 import { apiErrorMessage } from "../lib/api";
 import { useSocket } from "../lib/ws";
@@ -222,7 +221,7 @@ export default function Runner() {
     onSettled: refresh,
   });
   const pickup = useMutation({
-    mutationFn: ({ id, spent }: { id: string; spent: number }) => pickupErrand(id, spent),
+    mutationFn: (id: string) => pickupErrand(id),
     onSettled: refresh,
   });
   const deliver = useMutation({ mutationFn: deliverErrand, onSettled: refresh });
@@ -423,6 +422,15 @@ export default function Runner() {
                           </button>
                         )}
 
+                      {e.status === "ACCEPTED" && (
+                        <button
+                          onClick={() => pickup.mutate(e.id)}
+                          disabled={pickup.isPending}
+                          className="rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
+                        >
+                          Picked up 📦
+                        </button>
+                      )}
                       {e.status === "IN_PROGRESS" && (
                         <button
                           onClick={() => deliver.mutate(e.id)}
@@ -434,22 +442,6 @@ export default function Runner() {
                       )}
                     </div>
                   </div>
-                  {e.status === "ACCEPTED" && (
-                    <div className="mt-3">
-                      <PickupDeclaration
-                        errand={e}
-                        busy={pickup.isPending}
-                        onConfirm={(spent) => pickup.mutate({ id: e.id, spent })}
-                      />
-                    </div>
-                  )}
-                  {e.amount_spent != null && (
-                    <div className="mt-3 rounded-xl border border-line bg-neutral-50 px-3 py-2 text-sm">
-                      You declared paying{" "}
-                      <span className="font-bold">₹{Number(e.amount_spent).toFixed(0)}</span>{" "}
-                      — reimbursed with your reward once the order is confirmed.
-                    </div>
-                  )}
                   {e.has_handoff_secret && <HandoffPanel errandId={e.id} />}
                   {/* Report prices BEFORE delivery — once the errand completes,
                       settlement has already drawn on whatever was claimed. */}

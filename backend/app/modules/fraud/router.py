@@ -79,6 +79,12 @@ async def submit_claims(
     total_eligible = sum(Decimal(str(c.eligible_amount)) for c in claims)
     withheld = max(total_claimed - total_eligible, Decimal("0"))
 
+    # The per-item report IS the declaration, so record its total on the errand
+    # too. Without this the requester's receipt keeps showing the estimate while
+    # settlement pays the claimed figure, and the two disagree on screen.
+    errand.amount_spent = total_claimed
+    await db.commit()
+
     flagged = [c for c in claims if c.verdict == "FLAGGED"]
     message = None
     if flagged:
