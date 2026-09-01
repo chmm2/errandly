@@ -123,6 +123,25 @@ export default function ErrandDetail() {
     ),
   );
 
+  /**
+   * Leave the errand behind after an action that ends your stake in it.
+   *
+   * Cancelling and handing back both used to just refetch, so you stayed on a
+   * detail screen for an errand that was over or no longer yours — every
+   * button gone, a status you can't act on, and the back gesture returning you
+   * to it. Popping the screen also drops it from the stack, so it can't be
+   * swiped back into.
+   *
+   * The wallet is invalidated too: cancelling releases the escrow hold, so the
+   * balance behind this screen is stale the moment the cancel succeeds.
+   */
+  const leaveErrand = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["my-errands"] });
+    queryClient.invalidateQueries({ queryKey: ["runner-feed"] });
+    queryClient.invalidateQueries({ queryKey: ["wallet"] });
+    goBack(router);
+  }, [queryClient, router]);
+
   const pickup = useMutation({
     mutationFn: () => pickupErrand(id!),
     onSuccess: invalidate,
@@ -140,12 +159,12 @@ export default function ErrandDetail() {
   });
   const release = useMutation({
     mutationFn: () => releaseErrand(id!),
-    onSuccess: invalidate,
+    onSuccess: leaveErrand,
     onError: (err) => notify("Couldn't release", apiErrorMessage(err)),
   });
   const cancel = useMutation({
     mutationFn: (reason?: string) => cancelErrand(id!, reason),
-    onSuccess: invalidate,
+    onSuccess: leaveErrand,
     onError: (err) => notify("Couldn't cancel", apiErrorMessage(err)),
   });
   const toggleItem = useMutation({
