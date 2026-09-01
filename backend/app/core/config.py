@@ -111,6 +111,24 @@ class Settings(BaseSettings):
     environment: str = "development"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
 
+    # Origins matched by pattern rather than listed one by one.
+    #
+    # An exact allowlist cannot cover the dev clients: Metro serves the web
+    # build on 8081 but silently moves to 8082, 8083... when a port is taken,
+    # and each teammate's LAN address differs. A missing entry does not fail
+    # loudly - the browser is refused the preflight and login just "doesn't
+    # work", while the phone (which never checks CORS) keeps working, so the
+    # bug reads as a mobile/web difference rather than a config gap.
+    #
+    # Loopback and RFC-1918 only, so this stays a development convenience and
+    # can never admit a public origin.
+    cors_origin_regex: str = (
+        r"^http://(localhost|127\.0\.0\.1|"
+        r"10\.\d{1,3}\.\d{1,3}\.\d{1,3}|"
+        r"192\.168\.\d{1,3}\.\d{1,3}|"
+        r"172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$"
+    )
+
     @property
     def smtp_configured(self) -> bool:
         return bool(self.smtp_host)

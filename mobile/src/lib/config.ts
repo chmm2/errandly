@@ -1,51 +1,37 @@
-import Constants from "expo-constants";
-import { Platform } from "react-native";
-
 import { useSettings } from "../stores/settings";
 
 /**
- * Where the FastAPI backend lives, as seen *from the phone*.
+ * Where the FastAPI backend lives, as seen *from the client*.
  *
  * Resolved in three tiers, most specific first:
- *   1. A host the user typed in Profile → Backend (survives reinstalls of the
- *      tunnel, not of the app).
+ *   1. A host the user typed in Profile → Backend.
  *   2. EXPO_PUBLIC_API_HOST, inlined at build time by EAS.
- *   3. The Expo dev server's own LAN IP with the port swapped — Metro on :8081
- *      means the backend is almost certainly on :8000 of the same machine.
+ *   3. SHARED_API — the one deployment everybody shares.
  *
- * Tier 1 is the important one for release builds: without it the address is
- * frozen inside the APK, so any tunnel change bricks the installed app until
- * it's rebuilt and reinstalled.
+ * Tier 3 used to guess a local backend: the Expo dev server's LAN IP with the
+ * port swapped, or window.location.hostname on web. That guess is why the team
+ * kept seeing different data from each other. Each machine running `docker
+ * compose up` gets its own Postgres volume, so "localhost:8000" is a different
+ * database per person — same app, same login, different errands, different
+ * vendors, different wallet. Defaulting to the shared deployment instead means
+ * a teammate who has never touched Docker still sees exactly what everyone
+ * else sees.
+ *
+ * Anyone who genuinely needs their own backend (working on the API offline,
+ * testing a migration) sets it in Profile → Backend; tier 1 still wins.
  *
  * These are functions, not constants, because tier 1 can change while the app
  * is running — anything reading a module-level const would keep using the old
  * host until a restart.
  */
-const BACKEND_PORT = 8000;
+const SHARED_API = "https://api.errandsly.in";
 
 /** The address compiled into this build — tiers 2 and 3, no user override. */
 export function defaultApiBase(): string {
   const buildTime = process.env.EXPO_PUBLIC_API_HOST;
   if (buildTime) return buildTime.replace(/\/+$/, "");
 
-  // e.g. "192.168.1.42:8081" in dev; undefined in a production build.
-  const hostUri =
-    Constants.expoConfig?.hostUri ??
-    (Constants.manifest2?.extra?.expoGo?.developer?.host as string | undefined);
-
-  const lanIp = hostUri?.split(":")[0];
-  if (lanIp) return `http://${lanIp}:${BACKEND_PORT}`;
-
-  // Running in a browser: hostUri is undefined there, so without this the web
-  // build fell through to the emulator alias below and could never reach the
-  // API. The page is served by the dev machine, so the backend is on the same
-  // host with the port swapped.
-  if (Platform.OS === "web" && typeof window !== "undefined") {
-    return `http://${window.location.hostname}:${BACKEND_PORT}`;
-  }
-
-  // Last resort: Android emulator's alias for the host machine's loopback.
-  return `http://10.0.2.2:${BACKEND_PORT}`;
+  return SHARED_API;
 }
 
 /** The address to actually use right now, user override included. */
