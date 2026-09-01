@@ -59,7 +59,12 @@ def make_user(client, campus):
         reg = await client.post(
             "/auth/register",
             json={
-                "student_id": f"23BCE{uuid.uuid4().hex[:5]}",
+                # Full hex, not a 5-character slice. The suite shares one
+                # persistent database, so ids accumulate across runs: at a few
+                # thousand users a 5-hex tail collides often enough to fail a
+                # random fixture most runs, which reads as a flaky test rather
+                # than as the birthday problem it is. student_id allows 50.
+                "student_id": f"23BCE{uuid.uuid4().hex}",
                 "email": email,
                 "display_name": name,
                 "password": "password123",

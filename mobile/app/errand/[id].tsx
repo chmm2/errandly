@@ -446,12 +446,22 @@ export default function ErrandDetail() {
         <View style={{ marginTop: space.xl, gap: space.sm }}>
           {isRunner && errand.status === "ACCEPTED" ? (
             <>
+              {/* Gated on the server's own flag rather than on anything
+                  decided here: the endpoint refuses the same case, and a
+                  button that disagreed with it would fail when pressed. */}
               <Button
                 title="Mark picked up"
                 size="lg"
                 loading={pickup.isPending}
+                disabled={errand.price_report_pending === true}
                 onPress={() => pickup.mutate()}
               />
+              {errand.price_report_pending ? (
+                <Caption style={{ textAlign: "center", color: colors.muted }}>
+                  Report what you paid above first — that is what you get
+                  reimbursed for.
+                </Caption>
+              ) : null}
               <Button
                 title="Hand back to queue"
                 variant="outline"

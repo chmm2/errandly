@@ -140,6 +140,10 @@ class ErrandOut(BaseModel):
     # None until the runner declares it at pickup.
     amount_spent: float | None = None
     has_handoff_secret: bool = False
+    # True while the runner still owes a per-item price report. The clients
+    # gate the pickup button on this rather than deciding for themselves, so
+    # the button and the endpoint cannot disagree.
+    price_report_pending: bool = False
     distance_m: float | None = None
     # Runner's last known position — populated on the detail endpoint only,
     # for the requester/runner while the run is active (tracking page).

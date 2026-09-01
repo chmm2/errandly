@@ -48,6 +48,8 @@ export interface Errand {
   /** What the runner declared paying at pickup. Null until they declare it. */
   amount_spent: number | null;
   has_handoff_secret: boolean;
+  /** True while the runner still owes a per-item price report. */
+  price_report_pending?: boolean;
   distance_m: number | null;
   runner_lat: number | null;
   runner_lng: number | null;

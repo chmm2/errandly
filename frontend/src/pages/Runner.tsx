@@ -425,8 +425,13 @@ export default function Runner() {
                       {e.status === "ACCEPTED" && (
                         <button
                           onClick={() => pickup.mutate(e.id)}
-                          disabled={pickup.isPending}
-                          className="rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
+                          disabled={pickup.isPending || e.price_report_pending === true}
+                          title={
+                            e.price_report_pending
+                              ? "Report what you paid first — that is what you get reimbursed for."
+                              : undefined
+                          }
+                          className="rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Picked up 📦
                         </button>

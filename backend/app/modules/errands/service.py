@@ -22,7 +22,7 @@ from app.modules.errands.models import (
 from app.modules.errands.schemas import ErrandCreate
 from app.modules.fraud import integrity as fraud_integrity
 from app.modules.fraud import reputation as fraud_reputation
-from app.modules.fraud.models import ReferencePrice
+from app.modules.fraud.models import ReferencePrice, RunnerPriceClaim
 from app.modules.ledger import service as ledger
 from app.modules.outbox import service as outbox
 from app.modules.runners import service as runners_service
@@ -448,7 +448,8 @@ async def attach_connections(viewer: User, errands: list[Errand]) -> None:
 
 
 async def _attach_secret_flags(db: AsyncSession, errands: list[Errand]) -> None:
-    """Set .has_handoff_secret on each errand (read by ErrandOut)."""
+    """Set the computed flags ErrandOut exposes: whether a handoff secret
+    exists, and whether prices are still owed before pickup."""
     ids = [e.id for e in errands]
     if not ids:
         return
@@ -456,8 +457,53 @@ async def _attach_secret_flags(db: AsyncSession, errands: list[Errand]) -> None:
         select(ErrandHandoffSecret.errand_id).where(ErrandHandoffSecret.errand_id.in_(ids))
     )
     with_secret = set(rows)
+    pending = await price_report_pending(db, errands)
     for e in errands:
         e.has_handoff_secret = e.id in with_secret
+        e.price_report_pending = e.id in pending
+
+
+async def price_report_pending(
+    db: AsyncSession, errands: list[Errand]
+) -> set[uuid.UUID]:
+    """Which of these errands still owe a price report from their runner.
+
+    One implementation, used by both the guard on pickup and the flag the
+    clients read. A rule enforced in one place and displayed from another
+    drifts, and the way it announces itself is a button that looks available
+    and then fails.
+
+    An order has something to report when it has hand-bought lines: no vendor
+    menu behind it, and at least one line still marked available. A fixed-menu
+    order is already priced and an out-of-stock line was never bought, so
+    neither is anything to ask about.
+    """
+    ids = [e.id for e in errands]
+    if not ids:
+        return set()
+
+    priceable = set(
+        await db.scalars(
+            select(ErrandItem.errand_id)
+            .join(Errand, Errand.id == ErrandItem.errand_id)
+            .where(
+                ErrandItem.errand_id.in_(ids),
+                ErrandItem.is_available.is_(True),
+                Errand.vendor_id.is_(None),
+            )
+        )
+    )
+    if not priceable:
+        return set()
+
+    reported = set(
+        await db.scalars(
+            select(RunnerPriceClaim.errand_id).where(
+                RunnerPriceClaim.errand_id.in_(list(priceable))
+            )
+        )
+    )
+    return priceable - reported
 
 
 async def _validate_order_items(
@@ -958,6 +1004,13 @@ async def pickup_errand(
     An amount is still accepted for an errand with no lines to price, so
     settlement has something better than the platform's own estimate.
     """
+    errand = await db.get(Errand, errand_id)
+    if errand is not None and await price_report_pending(db, [errand]):
+        raise ErrandError(
+            "Report what you paid for each item before marking this picked up.",
+            409,
+        )
+
     return await _runner_step(
         db, redis, user, errand_id, "IN_PROGRESS", "PICKED_UP",
         amount_spent=amount_spent,
