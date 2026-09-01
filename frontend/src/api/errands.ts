@@ -44,7 +44,11 @@ export interface Errand {
   reward: number;
   fulfillment_type: FulfillmentType;
   collect_amount: number;
+  /** What the runner declared paying at pickup. Null until they declare it. */
+  amount_spent: number | null;
   has_handoff_secret: boolean;
+  /** True while the runner still owes a per-item price report. */
+  price_report_pending?: boolean;
   distance_m: number | null;
   runner_lat: number | null;
   runner_lng: number | null;
@@ -66,6 +70,8 @@ export interface Errand {
 export interface OrderLine {
   id: string;
   menu_item_id: string | null;
+  /** Set when the line was priced off the admin non-MRP list. */
+  reference_id?: string | null;
   name_snapshot: string;
   unit_price_snapshot: number | null;
   quantity: number;
@@ -143,8 +149,22 @@ export async function acceptErrand(id: string): Promise<Errand> {
   return (await api.post<Errand>(`/errands/${id}/accept`)).data;
 }
 
+/**
+ * Mark picked up, declaring what was actually paid at the counter.
+ *
+ * The amount is required by the server. Escrow holds the estimate plus
+ * headroom so a runner who paid over the estimate is still made whole, and
+ * none of that reaches them unless someone states the real figure.
+ */
+/**
+ * Mark an errand picked up. No amount travels with it.
+ *
+ * Prices are reported per item instead - a per-item figure can be judged
+ * against the reference for that item at that store, where a lump sum can
+ * only be taken on trust. Fixed-price goods need no report at all.
+ */
 export async function pickupErrand(id: string): Promise<Errand> {
-  return (await api.post<Errand>(`/errands/${id}/pickup`)).data;
+  return (await api.post<Errand>(`/errands/${id}/pickup`, {})).data;
 }
 
 export async function deliverErrand(id: string): Promise<Errand> {

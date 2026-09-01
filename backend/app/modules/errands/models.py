@@ -107,6 +107,16 @@ class Errand(Base, TimestampMixin):
     collect_amount: Mapped[float] = mapped_column(
         Numeric(12, 2), nullable=False, server_default="0"
     )
+    # What the runner says they actually handed over at the counter, recorded
+    # when they mark the errand picked up. This - not the estimate - is what
+    # settlement reimburses, and it is the number the fraud checks judge.
+    #
+    # Nullable because it does not exist until pickup, and because errands
+    # placed before this field shipped never had one. A missing value means
+    # "never declared", which settlement must handle differently from a
+    # declared zero.
+    amount_spent: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+
     status: Mapped[str] = mapped_column(String(16), nullable=False, server_default="OPEN")
     version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
 
@@ -139,8 +149,18 @@ class ErrandItem(Base):
     menu_item_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("menu_items.id", ondelete="SET NULL"), nullable=True
     )
+    # Set when the requester picked this line off the admin's non-MRP price
+    # list. It is what makes the line eligible for escrow headroom: an MRP
+    # packet has its price printed on it, so there is nothing to discover at
+    # the counter and nothing to pad.
+    reference_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("reference_prices.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     name_snapshot: Mapped[str] = mapped_column(String(120), nullable=False)
-    # Priceless for shopping-list lines (grocery/stationery/pharmacy).
+    # Priceless for hand-typed lines; carries the reference price when the line
+    # was picked from the non-MRP list, and the menu price for catalogue lines.
     unit_price_snapshot: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     # Runner flips this false when a store is out of an item.
@@ -213,6 +233,94 @@ class ErrandEvent(Base):
     )
     event_type: Mapped[str] = mapped_column(String(32), nullable=False)
     payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=False
+    )
+
+
+class OfferLog(Base):
+    """Why each runner was offered an errand — the counterfactual record.
+
+    Matching ranks candidates by effective distance:
+
+        effective = distance
+                  - trust      x SOCIAL_WEIGHT_M
+                  - (rep - 3.5) x REPUTATION_WEIGHT_M
+                  + open-flag penalty
+
+    Those terms are computed, used to order the offer, and then thrown away.
+    That loss is the reason a whole class of question cannot be asked.
+
+    Errandly boosts friends up the queue AND treats friends transacting with
+    each other as evidence of a collusion ring. The first causes the second, so
+    `circulation` partly measures the router rather than the people. Separating
+    them needs the one thing nothing currently stores: what the policy EXPECTED
+    to happen, against which what actually happened can be compared. Only the
+    part the policy cannot explain is evidence about anybody.
+
+    Written once per offer round — an errand that is escalated, widened or
+    handed back produces several rows, which is correct: each round was a
+    separate decision taken under different information.
+
+    Analytics only. Nothing reads this on a request path, and a failure to
+    write it must never stop an errand being offered.
+    """
+
+    __tablename__ = "offer_logs"
+    __table_args__ = (
+        Index("ix_offer_log_errand", "errand_id"),
+        Index("ix_offer_log_requester", "requester_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    errand_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("errands.id", ondelete="CASCADE"), nullable=False
+    )
+    requester_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    campus_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("campuses.id"), nullable=False
+    )
+
+    # Which dispatch round this was for the errand: 1 on first offer, 2 after a
+    # hand-back or an escalation, and so on.
+    round_no: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+
+    # The hop ceiling in force for this round, or null when unrestricted. A
+    # narrower ceiling is itself part of why a candidate was or was not offered.
+    max_hops: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+
+    # This round was offered with the social boost switched off — distance
+    # only, no hop ceiling. These rows are the control group: the only
+    # observations where the outcome was not already shaped by friendship.
+    #
+    # Stored, not inferred. A round where nobody happened to be a friend looks
+    # exactly like one where friendship was deliberately ignored, and counting
+    # the first as a control would poison the estimate silently.
+    exploring: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
+
+    # One entry per candidate, in the order they were offered:
+    #   {runner_id, distance_m, trust, hops, reputation, penalty, effective, rank}
+    # `effective` is the score that decided the order; the rest are the terms it
+    # was built from, kept so the counterfactual ("rank with trust zeroed") can
+    # be recomputed without re-deriving anything from a graph that has since
+    # moved on.
+    candidates: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
+
+    # Filled in if somebody took it. Null means this round found no taker,
+    # which is data, not a gap.
+    accepted_runner_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+    )
+    accepted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )

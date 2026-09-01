@@ -30,3 +30,26 @@ class Notification(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )
+
+
+class PushToken(Base):
+    """An Expo push token for one of a user's devices.
+
+    Separate from the user row because one account can be signed in on several
+    devices, and each gets its own token. The token itself is the primary key:
+    Expo reissues the same string for the same install, so re-registering is an
+    upsert rather than a duplicate.
+    """
+
+    __tablename__ = "push_tokens"
+    __table_args__ = (Index("ix_push_tokens_user", "user_id"),)
+
+    token: Mapped[str] = mapped_column(String(255), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    platform: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=False
+    )
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

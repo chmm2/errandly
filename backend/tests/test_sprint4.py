@@ -35,7 +35,7 @@ async def test_outbox_row_written_with_every_transition(client, make_user):
     errand = (await client.post("/errands", json=errand_payload(), headers=requester)).json()
     eid = uuid.UUID(errand["id"])
     await client.post(f"/errands/{eid}/accept", headers=runner)
-    await client.post(f"/errands/{eid}/pickup", headers=runner)
+    await client.post(f"/errands/{eid}/pickup", json={"amount_spent": 0}, headers=runner)
     await client.post(f"/errands/{eid}/deliver", headers=runner)
     await client.post(f"/errands/{eid}/complete", headers=requester)
 

@@ -237,8 +237,11 @@ async def test_settlement_idempotent_and_earnings(client, make_user, campus):
         entries = list(
             await db.scalars(select(LedgerEntry).where(LedgerEntry.user_id == runner_id))
         )
-    assert sorted(e.entry_type for e in entries) == ["REIMBURSEMENT", "REWARD"]
-    assert sum(float(e.amount) for e in entries) == 295.0
+    # TOPUP is wallet funding from the fixture, not a payout - this test is
+    # about what settlement paid out, so judge only the payout types.
+    payouts = [e for e in entries if e.entry_type != "TOPUP"]
+    assert sorted(e.entry_type for e in payouts) == ["REIMBURSEMENT", "REWARD"]
+    assert sum(float(e.amount) for e in payouts) == 295.0
 
     earnings = (await client.get("/ledger/me", headers=runner_headers)).json()
     assert earnings["balance"] == 295.0
@@ -268,7 +271,7 @@ async def test_rating_updates_reputation(client, make_user):
     assert early.status_code == 409
 
     await client.post(f"/errands/{eid}/accept", headers=runner)
-    await client.post(f"/errands/{eid}/pickup", headers=runner)
+    await client.post(f"/errands/{eid}/pickup", json={"amount_spent": 0}, headers=runner)
     await client.post(f"/errands/{eid}/deliver", headers=runner)
     await client.post(f"/errands/{eid}/complete", headers=requester)
 

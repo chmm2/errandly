@@ -3,6 +3,9 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { type Category, createErrand } from "../api/errands";
 import CampusDropPicker from "../components/CampusDropPicker";
+import type { ReferenceSuggestion } from "../api/fraud";
+import HoldBreakdown from "../components/HoldBreakdown";
+import ItemSearchInput from "../components/ItemSearchInput";
 import Navbar from "../components/Navbar";
 import { apiErrorMessage } from "../lib/api";
 
@@ -29,6 +32,9 @@ interface ShopItem {
   name: string;
   qty: number;
   note: string;
+  // Set when the line was picked off the admin's non-MRP price list. It is
+  // what earns the line escrow headroom, so it has to travel with the order.
+  ref: ReferenceSuggestion | null;
 }
 
 // Saved drop points — you always deliver to the same 2-3 places on campus.
@@ -66,7 +72,7 @@ export default function NewErrand() {
 
   // Shopping-list state
   const [shopType, setShopType] = useState(0); // index into SHOPPING_TYPES
-  const [items, setItems] = useState<ShopItem[]>([{ name: "", qty: 1, note: "" }]);
+  const [items, setItems] = useState<ShopItem[]>([{ name: "", qty: 1, note: "", ref: null }]);
   const [buyFrom, setBuyFrom] = useState("");
 
   // Pickup (parcel / main gate) state
@@ -89,6 +95,16 @@ export default function NewErrand() {
 
   const isPickup = flow === "parcel" || flow === "gate";
 
+  // Only priced lines count. A hand-typed line nobody has priced contributes
+  // nothing here and earns no headroom - there is no number to take 16% of.
+  const nonMrpTotal =
+    flow === "shopping"
+      ? items.reduce(
+          (sum, it) => sum + (it.ref ? it.ref.reference_price * it.qty : 0),
+          0,
+        )
+      : 0;
+
   function switchFlow(next: Flow) {
     setFlow(next);
     setError(null);
@@ -100,7 +116,7 @@ export default function NewErrand() {
     setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
   }
   function addItem() {
-    setItems((prev) => [...prev, { name: "", qty: 1, note: "" }]);
+    setItems((prev) => [...prev, { name: "", qty: 1, note: "", ref: null }]);
   }
   function removeItem(i: number) {
     setItems((prev) => (prev.length === 1 ? prev : prev.filter((_, idx) => idx !== i)));
@@ -148,6 +164,9 @@ export default function NewErrand() {
           name: it.name.trim().slice(0, 120),
           quantity: it.qty,
           note: it.note.trim() ? it.note.trim().slice(0, 200) : undefined,
+          // Only the id travels. The server re-reads the price from that row,
+          // so nothing the client sends can change what gets held.
+          reference_id: it.ref?.reference_id,
         })),
         notes: notes.trim() || undefined,
       };
@@ -268,11 +287,13 @@ export default function NewErrand() {
                   {items.map((it, i) => (
                     <div key={i} className="rounded-2xl border border-line p-3">
                       <div className="flex items-center gap-2">
-                        <input
+                        <ItemSearchInput
+                          className="flex-1"
                           value={it.name}
-                          onChange={(e) => setItem(i, { name: e.target.value })}
-                          placeholder={`Item ${i + 1} — e.g. Milk, A4 sheets, Crocin`}
-                          className={`${inputCls} flex-1`}
+                          picked={it.ref}
+                          onChange={(name) => setItem(i, { name })}
+                          onPick={(ref) => setItem(i, { ref })}
+                          placeholder={`Item ${i + 1} — search the campus price list`}
                         />
                         <div className="flex shrink-0 items-center gap-2 rounded-xl border border-line px-2 py-1.5">
                           <button
@@ -534,6 +555,15 @@ export default function NewErrand() {
               What you pay the runner on top of item cost. ₹20–₹50 is typical.
             </p>
           </div>
+
+          {/* What placing this will actually take out of the wallet. On a
+              shopping list there is no priced basket yet, so only the reward
+              is known - and that is exactly what this then shows. */}
+          <HoldBreakdown
+            spend={Number(collectAmount || 0) + nonMrpTotal}
+            padded={nonMrpTotal}
+            fee={Number(reward || 0)}
+          />
 
           <div>
             <label className="mb-1.5 block text-sm font-semibold">

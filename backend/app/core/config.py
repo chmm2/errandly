@@ -18,6 +18,29 @@ class Settings(BaseSettings):
     kafka_bootstrap: str = "kafka:19092"
     kafka_orders_topic: str = "errandly.orders"
 
+    # Neo4j (social graph — a derived read model, safe to rebuild)
+    neo4j_url: str = "bolt://neo4j:7687"
+    neo4j_user: str = "neo4j"
+    neo4j_password: str = "errandly-dev"
+    # Hops beyond this are treated as strangers. 4 keeps a campus-sized graph
+    # traversable in single-digit milliseconds while still reaching most of it.
+    social_max_hops: int = 4
+
+    # Fraction of dispatch rounds offered with the social boost switched OFF —
+    # ranked on distance alone and with no hop ceiling.
+    #
+    # This buys observability. Boosting friends up the queue and then reading
+    # "friends transact with each other" as evidence of collusion means the
+    # router manufactures the signal the detector trusts. Worse, the stronger
+    # the boost the more completely it does so: at the live weight the policy
+    # already expects ~99% of a friend group's errands to go inside the group,
+    # and once you expect everything nothing can look surprising, so a real
+    # ring becomes indistinguishable from ordinary friendship.
+    #
+    # A small slice of socially-blind rounds keeps a control group in the data.
+    # Set to 0.0 to disable, at the cost of being unable to tell the two apart.
+    offer_explore_rate: float = 0.05
+
     # MongoDB (chat)
     mongo_url: str = "mongodb://mongo:27017"
     mongo_db: str = "errandly"
@@ -43,9 +66,68 @@ class Settings(BaseSettings):
     # Self-registration is restricted to this email domain (student-only).
     student_email_domain: str = "vitstudent.ac.in"
 
+    # Escrow headroom. Shop prices move, and a runner who fronts cash must not
+    # be left out of pocket because the requester's wallet was sized to an
+    # estimate. A percentage of the ESTIMATED SPEND is held on top; the runner
+    # fee is not part of that base, because the fee is fixed and known and
+    # padding it would only lock money nobody can ever need.
+    escrow_buffer_pct: float = 0.16
+
+    # Semantic fraud channel (modules/fraud/semantics.py). Optional in every
+    # sense: with no provider configured the fraud system behaves exactly as it
+    # does without it.
+    #   "ollama"    - a model on campus hardware; no student text leaves the
+    #                 building, which matters when the evidence is notes and
+    #                 reviews written by identifiable people.
+    #   "anthropic" - hosted, better at the nuanced calls, kept as a reference.
+    #   ""          - infer from whether an API key is present.
+    llm_provider: str = ""
+    anthropic_api_key: str = ""
+    # host.docker.internal, not localhost: the backend runs in a container and
+    # Ollama runs on the host.
+    ollama_url: str = "http://host.docker.internal:11434"
+    # qwen2.5:7b, not a 3B: measured on the real prompt, llama3.2:3b
+    # returned reads_as_genuine=True for a history its own observations had
+    # just called repetitive and suspicious. 7B separates the same pair by
+    # 0.75 and reports injection attempts instead of following them.
+    ollama_model: str = "qwen2.5:7b"
+    semantic_analysis_enabled: bool = True
+    # The review-reading channel is OFF by default because it was measured not
+    # to work. Two independent runs on qwen2.5:7b separated genuine from farmed
+    # rating histories by -0.9 and +2.8 points - noise either side of zero -
+    # and it failed in both directions on the cases that matter: a farmed
+    # history with varied wording scored 72 and was cleared, while an honest
+    # runner whose friends rate without writing scored 30 and was not.
+    #
+    # The errand-text channel is a different question and is unaffected; it
+    # separated the same kind of pair by 41.7 points.
+    #
+    # Kept behind a flag rather than deleted: the prompt is worth another
+    # attempt, and evals/run_eval.py is where to iterate. Turn it on only when
+    # the harness shows real separation.
+    review_analysis_enabled: bool = False
+
     # App
     environment: str = "development"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
+
+    # Origins matched by pattern rather than listed one by one.
+    #
+    # An exact allowlist cannot cover the dev clients: Metro serves the web
+    # build on 8081 but silently moves to 8082, 8083... when a port is taken,
+    # and each teammate's LAN address differs. A missing entry does not fail
+    # loudly - the browser is refused the preflight and login just "doesn't
+    # work", while the phone (which never checks CORS) keeps working, so the
+    # bug reads as a mobile/web difference rather than a config gap.
+    #
+    # Loopback and RFC-1918 only, so this stays a development convenience and
+    # can never admit a public origin.
+    cors_origin_regex: str = (
+        r"^http://(localhost|127\.0\.0\.1|"
+        r"10\.\d{1,3}\.\d{1,3}\.\d{1,3}|"
+        r"192\.168\.\d{1,3}\.\d{1,3}|"
+        r"172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$"
+    )
 
     @property
     def smtp_configured(self) -> bool:

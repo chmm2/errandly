@@ -29,3 +29,25 @@ pgdata/
 data/
 !frontend/src/data/
 .claude/settings.local.json
+
+# env backups may contain secrets
+.env.bak
+*.env.bak
+
+# FCM service-account private key — never commit (google-services.json is fine, this is not)
+mobile/fcm-service-account*.json
+
+# Generated report and deck artefacts — rebuilt by docs/report/*.py.
+# The generators and figures are tracked; the Word/PowerPoint/PDF output is not,
+# because it is large, binary, and regenerated on every run.
+docs/report/*.docx
+docs/report/*.pptx
+docs/report/*.pdf
+docs/report/deck_png/
+docs/report/deck_chris_png/
+docs/report/deck_v2_png/
+docs/report/deck_sk_png/
+
+# Rendered diagrams — regenerate with docs/report/sketch_figures.py.
+# The .excalidraw scenes ARE tracked: they are the editable source.
+docs/report/figures_sketch/

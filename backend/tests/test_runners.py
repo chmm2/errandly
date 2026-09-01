@@ -108,9 +108,12 @@ async def test_handoff_secret_gating_and_audit(client, make_user):
     await client.post(f"/errands/{eid}/accept", headers=runner)
 
     # Stranger still blocked after accept
+    # 404 rather than 403: once an errand is accepted it stops being an
+    # offer to the campus, and confirming to a stranger that it exists is
+    # itself something they should not learn.
     assert (
         await client.get(f"/errands/{eid}/handoff-secret", headers=stranger)
-    ).status_code == 403
+    ).status_code == 404
 
     # Assigned runner gets it
     secret = await client.get(f"/errands/{eid}/handoff-secret", headers=runner)
@@ -159,7 +162,7 @@ async def test_load_cap_blocks_hoarding(client, make_user):
     assert "active runs" in blocked.json()["detail"]
 
     # Delivering one frees a slot
-    await client.post(f"/errands/{first['id']}/pickup", headers=runner)
+    await client.post(f"/errands/{first['id']}/pickup", json={"amount_spent": 0}, headers=runner)
     await client.post(f"/errands/{first['id']}/deliver", headers=runner)
     assert (await client.post(f"/errands/{third['id']}/accept", headers=runner)).status_code == 200
 
@@ -186,9 +189,9 @@ async def test_detail_exposes_runner_position_to_parties_only(client, make_user)
     assert detail["runner_lat"] == pytest.approx(MID["lat"])
     assert detail["runner_lng"] == pytest.approx(MID["lng"])
 
-    # A bystander doesn't
-    other = (await client.get(f"/errands/{eid}", headers=stranger)).json()
-    assert other["runner_lat"] is None
+    # A bystander doesn't — and on an accepted errand they do not get the
+    # detail at all, so there is no position to withhold.
+    assert (await client.get(f"/errands/{eid}", headers=stranger)).status_code == 404
 
 
 async def test_offer_event_recorded_for_available_runner(client, make_user):

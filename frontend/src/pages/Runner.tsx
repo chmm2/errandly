@@ -17,6 +17,7 @@ import { setPhoto } from "../api/auth";
 import { fetchEarnings } from "../api/ledger";
 import { fetchRunnerProfile, setAvailability, updateLocation } from "../api/runners";
 import Navbar from "../components/Navbar";
+import PriceClaimPanel from "../components/PriceClaimPanel";
 import { apiErrorMessage } from "../lib/api";
 import { useSocket } from "../lib/ws";
 import { useAuth } from "../stores/auth";
@@ -219,7 +220,10 @@ export default function Runner() {
     },
     onSettled: refresh,
   });
-  const pickup = useMutation({ mutationFn: pickupErrand, onSettled: refresh });
+  const pickup = useMutation({
+    mutationFn: (id: string) => pickupErrand(id),
+    onSettled: refresh,
+  });
   const deliver = useMutation({ mutationFn: deliverErrand, onSettled: refresh });
   const release = useMutation({
     mutationFn: releaseErrand,
@@ -320,8 +324,11 @@ export default function Runner() {
                 </div>
                 <div>
                   <div className="text-xl font-extrabold">₹{earnings.balance.toFixed(0)}</div>
-                  <div className="text-xs text-white/80">wallet balance</div>
+                  <div className="text-xs text-white/80">earned all-time</div>
                 </div>
+                <Link to="/wallet" className="self-center text-xs font-bold underline">
+                  Wallet →
+                </Link>
               </div>
             )}
           </div>
@@ -414,11 +421,17 @@ export default function Runner() {
                             Not for me ↩
                           </button>
                         )}
+
                       {e.status === "ACCEPTED" && (
                         <button
                           onClick={() => pickup.mutate(e.id)}
-                          disabled={pickup.isPending}
-                          className="rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
+                          disabled={pickup.isPending || e.price_report_pending === true}
+                          title={
+                            e.price_report_pending
+                              ? "Report what you paid first — that is what you get reimbursed for."
+                              : undefined
+                          }
+                          className="rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Picked up 📦
                         </button>
@@ -435,6 +448,9 @@ export default function Runner() {
                     </div>
                   </div>
                   {e.has_handoff_secret && <HandoffPanel errandId={e.id} />}
+                  {/* Report prices BEFORE delivery — once the errand completes,
+                      settlement has already drawn on whatever was claimed. */}
+                  <PriceClaimPanel errandId={e.id} />
                   <Link
                     to={`/errands/${e.id}`}
                     className="mt-3 inline-block text-sm font-semibold text-brand hover:underline"

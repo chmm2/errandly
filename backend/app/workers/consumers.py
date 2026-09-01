@@ -17,6 +17,7 @@ import json
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 from aiokafka import AIOKafkaConsumer
 from sqlalchemy import select
@@ -26,14 +27,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import app.models  # noqa: F401 — register ALL mappers (workers skip the API's import graph)
 from app.core.config import settings
 from app.core.database import SessionLocal
+from app.core.graph import ensure_schema
 from app.core.redis import redis_client
 from app.core.resilience import retry_with_backoff
 from app.modules.analytics.models import DailyStat
+from app.modules.campus.models import Campus
 from app.modules.errands.models import Errand, ErrandEvent
-from app.modules.ledger.models import LedgerEntry
+from app.modules.fraud import collusion
+from app.modules.fraud import integrity as fraud_integrity
+from app.modules.fraud import service as fraud
+from app.modules.ledger import service as ledger
 from app.modules.notifications import service as notifications
 from app.modules.outbox.models import ProcessedEvent
 from app.modules.runners import service as runners_service
+from app.modules.social.projection import handle_social, refresh_graph_metrics
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s worker %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -118,9 +125,94 @@ async def handle_analytics(db: AsyncSession, event: dict) -> None:
 
 # ------------------------------------------------------------------ settlement
 
+async def _block_over_ceiling(
+    db,
+    redis_client,
+    *,
+    errand_id,
+    runner_id,
+    title: str,
+    payable: Decimal,
+    ceiling: Decimal,
+    reward: Decimal,
+) -> None:
+    """Freeze a settlement the requester's hold cannot cover, and say so.
+
+    The gap is the interesting number: it is what the runner says they are out
+    of pocket beyond anything the requester ever agreed to lock. It is also
+    exactly what a runner inflating a claim would produce, which is why this
+    ends with a person looking at it rather than a rule paying it.
+    """
+    gap = (payable - ceiling).quantize(Decimal("0.01"))
+    hold = await ledger.block_settlement(db, errand_id=errand_id)
+    requester_id = hold.requester_id
+
+    # Severity scales with how far past the ceiling the claim goes, relative to
+    # the ceiling itself - ₹50 over on a ₹100 order is a different proposition
+    # from ₹50 over on a ₹2000 one.
+    delta_pct = (
+        (gap / ceiling * 100) if ceiling > 0 else Decimal("100")
+    ).quantize(Decimal("0.01"))
+
+    await fraud.raise_flag(
+        db,
+        user_id=runner_id,
+        errand_id=errand_id,
+        claim=None,
+        rule="PAYOUT_EXCEEDS_HOLD",
+        delta_pct=delta_pct,
+        details={
+            "payable": float(payable),
+            "held": float(ceiling),
+            "gap": float(gap),
+            "reward": float(reward),
+            "delta_pct": float(delta_pct),
+        },
+    )
+
+    await notifications.create_and_push(
+        db,
+        redis_client,
+        runner_id,
+        "SETTLEMENT",
+        "Payout on hold ⏸",
+        f"You reported spending more than was held for {title}. "
+        f"₹{ceiling:.0f} was locked; paying you would need ₹{payable:.0f}. "
+        f"Nothing has moved — an admin is reviewing the ₹{gap:.0f} difference.",
+        {"errand_id": str(errand_id), "gap": float(gap)},
+    )
+    await notifications.create_and_push(
+        db,
+        redis_client,
+        requester_id,
+        "SETTLEMENT",
+        "Order under review ⏸",
+        f"Your runner reported paying more than the ₹{ceiling:.0f} held for "
+        f"{title}. Your money stays held and you have not been charged the "
+        f"extra ₹{gap:.0f} — an admin is reviewing it.",
+        {"errand_id": str(errand_id), "gap": float(gap)},
+    )
+
+    logger.warning(
+        "errand %s: payout ₹%s exceeds hold ₹%s — settlement blocked for review",
+        errand_id,
+        payable,
+        ceiling,
+    )
+
+
 async def handle_settlement(db: AsyncSession, event: dict) -> None:
-    """Money moves ONLY here, only on ORDER_COMPLETED, and only once — the
-    processed_events gate makes a Kafka redelivery pay nobody twice."""
+    """Money moves ONLY here, only on ORDER_COMPLETED, and only once.
+
+    Two gates make a Kafka redelivery harmless: processed_events at the consumer
+    level, and a unique (errand, user, entry_type) in the ledger itself. Either
+    alone would do; both means a bug in one is not a payout bug.
+
+    Reimbursement is drawn from the runner's JUDGED claims, never from the
+    amount they asked for. A claim flagged as above the campus reference pays
+    out at the reference and the excess stays in escrow for admin review — so
+    inflating a price delays money rather than producing it.
+    """
     if event["event_type"] != "ORDER_COMPLETED":
         return
     payload = event["payload"]
@@ -128,33 +220,84 @@ async def handle_settlement(db: AsyncSession, event: dict) -> None:
         return
     runner_id = uuid.UUID(payload["runner_id"])
     errand_id = uuid.UUID(payload["errand_id"])
-    db.add(
-        LedgerEntry(
-            user_id=runner_id, errand_id=errand_id,
-            entry_type="REWARD", amount=payload["reward"],
+    reward = Decimal(str(payload["reward"]))
+
+    # Imported here, as elsewhere in this module: the errands service pulls in
+    # the router's dependency graph, and importing it at module scope makes the
+    # worker import the web app.
+    from app.modules.errands import service as errands_service
+
+    eligible, withheld = await fraud.eligible_reimbursement(db, errand_id)
+    if eligible == 0 and withheld == 0:
+        # No itemised claims. Fall back to what the runner declared at pickup -
+        # they were the one at the counter, and the whole point of holding
+        # headroom is to cover a real price the estimate got wrong.
+        declared = await errands_service.declared_spend(db, errand_id)
+        if declared is not None:
+            eligible = declared
+        else:
+            # Nothing declared at all - an errand from before the pickup step
+            # required it. Reimburse the estimate rather than nothing.
+            #
+            # Read from the HOLD, not from this event. The event carries only
+            # collect_amount, so a catalogue order - whose spend lives in
+            # priced items - reimbursed ZERO and handed the whole basket back
+            # to the requester as surplus, runner already out of pocket.
+            eligible = await ledger.estimated_spend(db, errand_id)
+
+    # The requester locked a fixed amount and agreed to nothing beyond it. If
+    # what the runner is owed exceeds that, there is no correct automatic
+    # outcome: paying in full would charge the requester money they never
+    # committed, and paying the capped amount makes the runner quietly absorb
+    # a gap that is either a shop's price rise or an inflated claim. Freeze it
+    # and let an admin decide, with both people told why.
+    ceiling = await ledger.remaining_hold(db, errand_id)
+    payable = eligible + reward
+    if payable > ceiling:
+        await _block_over_ceiling(
+            db,
+            redis_client,
+            errand_id=errand_id,
+            runner_id=runner_id,
+            title=payload["title"],
+            payable=payable,
+            ceiling=ceiling,
+            reward=reward,
         )
-    )
-    if payload.get("collect_amount", 0) > 0:
-        db.add(
-            LedgerEntry(
-                user_id=runner_id, errand_id=errand_id,
-                entry_type="REIMBURSEMENT", amount=payload["collect_amount"],
-            )
+        return
+
+    try:
+        await ledger.release_hold(
+            db,
+            errand_id=errand_id,
+            runner_id=runner_id,
+            reward=reward,
+            reimbursement=eligible,
+            withheld=withheld,
+            memo=f"Delivery reward for {payload['title']}",
         )
+    except ledger.LedgerError:
+        logger.exception("settlement failed for errand %s", errand_id)
+        raise
+
+    body = f"₹{reward:.0f} reward"
+    if eligible > 0:
+        body += f" + ₹{eligible:.0f} reimbursed"
+    body += f" for {payload['title']}."
+    if withheld > 0:
+        body += (
+            f" ₹{withheld:.0f} is held pending review — your reported price was "
+            "above the campus reference."
+        )
+
     await notifications.create_and_push(
         db,
         redis_client,
         runner_id,
         "SETTLEMENT",
-        "Paid out 💰",
-        f"₹{payload['reward']:.0f} reward"
-        + (
-            f" + ₹{payload['collect_amount']:.0f} reimbursed"
-            if payload.get("collect_amount", 0) > 0
-            else ""
-        )
-        + f" for {payload['title']}.",
-        {"errand_id": payload["errand_id"]},
+        "Paid out 💰" if withheld == 0 else "Paid out — part held",
+        body,
+        {"errand_id": payload["errand_id"], "withheld": float(withheld)},
     )
 
 
@@ -164,11 +307,16 @@ HANDLERS = {
     "notification-service": handle_notification,
     "analytics-service": handle_analytics,
     "settlement-service": handle_settlement,
+    # Projects friendships (and, later, money flow) into Neo4j. Its own group,
+    # so a graph outage stalls only this projection's offsets.
+    "social-graph-service": handle_social,
 }
 
 
 async def run_consumer(group: str) -> None:
     handler = HANDLERS[group]
+    if group == "social-graph-service":
+        await ensure_schema()
     consumer = AIOKafkaConsumer(
         settings.kafka_orders_topic,
         bootstrap_servers=settings.kafka_bootstrap,
@@ -199,71 +347,140 @@ async def run_consumer(group: str) -> None:
 # ------------------------------------------------------------------- scheduler
 
 SCHEDULER_INTERVAL = 30
-BROADEN_AFTER_SECONDS = 60
-BROADEN_RADIUS_M = 8000
 BROADEN_FANOUT = 10
+
+# (seconds_after_post, tier, max_hops, radius_m). Tier 1 goes out at post time
+# from create_errand; these are the escalations.
+SOCIAL_TIERS = [
+    (45, 2, 4, 3000),      # widen the social circle, same radius
+    (90, 3, None, 8000),   # open to strangers, wider radius
+]
 EXPIRE_AFTER_SECONDS = 600  # 10 min with no runner → give up and apologise
 
 
 async def broaden_stale_offers() -> None:
-    """Offer escalation: errands still OPEN after a while get re-offered to
-    a wider radius (the accept/timeout → broaden retry loop)."""
-    from app.modules.errands import service as errands_service  # avoid import cycle
+    """Escalate offers that nobody has taken yet.
+
+    Two dimensions widen together, on a timer:
+
+        tier 1 (at post)  friends + friends-of-friends, 3km
+        tier 2 (+45s)     out to SOCIAL_TIER_2_HOPS  — the wider circle
+        tier 3 (+90s)     anyone nearby, 8km          — open to strangers
+
+    The staging is the point. Every candidate in a tier is published to within
+    milliseconds of the others, so social preference cannot come from ordering
+    a simultaneous broadcast — it has to come from *when* each group is told.
+    Giving people you know a 45-second head start is what makes an errand
+    likelier to land with them, without ever letting it starve: by 90 seconds
+    it is an ordinary open offer, well inside the poster's deadline.
+    """
 
     async with SessionLocal() as db:
-        cutoff = datetime.now(UTC).timestamp() - BROADEN_AFTER_SECONDS
+        now = datetime.now(UTC)
         stale = list(
             await db.scalars(
                 select(Errand).where(
                     Errand.status == "OPEN",
                     Errand.deleted_at.is_(None),
-                    Errand.created_at < datetime.fromtimestamp(cutoff, tz=UTC),
+                    Errand.created_at
+                    < now - timedelta(seconds=SOCIAL_TIERS[0][0]),
                 )
             )
         )
         for errand in stale:
-            # broaden at most once — check the audit trail
-            prior = await db.scalar(
-                select(ErrandEvent.id).where(
-                    ErrandEvent.errand_id == errand.id,
-                    ErrandEvent.event_type == "OFFER_BROADENED",
+            age = (now - errand.created_at).total_seconds()
+
+            # Which tiers have already gone out for this errand? The audit trail
+            # is the state, so a worker restart cannot re-offer a tier.
+            done = {
+                (row.payload or {}).get("social_tier")
+                for row in await db.scalars(
+                    select(ErrandEvent).where(
+                        ErrandEvent.errand_id == errand.id,
+                        ErrandEvent.event_type.in_(("OFFERED", "OFFER_BROADENED")),
+                    )
                 )
-            )
-            if prior:
-                continue
-            nearby = await runners_service.nearest_available_runners(
-                redis_client,
-                errand.campus_id,
-                lat=float(errand.drop_lat),
-                lng=float(errand.drop_lng),
-                radius_m=BROADEN_RADIUS_M,
-                limit=BROADEN_FANOUT,
-                exclude=errand.requester_id,
-            )
-            payload = {
-                "type": "offer",
-                "errand_id": str(errand.id),
-                "title": errand.title,
-                "category": errand.category,
-                "reward": float(errand.reward),
             }
-            count = 0
-            for runner_id, distance_m in nearby:
-                payload["distance_m"] = round(distance_m)
-                await redis_client.publish(
-                    f"{errands_service.OFFER_CHANNEL_PREFIX}{runner_id}", json.dumps(payload)
+            # An errand posted with no friends nearby already went out open
+            # (tier 0); there is nothing left to widen to.
+            if 0 in done:
+                continue
+
+            for after_s, tier, hops, radius_m in SOCIAL_TIERS:
+                if age < after_s or tier in done:
+                    continue
+                count = await _offer_tier(db, errand, hops, radius_m)
+                db.add(
+                    ErrandEvent(
+                        errand_id=errand.id,
+                        actor_id=None,
+                        event_type="OFFER_BROADENED",
+                        payload={
+                            "social_tier": tier,
+                            "max_hops": hops,
+                            "radius_m": radius_m,
+                            "runners": count,
+                        },
+                    )
                 )
-                count += 1
-            db.add(
-                ErrandEvent(
-                    errand_id=errand.id,
-                    actor_id=None,
-                    event_type="OFFER_BROADENED",
-                    payload={"radius_m": BROADEN_RADIUS_M, "runners": count},
+                logger.info(
+                    "errand %s → tier %d (hops<=%s, %dm): %d runner(s)",
+                    errand.id,
+                    tier,
+                    hops if hops is not None else "any",
+                    radius_m,
+                    count,
                 )
-            )
-            logger.info("broadened offer for %s to %d runner(s)", errand.id, count)
+                break  # one tier per sweep, so each gets its own window
         await db.commit()
+
+
+async def _offer_tier(db, errand, max_hops: int | None, radius_m: int) -> int:
+    """Publish an offer for one escalation tier."""
+    from app.modules.errands import service as errands_service
+
+    nearby = await runners_service.nearest_available_runners(
+        redis_client,
+        errand.campus_id,
+        lat=float(errand.drop_lat),
+        lng=float(errand.drop_lng),
+        radius_m=radius_m,
+        limit=BROADEN_FANOUT,
+        exclude=errand.requester_id,
+    )
+    # The escalation tiers gate exactly as the first offer does. Skipping it
+    # here would leave the whole thing bypassable by waiting: a flagged runner
+    # simply collects the broadened offer a tier later instead.
+    co_ringed = await fraud_integrity.co_ringed_with(
+        db, errand.requester_id, [rid for rid, _ in nearby]
+    )
+    if co_ringed:
+        nearby = [(rid, dist) for rid, dist in nearby if rid not in co_ringed]
+
+    candidate_ids = [rid for rid, _ in nearby]
+    scores = await errands_service._safe_scores(errand.requester_id, candidate_ids)
+    if max_hops is not None and scores is not None:
+        nearby = [(r, d) for r, d in nearby if scores.get(r, {}).get("hops", 99) <= max_hops]
+        candidate_ids = [rid for rid, _ in nearby]
+    penalties = await fraud_integrity.penalties(db, candidate_ids)
+    nearby = errands_service._rank_with_scores(nearby, scores, None, penalties)
+
+    payload = {
+        "type": "offer",
+        "errand_id": str(errand.id),
+        "title": errand.title,
+        "category": errand.category,
+        "reward": float(errand.reward),
+    }
+    count = 0
+    for runner_id, distance_m in nearby:
+        payload["distance_m"] = round(distance_m)
+        payload["connection"] = errands_service._connection_payload(scores, runner_id)
+        await redis_client.publish(
+            f"{errands_service.OFFER_CHANNEL_PREFIX}{runner_id}", json.dumps(payload)
+        )
+        count += 1
+    return count
 
 
 async def expire_stale_open_errands() -> None:
@@ -307,8 +524,70 @@ async def expire_stale_open_errands() -> None:
             await errands_service.publish_status(redis_client, errand)
 
 
+# Reference prices move on the order of days, not seconds — re-estimating
+# every enforcer tick would be wasted work. Once an hour is plenty.
+REFERENCE_REFRESH_INTERVAL = 3600
+
+# 30s sweeps × 20 = graph metrics refresh every ~10 minutes.
+METRICS_EVERY_N_SWEEPS = 20
+
+
+async def sweep_rating_farming() -> None:
+    """Look for runners whose reputation is carried by their own circle."""
+    async with SessionLocal() as db:
+        try:
+            raised = await fraud.sweep_rating_farming(db)
+            await db.commit()
+            if raised:
+                logger.info("rating farming: raised %d flag(s)", len(raised))
+        except Exception:
+            await db.rollback()
+            raise
+
+
+async def sweep_collusion_rings() -> None:
+    """Look for closed money cycles among mutual friends and flag their members."""
+    async with SessionLocal() as db:
+        try:
+            raised = await fraud.sweep_collusion_rings(db)
+            await db.commit()
+            if raised:
+                logger.info("collusion: raised %d flag(s)", len(raised))
+        except Exception:
+            await db.rollback()
+            raise
+
+
+async def refresh_reference_prices() -> None:
+    """Re-estimate every campus's reference prices from recent honest claims.
+
+    The estimator only ever moves a price INSIDE its admin-approved band; when
+    the evidence points outside, it files a proposal instead. So this job can
+    run unattended without any risk of it widening its own bounds.
+    """
+    async with SessionLocal() as db:
+        campus_ids = list(await db.scalars(select(Campus.id)))
+        for campus_id in campus_ids:
+            try:
+                count = await fraud.refresh_all_references(db, campus_id)
+                await db.commit()
+                logger.info("refreshed %d reference price(s) for campus %s", count, campus_id)
+                # Same slow clock: unpriced names are a backlog to work
+                # through, not an event to react to.
+                proposed = await fraud.suggest_item_aliases(db, campus_id)
+                await db.commit()
+                if proposed:
+                    logger.info("proposed %d item alias(es) for review", len(proposed))
+            except Exception:
+                await db.rollback()
+                logger.exception("reference refresh failed for campus %s", campus_id)
+
+
+
 async def scheduler() -> None:
     logger.info("scheduler up (interval %ss)", SCHEDULER_INTERVAL)
+    last_reference_refresh = 0.0
+    nonlocal_tick = [0]
     while True:
         try:
             await broaden_stale_offers()
@@ -318,6 +597,34 @@ async def scheduler() -> None:
             await expire_stale_open_errands()
         except Exception:
             logger.exception("errand expiry sweep failed")
+
+        # Graph metrics are cheap on a campus-sized graph but not free, so they
+        # run every Nth sweep rather than every one.
+        nonlocal_tick[0] = (nonlocal_tick[0] + 1) % METRICS_EVERY_N_SWEEPS
+        if nonlocal_tick[0] == 0:
+            await refresh_graph_metrics()
+            # Circulation reads the FRIEND and PAID edges the refresh above
+            # just settled, so it follows it rather than running on its own
+            # clock — a ring's closure and its money flow should describe the
+            # same instant.
+            await collusion.refresh_circulation()
+            try:
+                await sweep_collusion_rings()
+            except Exception:
+                logger.exception("collusion ring sweep failed")
+            try:
+                await sweep_rating_farming()
+            except Exception:
+                logger.exception("rating farming sweep failed")
+
+        now = asyncio.get_running_loop().time()
+        if now - last_reference_refresh >= REFERENCE_REFRESH_INTERVAL:
+            last_reference_refresh = now
+            try:
+                await refresh_reference_prices()
+            except Exception:
+                logger.exception("reference price refresh failed")
+
         await asyncio.sleep(SCHEDULER_INTERVAL)
 
 
@@ -326,6 +633,7 @@ async def main() -> None:
         run_consumer("notification-service"),
         run_consumer("analytics-service"),
         run_consumer("settlement-service"),
+        run_consumer("social-graph-service"),
         scheduler(),
     )
 

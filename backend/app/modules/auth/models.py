@@ -38,6 +38,14 @@ class User(Base, TimestampMixin):
         CheckConstraint(
             "reputation_score >= 0 AND reputation_score <= 5", name="ck_users_reputation"
         ),
+        CheckConstraint(
+            "effective_reputation >= 0 AND effective_reputation <= 5",
+            name="ck_users_effective_reputation",
+        ),
+        CheckConstraint(
+            "rating_confidence >= 0 AND rating_confidence <= 1",
+            name="ck_users_rating_confidence",
+        ),
         CheckConstraint("role IN ('STUDENT','VENDOR','ADMIN')", name="ck_users_role"),
         CheckConstraint(
             "role <> 'STUDENT' OR student_id IS NOT NULL", name="ck_users_student_id_required"
@@ -62,6 +70,15 @@ class User(Base, TimestampMixin):
         Numeric(4, 2), nullable=False, server_default="5.00"
     )
     rating_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    # Provenance-weighted reputation, and how much independent evidence backs
+    # it. reputation_score above stays the plain average shown on a profile;
+    # these two are what ranking reads. See modules/fraud/reputation.py.
+    effective_reputation: Mapped[float] = mapped_column(
+        Numeric(4, 2), nullable=False, server_default="3.50"
+    )
+    rating_confidence: Mapped[float] = mapped_column(
+        Numeric(4, 3), nullable=False, server_default="0.000"
+    )
     email_verified_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -98,6 +115,28 @@ class EmailOtp(Base):
     after too many wrong attempts."""
 
     __tablename__ = "email_otps"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    code_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=False
+    )
+
+
+class PasswordResetOtp(Base):
+    """One active password-reset OTP per user.
+
+    Deliberately a separate table from EmailOtp rather than a `purpose` column
+    on it: both codes can legitimately be outstanding at once (a PENDING user
+    who forgets their password before verifying), and sharing one row keyed by
+    user_id would let either flow silently invalidate the other's code.
+    """
+
+    __tablename__ = "password_reset_otps"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True

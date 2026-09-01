@@ -3,7 +3,9 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { createErrand } from "../api/errands";
+import { fetchWallet, quoteHold } from "../api/ledger";
 import { fetchMenu, type MenuItem } from "../api/vendors";
+import HoldBreakdown from "../components/HoldBreakdown";
 import Navbar from "../components/Navbar";
 import { apiErrorMessage } from "../lib/api";
 
@@ -55,6 +57,12 @@ export default function Menu() {
     (sum, [itemId, q]) => sum + (byId.get(itemId)?.price ?? 0) * q,
     0,
   );
+
+  // The button has to name what the wallet will actually move. Escrow holds
+  // the basket PLUS headroom on it, so quoting basket + reward promises a
+  // smaller number than the one the requester then watches leave.
+  const { data: wallet } = useQuery({ queryKey: ["wallet"], queryFn: fetchWallet });
+  const hold = quoteHold(cartTotal, Number(reward || 0), wallet?.buffer_pct ?? 0);
 
   function setQty(itemId: string, qty: number) {
     setCart((c) => ({ ...c, [itemId]: Math.max(0, qty) }));
@@ -301,12 +309,13 @@ export default function Menu() {
                 </button>
               ))}
             </div>
+            <HoldBreakdown spend={cartTotal} fee={Number(reward || 0)} />
             <button
               onClick={placeOrder}
               disabled={geo.status !== "ok" || busy}
               className="w-full rounded-xl bg-brand py-3.5 font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {busy ? "Placing order…" : `Place order · ₹${(cartTotal + Number(reward || 0)).toFixed(0)}`}
+              {busy ? "Placing order…" : `Place order · ₹${hold.total.toFixed(0)}`}
             </button>
           </div>
         </div>

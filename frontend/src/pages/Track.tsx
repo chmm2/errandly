@@ -13,6 +13,7 @@ import {
   type RunnerSummary,
   setItemAvailability,
 } from "../api/errands";
+import { fetchEscrow } from "../api/ledger";
 import ChatPanel from "../components/ChatPanel";
 import Navbar from "../components/Navbar";
 import { api } from "../lib/api";
@@ -358,8 +359,22 @@ function PaymentCard({ errand, isRequester }: { errand: Errand; isRequester: boo
   const itemsTotal = Number(errand.items_total) || 0;
   const collect = Number(errand.collect_amount) || 0;
   const reward = Number(errand.reward) || 0;
-  const total = itemsTotal + collect + reward;
-  const pricelessItems = items.length > 0 && itemsTotal === 0;
+
+  // Once the runner declares what they paid, that IS the bill. Before then the
+  // estimate is the honest answer and is labelled as one.
+  const declared = errand.amount_spent != null ? Number(errand.amount_spent) : null;
+  const spend = declared ?? itemsTotal + collect;
+  const total = spend + reward;
+  const pricelessItems = declared == null && items.length > 0 && itemsTotal === 0;
+
+  // The hold is the ceiling on everything. Fetched rather than recomputed:
+  // it is the exact figure settlement measures against.
+  const { data: escrow } = useQuery({
+    queryKey: ["escrow", errand.id],
+    queryFn: () => fetchEscrow(errand.id),
+  });
+  const ceiling = escrow ? Number(escrow.amount) : null;
+  const overCeiling = ceiling != null && total > ceiling;
 
   const complete = useMutation({
     mutationFn: () => completeErrand(errand.id),
@@ -389,15 +404,36 @@ function PaymentCard({ errand, isRequester }: { errand: Errand; isRequester: boo
       )}
 
       <div className="mx-auto mt-5 max-w-xs space-y-2 text-left text-sm">
-        {itemsTotal > 0 && row("Items", `₹${itemsTotal.toFixed(0)}`)}
-        {pricelessItems && row("Items", "store bill")}
-        {collect > 0 && row("Cash paid at pickup", `₹${collect.toFixed(0)}`)}
+        {declared != null
+          ? row("What your runner paid", `₹${declared.toFixed(0)}`)
+          : (
+            <>
+              {itemsTotal > 0 && row("Items", `₹${itemsTotal.toFixed(0)}`)}
+              {pricelessItems && row("Items", "store bill")}
+              {collect > 0 && row("Cash paid at pickup", `₹${collect.toFixed(0)}`)}
+            </>
+          )}
         {row("Runner reward", `₹${reward.toFixed(0)}`)}
         <div className="flex justify-between border-t border-line pt-2 text-base font-extrabold">
           <span>Total{pricelessItems ? " + bill" : ""}</span>
           <span className="tabular-nums">₹{total.toFixed(0)}</span>
         </div>
       </div>
+
+      {overCeiling && (
+        <div className="mx-auto mt-5 max-w-xs rounded-xl border border-red-200 bg-red-50 p-3 text-left">
+          <p className="text-sm font-bold text-red-700">
+            This bill is more than you locked
+          </p>
+          <p className="mt-1 text-xs text-red-700">
+            You locked ₹{ceiling!.toFixed(0)}. You will not be charged the extra ₹
+            {(total - ceiling!).toFixed(0)}
+            {isRequester
+              ? " — confirming leaves your money held and sends the difference to an admin."
+              : " — this settles after an admin reviews it."}
+          </p>
+        </div>
+      )}
 
       {isRequester ? (
         <button
