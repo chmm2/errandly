@@ -25,6 +25,8 @@ import {
   Screen,
   Title,
 } from "../../src/components/ui";
+import type { ReferenceSuggestion } from "../../src/api/fraud";
+import { ItemSearchField } from "../../src/components/ItemSearchField";
 import { apiErrorMessage } from "../../src/lib/api";
 import { goBack } from "../../src/lib/nav";
 import { categoryIcon, colors, font, radius, space } from "../../src/theme";
@@ -93,6 +95,9 @@ const FIXED_PICKUP: Record<string, string> = {
 interface ListRow {
   name: string;
   quantity: number;
+  // Set when the line was picked off the admin's non-MRP price list. It
+  // is what earns the line escrow headroom, so it travels with the order.
+  ref?: ReferenceSuggestion | null;
 }
 
 export default function NewErrand() {
@@ -110,7 +115,7 @@ export default function NewErrand() {
   // priced, and price checking is what catches an inflated claim — the runner
   // reports a unit price per line, and a line needs a name and a quantity to
   // report against.
-  const [rows, setRows] = useState<ListRow[]>([{ name: "", quantity: 1 }]);
+  const [rows, setRows] = useState<ListRow[]>([{ name: "", quantity: 1, ref: null }]);
   const [courier, setCourier] = useState("");
   const [courierOther, setCourierOther] = useState("");
   const [reward, setReward] = useState("20");
@@ -195,6 +200,9 @@ export default function NewErrand() {
             list_items: filledRows.map((r) => ({
               name: r.name.trim(),
               quantity: r.quantity,
+              // Only the id travels. The server re-reads the price from that
+              // row, so nothing sent from here can change what gets held.
+              reference_id: r.ref?.reference_id,
             })),
           }
         : {}),
@@ -279,11 +287,16 @@ export default function NewErrand() {
                   {rows.map((row, i) => (
                     <Row key={i} gap={space.sm}>
                       <View style={{ flex: 1 }}>
-                        <Field
-                          placeholder={i === 0 ? "Chicken puff" : "Add another item"}
+                        <ItemSearchField
+                          placeholder={
+                            i === 0
+                              ? "Search the campus price list"
+                              : "Add another item"
+                          }
                           value={row.name}
+                          picked={row.ref ?? null}
                           onChangeText={(v) => setRow(i, { name: v })}
-                          maxLength={120}
+                          onPick={(ref) => setRow(i, { ref })}
                         />
                       </View>
 
@@ -311,7 +324,7 @@ export default function NewErrand() {
                         onPress={() =>
                           setRows((prev) =>
                             prev.length === 1
-                              ? [{ name: "", quantity: 1 }]
+                              ? [{ name: "", quantity: 1, ref: null }]
                               : prev.filter((_, idx) => idx !== i),
                           )
                         }
@@ -325,7 +338,7 @@ export default function NewErrand() {
                 </View>
 
                 <Pressable
-                  onPress={() => setRows((prev) => [...prev, { name: "", quantity: 1 }])}
+                  onPress={() => setRows((prev) => [...prev, { name: "", quantity: 1, ref: null }])}
                   style={s.addRow}
                 >
                   <Text style={s.addRowText}>+  Add item</Text>
