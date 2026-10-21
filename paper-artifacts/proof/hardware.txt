@@ -1,0 +1,7 @@
+Machine the experiments and tests ran on
+
+CPU: 12th Gen Intel(R) Core(TM) i7-12650H
+Host OS: Microsoft Windows 11 Home Single Language
+Docker server: 29.6.1, 16 CPUs and 7.6 GiB visible to containers
+Neo4j: neo4j:5.26-community (throwaway instance per process)
+Python in the backend image: Python 3.12.14

@@ -1,0 +1,103 @@
+% Experiment 2 (main table): backend/evals/paper/exp2_collusion.py main <regimes>  (30 seeds)
+\emph{Regimes.} We compare ten detectors in five behavioural regimes, 30 seeds each.
+In the \emph{routine} regime friends meet only through the router. The \emph{busy}
+regime has twice as many runners online and friends four times likelier to accept
+each other's offers, so the router itself puts honest friends together. In the
+\emph{favours} regime every honest group member also posts six errands per semester
+meant for a particular friend, who takes them from the feed; this is deliberate
+in-group routing with nothing dishonest about it. In the \emph{coordinated} regime the
+rings are careful: before each farming errand the partner comes online and walks
+over, so the router offers the errand to the partner first. The \emph{hard} regime
+combines honest favours with coordinated rings.
+
+\emph{Detectors.} Four single-signal baselines use structure or money at the
+production knees. A cycle baseline applies the ring search's leg rule and
+strongly-connected-component search to any pair of students, without the friendship
+test. Two graph-mining baselines come from the fraud literature. The first is
+FRAUDAR-style greedy peeling \cite{hooi2016fraudar,charikar2000dense} on the
+bipartite payer--payee graph, with edges weighted by the number of errands and the
+logarithmic column weighting FRAUDAR uses against camouflage. The second is
+label-propagation communities \cite{raghavan2007lpa} on the friendship graph, ranked
+by the share of their members' value that stays inside. The last three rows are the
+ring search and the ring search followed by each version of the policy test.
+
+\begin{table*}[!t]
+\caption{Ring Detection on a Simulated 1,200-Student Campus. Precision (P), Recall
+(R) and False-Positive Rate (FPR, \%), Mean of 30 Seeds}
+\label{tab:rings}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{2.4pt}
+\begin{tabular}{@{}lccccccccccccccc@{}}
+\toprule
+& \multicolumn{3}{c}{Routine} & \multicolumn{3}{c}{Busy} & \multicolumn{3}{c}{Favours}
+& \multicolumn{3}{c}{Coordinated} & \multicolumn{3}{c}{Hard} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}\cmidrule(lr){11-13}\cmidrule(l){14-16}
+Detector & P & R & FPR & P & R & FPR & P & R & FPR & P & R & FPR & P & R & FPR \\
+\midrule
+Closure, circulation, or both & n/a & 0.00 & 0.00 & n/a & 0.00 & 0.03 & n/a & 0.00 & 0.00 & n/a & 0.00 & 0.00 & n/a & 0.00 & 0.00 \\
+Clustering coefficient $>0.55$ & 0.11 & 0.03 & 0.44 & 0.11 & 0.03 & 0.44 & 0.11 & 0.03 & 0.44 & 0.11 & 0.03 & 0.44 & 0.11 & 0.03 & 0.44 \\
+Payment cycles, any pair & 0.63 & 0.95 & 1.34 & 0.38 & 0.96 & 3.73 & 0.50 & 0.94 & 2.23 & 0.69 & 0.99 & 1.12 & 0.48 & 0.99 & 2.48 \\
+FRAUDAR-style peeling$^{\dagger}$ & 0.36 & 0.36 & 1.41 & 0.28 & 0.28 & 1.59 & 0.30 & 0.30 & 1.55 & 0.48 & 0.48 & 1.16 & 0.43 & 0.43 & 1.27 \\
+Label propagation + money$^{\dagger}$ & 0.03 & 0.06 & 4.18 & 0.02 & 0.03 & 4.17 & 0.02 & 0.04 & 4.30 & 0.01 & 0.02 & 4.21 & 0.03 & 0.05 & 4.15 \\
+Cycles among mutual friends (\code{find\_rings}) & 0.98 & 0.95 & 0.05 & 0.89 & 0.96 & 0.29 & 0.82 & 0.94 & 0.50 & 0.99 & 0.99 & 0.03 & 0.83 & 0.99 & 0.47 \\
+\quad + policy test, router scores (original) & 0.99 & 0.95 & 0.02 & 0.98 & 0.96 & 0.05 & 0.94 & 0.94 & 0.13 & 0.10 & 0.02 & 0.00 & 0.15 & 0.04 & 0.17 \\
+\quad + policy test, fitted model (deployed) & 0.99 & 0.95 & 0.02 & 0.98 & 0.96 & 0.05 & 0.93 & 0.94 & 0.16 & 1.00 & 0.79 & 0.00 & 0.91 & 0.85 & 0.20 \\
+\bottomrule
+\end{tabular}
+
+\vspace{2pt}
+\parbox{0.96\textwidth}{\scriptsize Recall is over the 26 planted ring members; FPR is
+over the 1,174 other students. Precision is counted as 0 in a trial that flags nobody;
+``n/a'' marks detectors that flagged nobody in almost every trial. Structure is the same
+in every regime, so the clustering row repeats. $^{\dagger}$Scored as a ranking cut at
+the true number of ring members, which no deployment would know. Half-widths of 95\%
+confidence intervals are at most 0.06 for precision or recall in the last three rows
+and at most 0.12 elsewhere; Table~\ref{tab:summary} gives them for the deployed
+detector.}
+\end{table*}
+
+\emph{Single signals see nothing.} Ring members, like everyone, have friends outside
+their ring, so their closure stays under the 0.55 knee; and because farming errands
+are cheap and members keep running ordinary errands, circulation stays under 0.6. The
+clustering coefficient flags about five students per trial, mostly honest group
+members, and almost never a ring member.
+
+\emph{Graph-mining baselines find the marketplace, not the ring.} FRAUDAR's own
+output, its densest block, was the whole campus (1,199 or 1,200 accounts) in every
+trial. A ring of three to eight students who each run a dozen cheap errands for one
+another is not dense compared with the core of an active marketplace, where everyone
+pays everyone a little. Cut at the true number of ring members, the peeling order
+still reached an F1 score of only 0.28--0.48. Label-propagation communities were about
+the size of a hostel block, so no community crossed the circulation knee in any trial,
+and the ranked version mostly flagged a whole block of honest students. Both methods
+look for large dense or tightly-knit groups. The groups we are after are small, and
+dense only in money that flows around a cycle.
+
+\emph{Cycles need the friendship test.} Payment cycles without the friendship test
+found almost every ring member but flagged 13 to 44 honest students per trial,
+because repeated errands between nearby strangers also close cycles. Requiring every
+leg to join mutual friends is what makes cycle evidence usable: \code{find\_rings}
+reached an F1 score of $0.96\pm0.02$ in the routine regime and $0.99\pm0.01$ against
+coordinated rings, which do not change the money pattern.
+
+\emph{The router's false positives.} The ring search's false positives come from the
+two cases it cannot see through: router-induced cycles (3.4 honest students per trial
+in the busy regime) and honest favours (5.9 in the favours regime, 5.5 in the hard
+one). Both versions of the policy test removed most of them. The fitted test removed
+82\% in the busy regime and 68\% with honest favours, lifting F1 from 0.92 to 0.96 and
+from 0.87 to 0.93, and lost no ring member in either.
+
+\emph{Where the original test failed.} Against coordinated rings the router-score
+test cleared 146 of the 149 cycles that contained ring members, and recall fell from
+0.99 to 0.02. The fitted test cleared 37 of them, for a recall of $0.79\pm0.06$ at a
+precision of 1.00. With honest favours added (the hard regime) the original test kept
+a recall of 0.04 and the fitted test 0.85, at a precision of 0.91.
+Section~\ref{sec:eval-policy} examines why.
+
+\emph{Variability.} Recall below 1 in the routine, busy and favours regimes came from
+seeds in which honest runners won enough of a ring's cheap errands to push one leg
+under the qualification floor (on average 1.3 of 26 members missed in the routine
+regime). Fig.~\ref{fig:sweeps}(b) shows how that floor depends on farming intensity.
+The number of cycles raised per trial varied from four to nine, because some seeds
+plant honest groups where the router closes a cycle.

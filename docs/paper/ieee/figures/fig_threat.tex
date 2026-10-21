@@ -1,0 +1,20 @@
+% The attacker's loop. Reputation gates access to work, so repairing it is
+% a precondition for reaching new victims, not vanity.
+\begin{tikzpicture}[
+  font=\scriptsize,
+  stage/.style={draw, thick, rectangle, align=center, text width=21mm, minimum height=8mm},
+  flow/.style={-{Stealth[length=2mm]}, thick}]
+  \def\R{23mm}
+  \foreach \i/\t in {
+      1/{1. Inflate an\\unpriced claim},
+      2/{2. Stay just under\\the flag line},
+      3/{3. Flags pile up;\\rank falls},
+      4/{4. Farm ratings\\from friends},
+      5/{5. Circulate money\\to pay for it},
+      6/{6. Rank restored;\\reach strangers}} {
+    \node[stage] (s\i) at ({90 - (\i-1)*60}:\R) {\t};
+  }
+  \foreach \i/\j in {1/2, 2/3, 3/4, 4/5, 5/6, 6/1}
+    \draw[flow] (s\i) to[bend left=18] (s\j);
+  \node[align=center, font=\scriptsize\itshape] at (0,0) {reputation\\gates work};
+\end{tikzpicture}

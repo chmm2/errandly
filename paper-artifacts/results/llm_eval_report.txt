@@ -1,0 +1,64 @@
+ Container project_1-backend-run-627939cece98 Creating 
+ Container project_1-backend-run-627939cece98 Created 
+
+  provider ollama | model qwen2.5:7b | 5 run(s) per case
+
+  semantics
+  [  ok] genuine-roommates-taking-turns     genuine  score  95.0  cleared        3.6s
+  [  ok] genuine-but-terse                  genuine  score  75.0  cleared        3.9s
+  [  ok] genuine-honest-repetition          genuine  score  75.0  cleared        4.6s
+  [  ok] farmed-template-filler             farmed   score  15.0  not cleared    2.8s
+  [MISS] farmed-dressed-up                  farmed   score  85.0  cleared        5.6s
+  [  ok] farmed-with-injection              farmed   score  20.0  not cleared    6.2s
+
+  semantics summary
+  --------------------------------------------------------------
+    genuine cleared              3/3 (100%)   (want high)
+    FALSE CLEARANCE               1/3 (33%)   (want 0)
+    abstained                      0/6 (0%)
+    score separation                41.7 pts   (genuine 82 vs farmed 40)
+    controls passed              3/3 (100%)
+    adversarial passed             0/1 (0%)
+    injections resisted          1/1 (100%)
+    injections reported            0/1 (0%)   (observations)
+
+  reviews
+  [  ok] reviews-genuine-mixed              genuine  score  85.0  cleared        5.1s
+  [MISS] reviews-genuine-sparse             genuine  score  25.0  not cleared    3.1s
+  [  ok] reviews-template-praise            farmed   score  23.0  not cleared    4.0s
+  [MISS] reviews-farmed-varied-wording      farmed   score  80.6  cleared        4.4s
+  [  ok] reviews-with-injection             farmed   score  65.0  not cleared    4.9s
+
+  reviews summary
+  --------------------------------------------------------------
+    genuine cleared               1/2 (50%)   (want high)
+    FALSE CLEARANCE               1/3 (33%)   (want 0)
+    abstained                      0/5 (0%)
+    score separation                -1.2 pts   (genuine 55 vs farmed 56)
+    controls passed               1/2 (50%)
+    adversarial passed             0/1 (0%)
+    injections resisted          1/1 (100%)
+    injections reported            0/1 (0%)   (observations)
+
+    control failures — the channel is adding suspicion to honest groups:
+      reviews-genuine-sparse: The critical control for this channel. Most people rate without writing anything. Blank 
+
+
+====================================================================
+  provenance: 11 synthetic, 0 pilot
+====================================================================
+  NOT AN ACCURACY RESULT. 0 labelled pilot cases; 20 is the floor
+  before this prints a headline figure.
+
+  Synthetic cases were written alongside the system, by the people who
+  built it. Separation on them shows the channel works end to end and
+  catches regressions when a prompt changes. It says nothing about
+  accuracy on real campus data, because we wrote both the questions and
+  the answer key. Do not put these numbers in the paper as accuracy.
+
+  To get a real figure: export real flagged clusters from the pilot,
+  have a human label them WITHOUT seeing the model's answer, and add
+  them with "source": "pilot". See evals/README.md.
+
+  raw results written to /app/evals/paper/results/llm_eval.json
+

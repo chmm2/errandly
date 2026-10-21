@@ -447,6 +447,44 @@ def judge(
 # ------------------------------------------------------------------ claims
 
 
+async def _loose_lines(
+    db: AsyncSession, errand_id: uuid.UUID
+) -> list[tuple[str, ReferencePrice | None, int]]:
+    """The order's hand-bought lines, as (normalised name, admin reference,
+    quantity ordered).
+
+    Menu lines are excluded: they carry a vendor price and are never claimed.
+    """
+    from app.modules.errands.models import ErrandItem
+
+    items = list(
+        await db.scalars(
+            select(ErrandItem).where(
+                ErrandItem.errand_id == errand_id, ErrandItem.menu_item_id.is_(None)
+            )
+        )
+    )
+    out = []
+    for item in items:
+        ref = await db.get(ReferencePrice, item.reference_id) if item.reference_id else None
+        out.append((normalize_mod.normalize(item.name_snapshot), ref, item.quantity))
+    return out
+
+
+def _match_order_line(raw_name: str, order_lines):
+    """The order line this claim refers to, by normalised name, or None."""
+    key = normalize_mod.normalize(raw_name)
+    if not key:
+        return None
+    for line in order_lines:
+        if line[0] == key:
+            return line
+    best = normalize_mod.best_fuzzy_match(key, [line[0] for line in order_lines])
+    if best:
+        return next(line for line in order_lines if line[0] == best[0])
+    return None
+
+
 async def submit_claims(
     db: AsyncSession,
     redis: Redis,
@@ -471,13 +509,40 @@ async def submit_claims(
     aliases = await approved_aliases(db, errand.campus_id)
     store_key = store_key_for(errand)
     claims: list[RunnerPriceClaim] = []
+    order_lines = await _loose_lines(db, errand.id)
 
     for raw_name, unit_price, quantity in lines:
-        item_key, _matched = resolve_key(raw_name, keys, aliases)
-        if not item_key:
-            raise FraudError(f"Could not read an item name from '{raw_name}'.", 422)
+        # A claim on an itemised order must name one of that order's lines. The
+        # runner types the name, so without this a priced item could be renamed
+        # ("chikn pufff") until it matched nothing, come back NO_REFERENCE, and
+        # be paid unchecked. A line the requester picked from the admin list is
+        # judged against THAT reference whatever the runner calls it.
+        bound = None
+        if order_lines:
+            bound = _match_order_line(raw_name, order_lines)
+            if bound is None:
+                raise FraudError(
+                    f"'{raw_name}' is not an item on this order. Report prices for "
+                    "the items the requester asked for.",
+                    422,
+                )
+            # The unit is one of whatever the line names, and the requester set
+            # how many. Without this cap a correctly priced line could still be
+            # padded by claiming more of it than was asked for.
+            if quantity > bound[2]:
+                raise FraudError(
+                    f"The order asked for {bound[2]} of '{raw_name}', not {quantity}.",
+                    422,
+                )
 
-        reference = await get_reference(db, errand.campus_id, item_key)
+        if bound is not None and bound[1] is not None:
+            reference = bound[1]
+            item_key = reference.item_key
+        else:
+            item_key, _matched = resolve_key(raw_name, keys, aliases)
+            if not item_key:
+                raise FraudError(f"Could not read an item name from '{raw_name}'.", 422)
+            reference = await get_reference(db, errand.campus_id, item_key)
         ref_unit = (
             await store_adjusted_reference(
                 db, errand.campus_id, item_key, store_key, reference
@@ -693,19 +758,26 @@ async def evaluate_near_threshold(
     return flag
 
 
-async def count_recent_flags(db: AsyncSession, user_id: uuid.UUID) -> int:
+async def count_recent_flags(
+    db: AsyncSession, user_id: uuid.UUID, statuses: tuple[str, ...] = ("OPEN", "UPHELD")
+) -> int:
     """Flagged ERRANDS in the window, not flagged lines.
 
     Counting distinct errands is deliberate: a receipt with four inflated items
     is one occasion of dishonesty, and counting it as four would race a runner
     up the ladder for a single incident.
+
+    Only price-claim flags count. A ring or rating-farming flag is relational
+    evidence that a person has to weigh; letting it feed an automatic ladder
+    would turn an unreviewed inference into a sanction.
     """
     since = datetime.now(UTC) - timedelta(days=PATTERN_WINDOW_DAYS)
     count = await db.scalar(
         select(func.count(func.distinct(func.coalesce(FraudFlag.errand_id, FraudFlag.id)))).where(
             FraudFlag.user_id == user_id,
+            FraudFlag.rule == "CLAIM_ABOVE_REFERENCE",
             FraudFlag.created_at >= since,
-            FraudFlag.status.in_(("OPEN", "UPHELD")),
+            FraudFlag.status.in_(statuses),
         )
     )
     return count or 0
@@ -733,6 +805,13 @@ async def evaluate_pattern(
     """
     flag_count = await count_recent_flags(db, runner.id)
     target_level = _level_for(flag_count)
+    # The first three levels are temporary and reversible (a warning, a rank
+    # penalty, a seven-day pause) and may act on open flags. The last one
+    # removes a student from the platform, so it counts only flags a human has
+    # upheld: automation may demote, only a person may exclude.
+    if target_level == len(STRIKE_THRESHOLDS):
+        upheld = await count_recent_flags(db, runner.id, statuses=("UPHELD",))
+        target_level = min(target_level, max(len(STRIKE_THRESHOLDS) - 1, _level_for(upheld)))
     if target_level == 0:
         return None
 
@@ -851,6 +930,12 @@ async def sweep_collusion_rings(db: AsyncSession) -> list[FraudFlag]:
     if not rings:
         return []
 
+    # One acceptance model per sweep, fitted on rounds posted by people outside
+    # every candidate ring, so no group calibrates the model that judges it.
+    # None (too little history) falls back to the router's own scores.
+    suspects = {m for ring in rings for m in ring.members}
+    model = await policy.fit_from_log(db, exclude=suspects)
+
     raised: list[FraudFlag] = []
     for ring in rings:
         members = list(ring.members)
@@ -892,7 +977,7 @@ async def sweep_collusion_rings(db: AsyncSession) -> list[FraudFlag]:
         # history) leaves the old behaviour untouched, and a high excess never
         # raises severity or manufactures a flag. The cycle evidence must still
         # stand on its own.
-        excess = await policy.excess_for_group(db, members)
+        excess = await policy.excess_for_group(db, members, model=model)
         if excess is not None and excess.explained:
             logger.info(
                 "collusion: ring %s suppressed - the routing policy explains it "
@@ -1173,5 +1258,37 @@ async def review_flag(
         if claim:
             claim.verdict = "OK"
 
+    if not uphold:
+        await db.flush()
+        await _lift_unwarranted_block(db, flag.user_id)
+    else:
+        # An upheld flag can be what the final level was waiting for.
+        runner = await db.get(User, flag.user_id)
+        if runner is not None:
+            await db.flush()
+            await evaluate_pattern(db, redis, runner)
+
     await db.flush()
     return flag
+
+
+async def _lift_unwarranted_block(db: AsyncSession, user_id: uuid.UUID) -> None:
+    """The appeal path. A running pause that the remaining flags no longer
+    justify ends when the flag behind it is dismissed. The strike stays on file
+    as history, marked lifted."""
+    profile = await db.get(RunnerProfile, user_id)
+    if profile is None or profile.fraud_blocked_until is None:
+        return
+    pause_level = STRIKE_ACTIONS.index("RUNNER_SUSPENDED") + 1
+    if _level_for(await count_recent_flags(db, user_id)) >= pause_level:
+        return
+    profile.fraud_blocked_until = None
+    now = datetime.now(UTC)
+    for strike in await db.scalars(
+        select(UserStrike).where(
+            UserStrike.user_id == user_id,
+            UserStrike.action == "RUNNER_SUSPENDED",
+            UserStrike.lifted_at.is_(None),
+        )
+    ):
+        strike.lifted_at = now

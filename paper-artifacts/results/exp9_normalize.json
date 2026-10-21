@@ -1,0 +1,619 @@
+{
+  "experiment": "exp9_normalize",
+  "generated_at": "2026-10-20T19:18:51.017482+00:00",
+  "git_commit": "00d8928+review-fixes",
+  "python": "3.12.14",
+  "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+  "hardware": {
+    "logical_cpus": 16,
+    "cpu": "12th Gen Intel(R) Core(TM) i7-12650H",
+    "mem_gib": 7.6
+  },
+  "results": {
+    "items": 20,
+    "variants": 200,
+    "correct": 193,
+    "wrong": 0,
+    "unmatched": 7,
+    "per_item_correct": {
+      "Chicken Puff": 10,
+      "Veg Puff": 9,
+      "Egg Puff": 10,
+      "Masala Tea": 10,
+      "Ginger Tea": 10,
+      "Samosa": 8,
+      "Veg Sandwich": 10,
+      "Chicken Sandwich": 10,
+      "Cold Coffee": 9,
+      "Hot Coffee": 10,
+      "Veg Biryani": 9,
+      "Chicken Biryani": 10,
+      "Paneer Roll": 9,
+      "Chicken Roll": 10,
+      "Veg Maggi": 10,
+      "Lime Soda": 10,
+      "Water Bottle": 10,
+      "Chocolate Milkshake": 10,
+      "Bread Omelette": 10,
+      "Paratha": 9
+    },
+    "misses": [
+      {
+        "variant": "vg puff",
+        "expected": "vegetable puff",
+        "got": "vg puff",
+        "kind": "UNMATCHED"
+      },
+      {
+        "variant": "2 samosas",
+        "expected": "samosa",
+        "got": "2 samosa",
+        "kind": "UNMATCHED"
+      },
+      {
+        "variant": "samosa (2)",
+        "expected": "samosa",
+        "got": "samosa 2",
+        "kind": "UNMATCHED"
+      },
+      {
+        "variant": "cold kofee",
+        "expected": "cold coffee",
+        "got": "cold kofee",
+        "kind": "UNMATCHED"
+      },
+      {
+        "variant": "veg biriyani plate",
+        "expected": "vegetable biryani",
+        "got": "vegetable biryani plate",
+        "kind": "UNMATCHED"
+      },
+      {
+        "variant": "panir roll",
+        "expected": "paneer roll",
+        "got": "panir roll",
+        "kind": "UNMATCHED"
+      },
+      {
+        "variant": "paratta",
+        "expected": "paratha",
+        "got": "paratta",
+        "kind": "UNMATCHED"
+      }
+    ],
+    "negatives": 20,
+    "false_merges": [],
+    "adversarial": {
+      "order_priced": [
+        "Chicken Puff",
+        "Veg Puff",
+        "Masala Tea"
+      ],
+      "order_loose": [
+        "Notebook",
+        "Blue Pen"
+      ],
+      "by_kind": {
+        "misspell": {
+          "attempts": 12,
+          "old": {
+            "JUDGED_SAME": 9,
+            "JUDGED_OTHER": 0,
+            "UNCHECKED": 3,
+            "REFUSED": 0
+          },
+          "new": {
+            "JUDGED_SAME": 9,
+            "JUDGED_OTHER": 0,
+            "UNCHECKED": 0,
+            "REFUSED": 3
+          }
+        },
+        "padding": {
+          "attempts": 12,
+          "old": {
+            "JUDGED_SAME": 1,
+            "JUDGED_OTHER": 0,
+            "UNCHECKED": 11,
+            "REFUSED": 0
+          },
+          "new": {
+            "JUDGED_SAME": 1,
+            "JUDGED_OTHER": 0,
+            "UNCHECKED": 0,
+            "REFUSED": 11
+          }
+        },
+        "obfuscation": {
+          "attempts": 16,
+          "old": {
+            "JUDGED_SAME": 10,
+            "JUDGED_OTHER": 0,
+            "UNCHECKED": 6,
+            "REFUSED": 0
+          },
+          "new": {
+            "JUDGED_SAME": 10,
+            "JUDGED_OTHER": 0,
+            "UNCHECKED": 0,
+            "REFUSED": 6
+          }
+        },
+        "rename": {
+          "attempts": 15,
+          "old": {
+            "JUDGED_SAME": 0,
+            "JUDGED_OTHER": 0,
+            "UNCHECKED": 15,
+            "REFUSED": 0
+          },
+          "new": {
+            "JUDGED_SAME": 0,
+            "JUDGED_OTHER": 0,
+            "UNCHECKED": 0,
+            "REFUSED": 15
+          }
+        },
+        "swap": {
+          "attempts": 6,
+          "old": {
+            "JUDGED_SAME": 0,
+            "JUDGED_OTHER": 0,
+            "UNCHECKED": 6,
+            "REFUSED": 0
+          },
+          "new": {
+            "JUDGED_SAME": 0,
+            "JUDGED_OTHER": 0,
+            "UNCHECKED": 6,
+            "REFUSED": 0
+          }
+        }
+      },
+      "total": {
+        "attempts": 61,
+        "old": {
+          "JUDGED_SAME": 20,
+          "JUDGED_OTHER": 0,
+          "UNCHECKED": 41,
+          "REFUSED": 0
+        },
+        "new": {
+          "JUDGED_SAME": 20,
+          "JUDGED_OTHER": 0,
+          "UNCHECKED": 6,
+          "REFUSED": 35
+        }
+      },
+      "attempts": [
+        {
+          "item": "Chicken Puff",
+          "kind": "misspell",
+          "name": "chikn pufff",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "misspell",
+          "name": "chicken pufs",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "misspell",
+          "name": "chickn puff",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "misspell",
+          "name": "chicken poof",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "padding",
+          "name": "chicken puff special",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "padding",
+          "name": "chicken puff large",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "padding",
+          "name": "big chicken puff",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "padding",
+          "name": "fresh chicken puff",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "obfuscation",
+          "name": "ch1cken puff",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "obfuscation",
+          "name": "c h i c k e n puff",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "obfuscation",
+          "name": "chicken_puff",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "obfuscation",
+          "name": "chickenpuff",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "obfuscation",
+          "name": "ch\u0456cken puff",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "obfuscation",
+          "name": "CHICKEN PUFF :)",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "rename",
+          "name": "snack",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "rename",
+          "name": "item 1",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "rename",
+          "name": "zzq special",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "rename",
+          "name": "bakery item",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "rename",
+          "name": "puff pastry",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "swap",
+          "name": "notebook",
+          "old": "UNCHECKED",
+          "new": "UNCHECKED"
+        },
+        {
+          "item": "Chicken Puff",
+          "kind": "swap",
+          "name": "blue pen",
+          "old": "UNCHECKED",
+          "new": "UNCHECKED"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "misspell",
+          "name": "vej puf",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "misspell",
+          "name": "veg pufff",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "misspell",
+          "name": "vg puff",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "misspell",
+          "name": "veg poff",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "padding",
+          "name": "veg puff special",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "padding",
+          "name": "veg puff large",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "padding",
+          "name": "big veg puff",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "padding",
+          "name": "fresh veg puff",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "obfuscation",
+          "name": "v3g puff",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "obfuscation",
+          "name": "v e g puff",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "obfuscation",
+          "name": "veg_puff",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "obfuscation",
+          "name": "vegpuff",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "obfuscation",
+          "name": "VEG PUFF!!",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "rename",
+          "name": "snack",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "rename",
+          "name": "item 2",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "rename",
+          "name": "qqx",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "rename",
+          "name": "bakery item",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "rename",
+          "name": "vegetable pastry",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "swap",
+          "name": "notebook",
+          "old": "UNCHECKED",
+          "new": "UNCHECKED"
+        },
+        {
+          "item": "Veg Puff",
+          "kind": "swap",
+          "name": "blue pen",
+          "old": "UNCHECKED",
+          "new": "UNCHECKED"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "misspell",
+          "name": "masla tee",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "misspell",
+          "name": "masala teaa",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "misspell",
+          "name": "msala tea",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "misspell",
+          "name": "masala tae",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "padding",
+          "name": "masala tea large",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "padding",
+          "name": "special masala tea",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "padding",
+          "name": "masala tea cup",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "padding",
+          "name": "hot masala tea",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "obfuscation",
+          "name": "m4sala tea",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "obfuscation",
+          "name": "m a s a l a tea",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "obfuscation",
+          "name": "masala_tea",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "obfuscation",
+          "name": "masalatea",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "obfuscation",
+          "name": "MASALA TEA...",
+          "old": "JUDGED_SAME",
+          "new": "JUDGED_SAME"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "rename",
+          "name": "drink",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "rename",
+          "name": "item 3",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "rename",
+          "name": "chai",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "rename",
+          "name": "beverage",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "rename",
+          "name": "cutting",
+          "old": "UNCHECKED",
+          "new": "REFUSED"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "swap",
+          "name": "notebook",
+          "old": "UNCHECKED",
+          "new": "UNCHECKED"
+        },
+        {
+          "item": "Masala Tea",
+          "kind": "swap",
+          "name": "blue pen",
+          "old": "UNCHECKED",
+          "new": "UNCHECKED"
+        }
+      ]
+    }
+  }
+}
