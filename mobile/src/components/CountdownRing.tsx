@@ -2,18 +2,22 @@ import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
-import { colors, font, space } from "../theme";
-import { Body, Caption } from "./ui";
+import { colors, font, onBrand, radius } from "../theme";
+import { Icon } from "./icons";
 
 /**
- * Circular countdown that unwinds over the poster's wait window, ported from
- * the web tracking page. The server still owns expiry — this only visualises
- * `expires_at`, so a drifting phone clock can't change the outcome.
+ * Circular countdown that unwinds over the poster's wait window. The server
+ * still owns expiry: this only visualises `expires_at`, so a drifting phone
+ * clock can't change the outcome.
+ *
+ * Drawn for the teal "finding a runner" card, so the track is a translucent
+ * white and the remaining time is copper, the colour the design keeps for
+ * anything that is counting down on the user's behalf.
  */
 export function CountdownRing({
   createdAt,
   expiresAt,
-  size = 176,
+  size = 56,
 }: {
   createdAt: string;
   expiresAt: string;
@@ -35,13 +39,13 @@ export function CountdownRing({
   const ss = Math.floor((remaining % 60000) / 1000);
   const outOfTime = remaining === 0;
 
-  const stroke = 12;
-  const r = (size - stroke) / 2;
+  const stroke = 4;
+  const r = (size - stroke * 2) / 2;
   const circ = 2 * Math.PI * r;
 
   return (
-    <View style={{ width: size, height: size, alignSelf: "center" }}>
-      {/* -90° so the arc starts at twelve o'clock rather than three. */}
+    <View style={{ width: size, height: size }}>
+      {/* -90 degrees so the arc starts at twelve o'clock rather than three. */}
       <Svg width={size} height={size} style={{ transform: [{ rotate: "-90deg" }] }}>
         <Circle
           cx={size / 2}
@@ -49,7 +53,7 @@ export function CountdownRing({
           r={r}
           fill="none"
           strokeWidth={stroke}
-          stroke={colors.brandSoft}
+          stroke="rgba(255,255,255,0.2)"
         />
         <Circle
           cx={size / 2}
@@ -58,31 +62,26 @@ export function CountdownRing({
           fill="none"
           strokeWidth={stroke}
           strokeLinecap="round"
-          stroke={colors.brand}
+          stroke={colors.moneyLight}
           strokeDasharray={circ}
           strokeDashoffset={circ * (1 - fraction)}
         />
       </Svg>
 
-      <View style={StyleSheet.absoluteFill}>
-        <View style={s.center}>
-          {outOfTime ? (
-            <Text style={{ fontSize: 38 }}>🛵</Text>
-          ) : (
-            <>
-              <Text style={s.time}>
-                {mm}:{String(ss).padStart(2, "0")}
-              </Text>
-              <Text style={s.label}>until it expires</Text>
-            </>
-          )}
-        </View>
+      <View style={s.center}>
+        {outOfTime ? (
+          <Icon name="bike" size={22} color={colors.white} />
+        ) : (
+          <Text style={s.time}>
+            {mm}:{String(ss).padStart(2, "0")}
+          </Text>
+        )}
       </View>
     </View>
   );
 }
 
-/** The whole "we're finding you a runner" block, ring included. */
+/** The whole "we're finding you a runner" card, ring included. */
 export function FindingRunner({
   createdAt,
   expiresAt,
@@ -94,48 +93,49 @@ export function FindingRunner({
   return (
     <View style={s.box}>
       <CountdownRing createdAt={createdAt} expiresAt={expiresAt} />
-      <Body style={s.heading}>
-        {outOfTime ? "Still searching…" : "Finding a runner nearby"}
-      </Body>
-      <Caption style={{ textAlign: "center", marginTop: space.xs }}>
-        {outOfTime
-          ? "No one has accepted yet — one last widen of the search before it expires."
-          : "We're offering your errand to verified students heading your way."}
-      </Caption>
+      <View style={{ flex: 1 }}>
+        <Text style={s.heading}>{outOfTime ? "Still searching…" : "Finding a runner"}</Text>
+        <Text style={s.body}>
+          {outOfTime
+            ? "No one has accepted yet. One last widening of the search before it expires."
+            : "Asking your friends first, then their friends."}
+        </Text>
+      </View>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  center: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   time: {
-    color: colors.brandDark,
-    fontSize: 34,
+    color: colors.white,
+    fontSize: 12,
     fontFamily: font.black,
     fontVariant: ["tabular-nums"],
   },
-  label: {
-    color: colors.muted,
-    fontSize: 9,
-    fontFamily: font.semi,
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-    marginTop: 2,
-  },
   box: {
-    marginTop: space.xl,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: "rgba(255,244,234,0.5)",
-    paddingVertical: space.xxl,
-    paddingHorizontal: space.xl,
+    marginTop: 12,
+    flexDirection: "row",
     alignItems: "center",
+    gap: 14,
+    borderRadius: radius.card,
+    backgroundColor: colors.brand,
+    padding: 14,
   },
-  heading: {
-    fontFamily: font.black,
-    fontSize: font.h2,
-    marginTop: space.xl,
-    textAlign: "center",
+  heading: { color: colors.white, fontSize: 14, fontFamily: font.bold },
+  body: {
+    color: onBrand.text,
+    fontSize: 12,
+    fontFamily: font.regular,
+    lineHeight: 18,
+    marginTop: 2,
   },
 });

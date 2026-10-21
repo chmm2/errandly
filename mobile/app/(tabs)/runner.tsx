@@ -2,30 +2,35 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { RefreshControl, StyleSheet, Switch, Text, View } from "react-native";
+import {
+  Animated,
+  Easing,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { acceptErrand, type Errand, fetchFeed, fetchMyErrands } from "../../src/api/errands";
 import { fetchEarnings } from "../../src/api/ledger";
 import { fetchRunnerProfile, setAvailability, updateLocation } from "../../src/api/runners";
+import type { Connection } from "../../src/api/social";
+import { ConnectionBadge } from "../../src/components/ConnectionBadge";
 import { ErrandCard } from "../../src/components/ErrandCard";
+import { Icon } from "../../src/components/icons";
 import {
-  Body,
   Button,
-  Caption,
-  Card,
   EmptyState,
   Heading,
   Hero,
-  Loading,
-  Row,
+  PulseRing,
   Screen,
 } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
-import { confirm, notify } from "../../src/lib/dialog";
+import { notify } from "../../src/lib/dialog";
 import { useSocket } from "../../src/lib/ws";
-import type { Connection } from "../../src/api/social";
-import { ConnectionBadge } from "../../src/components/ConnectionBadge";
-import { colors, font, metres, radius, rupees, space } from "../../src/theme";
+import { colors, font, metres, onBrand, radius, rupees, shadow, space } from "../../src/theme";
 
 interface Offer {
   errand_id: string;
@@ -33,7 +38,7 @@ interface Offer {
   category: string;
   reward: number;
   distance_m?: number;
-  /** How you know the poster — rides along with the offer over pub/sub. */
+  /** How you know the poster, rides along with the offer over pub/sub. */
   connection?: Connection | null;
 }
 
@@ -150,104 +155,110 @@ export default function Runner() {
     <Screen
       scroll
       padded={false}
+      edges={[]}
+      bg={colors.bgSoft}
       refreshControl={
         <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.brand} />
       }
     >
       <Hero
         compact
-        title="Run mode 🛵"
-        subtitle="Pick up an errand on your way back to the hostel and earn for the trip you were making anyway."
+        title="Run mode"
+        subtitle="Earn on the trip back to your hostel that you were making anyway."
+        right={
+          <View style={s.heroTile}>
+            <Icon name="bike" size={28} color={colors.white} />
+          </View>
+        }
       />
 
-      <View style={{ paddingHorizontal: space.lg, paddingTop: space.xl }}>
-        {/* Online switch + earnings */}
-        <Card raised>
-          <Row justify="space-between">
+      <View style={s.body}>
+        {/* Online switch and earnings */}
+        <View style={[s.card, shadow.card]}>
+          <View style={s.onlineRow}>
             <View style={{ flex: 1 }}>
-              <Row gap={space.sm}>
-                <View
-                  style={[s.dot, { backgroundColor: available ? colors.emerald : colors.muted }]}
-                />
-                <Body style={{ fontFamily: font.bold }}>
-                  {available ? "You're online" : "You're offline"}
-                </Body>
-              </Row>
-              <Caption style={{ marginTop: 3 }}>
+              <View style={s.onlineHead}>
+                <View style={s.dotWrap}>
+                  {available ? <PulseRing color={colors.credit} duration={2200} /> : null}
+                  <View
+                    style={[s.dot, { backgroundColor: available ? colors.credit : colors.muted }]}
+                  />
+                </View>
+                <Text style={s.onlineTitle}>
+                  {available ? "You are online" : "You are offline"}
+                </Text>
+              </View>
+              <Text style={s.onlineNote}>
                 {available
-                  ? "Nearby errands will ping you instantly."
+                  ? "Nearby errands ping you instantly."
                   : "Go online to start receiving offers."}
-              </Caption>
+              </Text>
             </View>
-            <Switch
-              value={available}
-              onValueChange={toggle}
-              disabled={toggling}
-              trackColor={{ false: colors.line, true: colors.brandSoft }}
-              thumbColor={available ? colors.brand : "#f4f4f5"}
-            />
-          </Row>
+            <Toggle value={available} onChange={toggle} disabled={toggling} />
+          </View>
 
-          <Row gap={space.xxl} style={s.stats}>
-            <View>
-              <Text style={s.statValue}>{rupees(earnings?.balance ?? 0)}</Text>
-              <Caption>balance</Caption>
-            </View>
-            <View>
-              <Text style={s.statValue}>{rupees(earnings?.week_total ?? 0)}</Text>
-              <Caption>this week</Caption>
-            </View>
-            <View>
-              <Text style={s.statValue}>{earnings?.week_runs ?? 0}</Text>
-              <Caption>runs</Caption>
-            </View>
-          </Row>
-        </Card>
+          <View style={s.stats}>
+            <Stat value={rupees(earnings?.balance ?? 0)} label="balance" />
+            <Stat value={rupees(earnings?.week_total ?? 0)} label="this week" />
+            <Stat value={String(earnings?.week_runs ?? 0)} label="runs" />
+          </View>
+        </View>
 
         {/* Live offers */}
         {offers.length > 0 ? (
           <>
-            <Heading style={{ marginTop: space.xxl }}>⚡ Live offers for you</Heading>
-            <View style={{ gap: space.md, marginTop: space.lg }}>
+            <View style={s.liveHead}>
+              <Icon name="bolt" size={18} color={colors.brand} />
+              <Heading>
+                Live offer{offers.length === 1 ? "" : "s"} for you
+              </Heading>
+            </View>
+
+            <View style={{ gap: space.md, marginTop: 12 }}>
               {offers.map((o) => (
-                <Card key={o.errand_id} raised style={s.offer}>
-                  <Row justify="space-between" gap={space.md}>
-                    <View style={{ flex: 1 }}>
-                      <Row gap={space.sm} align="flex-start">
-                        <Body numberOfLines={1} style={{ fontFamily: font.bold, flex: 1 }}>
+                <View key={o.errand_id} style={s.offer}>
+                  <View style={s.offerTop}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <View style={s.offerTitleRow}>
+                        <Text numberOfLines={1} style={s.offerTitle}>
                           {o.title}
-                        </Body>
+                        </Text>
                         <ConnectionBadge connection={o.connection} />
-                      </Row>
-                      <Caption style={{ marginTop: 2 }}>
+                      </View>
+                      <Text style={s.offerSub}>
                         {o.connection?.degree === 1
                           ? "From a friend"
                           : o.connection?.via
                             ? `Through ${o.connection.via}`
-                            : null}
-                        {o.connection?.degree ? " · " : ""}
-                        {o.distance_m != null ? `${metres(o.distance_m)} away` : "Nearby"}
-                      </Caption>
+                            : "Nearby"}
+                        {o.distance_m != null ? `, ${metres(o.distance_m)} away` : ""}
+                      </Text>
                     </View>
-                    <Text style={s.offerReward}>{rupees(o.reward)}</Text>
-                  </Row>
-                  <Row gap={space.sm} style={{ marginTop: space.md }}>
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text style={s.offerReward}>{rupees(o.reward)}</Text>
+                      <Text style={s.rewardLabel}>reward</Text>
+                    </View>
+                  </View>
+
+                  <View style={s.offerActions}>
                     <Button
                       title="Accept"
-                      loading={accept.isPending}
+                      icon="check"
+                      loading={accept.isPending && accept.variables === o.errand_id}
                       onPress={() => accept.mutate(o.errand_id)}
                       style={{ flex: 1 }}
                     />
                     <Button
                       title="Skip"
                       variant="outline"
+                      full={false}
                       onPress={() =>
                         setOffers((prev) => prev.filter((x) => x.errand_id !== o.errand_id))
                       }
-                      style={{ flex: 1 }}
+                      style={{ width: 104 }}
                     />
-                  </Row>
-                </Card>
+                  </View>
+                </View>
               ))}
             </View>
           </>
@@ -257,7 +268,7 @@ export default function Runner() {
         {activeRuns.length > 0 ? (
           <>
             <Heading style={{ marginTop: space.xxl }}>Your active runs</Heading>
-            <View style={{ gap: space.md, marginTop: space.lg }}>
+            <View style={{ gap: space.md, marginTop: 12 }}>
               {activeRuns.map((e) => (
                 <ErrandCard key={e.id} errand={e} onPress={() => router.push(`/errand/${e.id}`)} />
               ))}
@@ -266,18 +277,18 @@ export default function Runner() {
         ) : null}
 
         {/* Nearby feed */}
-        <Heading style={{ marginTop: space.xxl, marginBottom: space.lg }}>Nearby errands</Heading>
+        <Heading style={{ marginTop: 24, marginBottom: 12 }}>Nearby errands</Heading>
         {!available ? (
           <EmptyState
-            emoji="🛵"
-            title="You're offline"
+            icon="bike"
+            title="You are offline"
             body="Flip the switch above to see errands around you and get live offers."
           />
         ) : nearby.length === 0 ? (
           <EmptyState
-            emoji="🌙"
+            icon="moon"
             title="Nothing nearby yet"
-            body="New errands appear here the moment someone posts one."
+            body="New errands appear the moment someone posts one."
           />
         ) : (
           <View style={{ gap: space.md }}>
@@ -287,13 +298,8 @@ export default function Runner() {
                 errand={e}
                 showStatus={false}
                 onPress={() => router.push(`/errand/${e.id}`)}
-                footer={
-                  <Button
-                    title="Accept this run"
-                    loading={accept.isPending && accept.variables === e.id}
-                    onPress={() => accept.mutate(e.id)}
-                  />
-                }
+                onAccept={() => accept.mutate(e.id)}
+                accepting={accept.isPending && accept.variables === e.id}
               />
             ))}
           </View>
@@ -303,16 +309,130 @@ export default function Runner() {
   );
 }
 
+function Stat({ value, label }: { value: string; label: string }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={s.statValue}>{value}</Text>
+      <Text style={s.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+/**
+ * The availability switch. Built by hand rather than with the platform Switch,
+ * because the design fixes its size and the platform control cannot be resized
+ * on either OS.
+ */
+function Toggle({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: boolean;
+  onChange: (next: boolean) => void;
+  disabled?: boolean;
+}) {
+  const t = useRef(new Animated.Value(value ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(t, {
+      toValue: value ? 1 : 0,
+      duration: 180,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  }, [t, value]);
+
+  const translateX = t.interpolate({ inputRange: [0, 1], outputRange: [0, 23] });
+
+  return (
+    <Pressable
+      onPress={() => onChange(!value)}
+      disabled={disabled}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value, disabled }}
+      accessibilityLabel="Availability"
+      style={[
+        s.toggle,
+        { backgroundColor: value ? colors.brand : colors.lineStrong },
+        disabled && { opacity: 0.6 },
+      ]}
+    >
+      <Animated.View style={[s.thumb, { transform: [{ translateX }] }]} />
+    </Pressable>
+  );
+}
+
 const s = StyleSheet.create({
-  dot: { width: 9, height: 9, borderRadius: 5 },
+  heroTile: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.xl,
+    backgroundColor: onBrand.fill,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  body: { paddingHorizontal: 22, paddingTop: 18 },
+
+  card: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: radius.card,
+    padding: 18,
+  },
+  onlineRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 14 },
+  onlineHead: { flexDirection: "row", alignItems: "center", gap: 8 },
+  dotWrap: { width: 9, height: 9, alignItems: "center", justifyContent: "center" },
+  dot: { width: 9, height: 9, borderRadius: 4.5 },
+  onlineTitle: { color: colors.ink, fontSize: 15, fontFamily: font.bold },
+  onlineNote: { color: colors.muted, fontSize: 12, fontFamily: font.regular, marginTop: 3 },
+
+  toggle: {
+    width: 54,
+    height: 31,
+    borderRadius: 16,
+    padding: 3,
+    justifyContent: "center",
+  },
+  thumb: {
+    width: 25,
+    height: 25,
+    borderRadius: 12.5,
+    backgroundColor: colors.white,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+
   stats: {
+    flexDirection: "row",
+    gap: 8,
     marginTop: space.lg,
     paddingTop: space.lg,
     borderTopWidth: 1,
-    borderTopColor: colors.line,
+    borderTopColor: colors.hairlineSoft,
   },
-  statValue: { color: colors.ink, fontSize: font.h3, fontFamily: font.black },
+  statValue: { color: colors.ink, fontSize: 18, fontFamily: font.black, letterSpacing: -0.4 },
+  statLabel: { color: colors.muted, fontSize: 11, fontFamily: font.regular },
 
-  offer: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
-  offerReward: { color: colors.brand, fontSize: font.h2, fontFamily: font.black },
+  liveHead: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 22 },
+
+  offer: {
+    borderWidth: 1.5,
+    borderColor: colors.brand,
+    backgroundColor: colors.brandWash,
+    borderRadius: radius.card,
+    padding: 18,
+  },
+  offerTop: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
+  offerTitleRow: { flexDirection: "row", alignItems: "center", gap: 7 },
+  offerTitle: { flexShrink: 1, color: colors.ink, fontSize: 15, fontFamily: font.bold },
+  offerSub: { color: colors.muted, fontSize: 12, fontFamily: font.regular, marginTop: 3 },
+  offerReward: { color: colors.moneyText, fontSize: 22, fontFamily: font.black, letterSpacing: -0.6 },
+  rewardLabel: { color: colors.mutedCool, fontSize: 10, fontFamily: font.regular },
+  offerActions: { flexDirection: "row", gap: 10, marginTop: space.lg },
 });

@@ -7,6 +7,7 @@ import { type ClaimLine, type ClaimResult, submitClaims } from "../api/fraud";
 import { fetchEscrow } from "../api/wallet";
 import { apiErrorMessage } from "../lib/api";
 import { colors, font, radius, rupees, space } from "../theme";
+import { Icon } from "./icons";
 import { Body, Button, Caption, Card, ErrorNote, Heading, Row } from "./ui";
 
 /**
@@ -18,7 +19,7 @@ import { Body, Button, Caption, Card, ErrorNote, Heading, Row } from "./ui";
  * with no explanation attached.
  *
  * Lines are prefilled from the customer's own list, including quantity. The
- * runner should never retype "chicken puff" and "2" — the requester already
+ * runner should never retype "chicken puff" and "2": the requester already
  * said that. They enter one number per line: the unit price. Getting quantity
  * from the order rather than from the runner also removes an obvious way to
  * inflate a total without touching a unit price that would be checked.
@@ -77,8 +78,11 @@ export function PriceClaimSheet({
   if (result) return <ClaimOutcome result={result} reward={errand.reward} />;
 
   return (
-    <Card style={{ marginTop: space.lg }}>
-      <Heading>Report what you paid</Heading>
+    <Card style={{ marginTop: 12 }}>
+      <Row gap={8}>
+        <Icon name="receipt" size={18} color={colors.brand} />
+        <Heading style={{ fontSize: 16 }}>Report what you paid</Heading>
+      </Row>
       <Caption style={{ marginTop: space.xs }}>
         Enter the price per item as printed at the counter. We add it up, and it
         is reimbursed to your wallet with your fee when the customer confirms.
@@ -124,7 +128,7 @@ export function PriceClaimSheet({
         ))}
       </View>
 
-      {/* The arithmetic, shown rather than implied — the runner is about to be
+      {/* The arithmetic, shown rather than implied: the runner is about to be
           held to this number. */}
       <View style={s.totals}>
         <Row justify="space-between">
@@ -143,12 +147,12 @@ export function PriceClaimSheet({
 
       {overCeiling ? (
         <View style={s.warn}>
-          <Body style={{ color: colors.redText, fontSize: 13 }}>
+          <Body style={{ color: colors.caution, fontSize: 13 }}>
             That comes to {rupees(customerPays)}, more than the {rupees(ceiling!)}
             {" "}held for this errand.
           </Body>
-          <Caption style={{ color: colors.redText, marginTop: space.xs }}>
-            You can still report it if it is what you really paid — but nothing
+          <Caption style={{ color: colors.caution, marginTop: space.xs }}>
+            You can still report it if it is what you really paid, but nothing
             is paid out on delivery. An admin reviews the difference first.
           </Caption>
         </View>
@@ -182,19 +186,22 @@ function ClaimOutcome({ result, reward }: { result: ClaimResult; reward: number 
   const held = result.withheld > 0;
 
   return (
-    <Card style={{ marginTop: space.lg }}>
-      <Heading>{held ? "Some of this is on hold" : "Prices recorded"}</Heading>
+    <Card style={{ marginTop: 12 }}>
+      <Row gap={8}>
+        <Icon name={held ? "scale" : "check"} size={18} color={held ? colors.warnText : colors.credit} />
+        <Heading style={{ fontSize: 16 }}>{held ? "Some of this is on hold" : "Prices recorded"}</Heading>
+      </Row>
 
       <View style={{ gap: space.sm, marginTop: space.md }}>
         {result.claims.map((c) => {
           const tone =
             c.verdict === "FLAGGED"
-              ? { bg: colors.redBg, fg: colors.redText, label: "Above reference" }
+              ? { bg: colors.cautionBg, fg: colors.caution, label: "Above reference" }
               : c.verdict === "ELEVATED"
-                ? { bg: colors.amberBg, fg: colors.amberText, label: "A little high" }
+                ? { bg: colors.warnBg, fg: colors.warnText, label: "A little high" }
                 : c.verdict === "NO_REFERENCE"
                   ? { bg: colors.bgSoft, fg: colors.muted, label: "No reference yet" }
-                  : { bg: colors.greenBg, fg: colors.greenText, label: "Normal" };
+                  : { bg: colors.creditBg, fg: colors.credit, label: "Normal" };
           return (
             <Row key={c.id} justify="space-between" gap={space.md}>
               <View style={{ flex: 1 }}>
@@ -225,8 +232,8 @@ function ClaimOutcome({ result, reward }: { result: ClaimResult; reward: number 
         </Row>
         {held ? (
           <Row justify="space-between" style={{ marginTop: 4 }}>
-            <Caption style={{ color: colors.amberText }}>On hold for review</Caption>
-            <Body style={{ fontFamily: font.bold, color: colors.amberText }}>
+            <Caption style={{ color: colors.warnText }}>On hold for review</Caption>
+            <Body style={{ fontFamily: font.bold, color: colors.warnText }}>
               {rupees(result.withheld)}
             </Body>
           </Row>
@@ -239,7 +246,7 @@ function ClaimOutcome({ result, reward }: { result: ClaimResult; reward: number 
 
       {result.message ? (
         <View style={s.note}>
-          <Caption style={{ color: colors.amberText }}>{result.message}</Caption>
+          <Caption style={{ color: colors.warnText }}>{result.message}</Caption>
         </View>
       ) : null}
     </Card>
@@ -253,11 +260,11 @@ const s = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     paddingHorizontal: space.sm,
     // A fixed width, not a minimum. The input inside is flex:1, and against a
     // merely-minimum width that grows until the item name has one character
-    // per line - which is exactly what it did.
+    // per line, which is exactly what it did.
     width: 96,
     flexGrow: 0,
     flexShrink: 0,
@@ -279,7 +286,7 @@ const s = StyleSheet.create({
     marginTop: space.lg,
     paddingTop: space.md,
     borderTopWidth: 1,
-    borderTopColor: colors.line,
+    borderTopColor: colors.hairline,
   },
   grandRow: {
     marginTop: space.sm,
@@ -287,7 +294,7 @@ const s = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.line,
   },
-  grand: { color: colors.brandDark, fontSize: font.h3, fontFamily: font.black },
+  grand: { color: colors.ink, fontSize: font.h3, fontFamily: font.black },
 
   verdict: {
     paddingHorizontal: space.sm,
@@ -300,14 +307,14 @@ const s = StyleSheet.create({
     marginTop: space.md,
     padding: space.md,
     borderRadius: radius.lg,
-    backgroundColor: colors.redBg,
+    backgroundColor: colors.cautionBg,
     borderWidth: 1,
-    borderColor: colors.redBorder,
+    borderColor: colors.cautionBorder,
   },
   note: {
     marginTop: space.md,
     padding: space.md,
-    backgroundColor: colors.amberBg,
+    backgroundColor: colors.warnBg,
     borderRadius: radius.lg,
   },
 });

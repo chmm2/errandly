@@ -6,7 +6,6 @@ import {
   Easing,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,16 +14,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { fetchMe, login } from "../../src/api/auth";
-import { Button, Caption, ErrorNote, Field } from "../../src/components/ui";
+import { Icon } from "../../src/components/icons";
+import { AnimatedMark } from "../../src/components/MarkAnimated";
+import { Button, ErrorNote, Field } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
 import { useAuth } from "../../src/stores/auth";
-import { colors, font, radius, shadow, space } from "../../src/theme";
-
-/** The floating errand chips from the web AuthLayout, trimmed for a phone. */
-const FLOATERS = [
-  { emoji: "🍜", text: "Maggi from DC · ₹30", top: 92, left: 12 },
-  { emoji: "📦", text: "Parcel pickup · ₹25", top: 150, right: 10 },
-];
+import { colors, font, onBrand, radius, shadow, space } from "../../src/theme";
 
 export default function Login() {
   const router = useRouter();
@@ -36,29 +31,31 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // `animate-float` from the web app — a slow bob on the scooter mark.
+  // A slow bob on the mark, so the screen breathes while it waits for you.
   const bob = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.loop(
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(bob, {
           toValue: 1,
-          duration: 3000,
-          easing: Easing.inOut(Easing.quad),
+          duration: 2750,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(bob, {
           toValue: 0,
-          duration: 3000,
-          easing: Easing.inOut(Easing.quad),
+          duration: 2750,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
       ]),
-    ).start();
+    );
+    loop.start();
+    return () => loop.stop();
   }, [bob]);
 
   const float = {
-    transform: [{ translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -12] }) }],
+    transform: [{ translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -9] }) }],
   };
 
   async function submit() {
@@ -78,29 +75,18 @@ export default function Login() {
 
   return (
     <View style={s.root}>
+      {/* The design's radial wash, with the light source at the top left.
+          React Native has no radial gradient, so this runs the same three
+          stops along that diagonal instead. */}
       <LinearGradient
-        colors={colors.authGradient}
-        start={{ x: 0, y: 0 }}
+        colors={colors.brandGradient}
+        locations={[0, 0.46, 1]}
+        start={{ x: 0.12, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      {/* Ambient shapes, same idea as the web app's blurred circles */}
-      <View style={s.blobTopLeft} />
-      <View style={s.blobBottomRight} />
-
-      {FLOATERS.map((f) => (
-        <View
-          key={f.text}
-          style={[
-            s.floater,
-            { top: f.top },
-            f.left != null ? { left: f.left } : { right: f.right },
-          ]}
-        >
-          <Text style={{ fontSize: 15 }}>{f.emoji}</Text>
-          <Text style={s.floaterText}>{f.text}</Text>
-        </View>
-      ))}
+      <View style={s.discCool} pointerEvents="none" />
+      <View style={s.discWarm} pointerEvents="none" />
 
       <SafeAreaView style={s.flex} edges={["top", "bottom"]}>
         <KeyboardAvoidingView
@@ -112,27 +98,33 @@ export default function Login() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {/* Brand */}
             <View style={s.brand}>
-              <Animated.Text style={[s.scooter, float]}>🛵</Animated.Text>
+              <Animated.View style={float}>
+                <AnimatedMark size={76} />
+              </Animated.View>
               <Text style={s.wordmark}>errandly</Text>
+              <Text style={s.pitch}>
+                Campus errands, run by students you are already one degree away from.
+              </Text>
             </View>
-            <Text style={s.pitch}>
-              Campus errands,{"\n"}delivered by students.
-            </Text>
 
-            {/* Form card */}
             <View style={[s.card, shadow.raised]}>
-              <Text style={s.cardTitle}>Welcome back</Text>
-              <Caption style={{ marginTop: space.xs }}>
-                Log in with your university email.
-              </Caption>
+              <View style={s.cardHead}>
+                <View style={s.flex}>
+                  <Text style={s.cardTitle}>Welcome back</Text>
+                  <Text style={s.cardSub}>Use your university email.</Text>
+                </View>
+                <View style={s.shield}>
+                  <Icon name="shield" size={20} color={colors.brand} />
+                </View>
+              </View>
 
-              <View style={{ gap: space.lg, marginTop: space.xl }}>
+              <View style={{ gap: 14, marginTop: 22 }}>
                 {error ? <ErrorNote>{error}</ErrorNote> : null}
 
                 <Field
                   label="University email"
+                  icon="mail"
                   placeholder="you@vitstudent.ac.in"
                   value={email}
                   onChangeText={setEmail}
@@ -143,6 +135,7 @@ export default function Login() {
                 />
                 <Field
                   label="Password"
+                  icon="lock"
                   placeholder="••••••••"
                   value={password}
                   onChangeText={setPassword}
@@ -155,6 +148,8 @@ export default function Login() {
                 <Button
                   title="Log in"
                   size="lg"
+                  icon="chev"
+                  iconRight
                   loading={busy}
                   disabled={!email.trim() || !password}
                   onPress={submit}
@@ -166,13 +161,17 @@ export default function Login() {
               </View>
 
               <View style={s.newHere}>
-                <Caption>New here? </Caption>
+                <Text style={s.newHereText}>New here?</Text>
                 <Link href="/(auth)/register" style={s.link}>
                   Create an account
                 </Link>
               </View>
             </View>
 
+            <View style={s.assurance}>
+              <Icon name="shield" size={15} color={onBrand.eyebrow} />
+              <Text style={s.assuranceText}>Verified students only, VIT Vellore</Text>
+            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -183,70 +182,73 @@ export default function Login() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.brand },
   flex: { flex: 1 },
-  scroll: { flexGrow: 1, justifyContent: "center", padding: space.xl },
+  scroll: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 26, paddingVertical: 26 },
 
-  blobTopLeft: {
+  discCool: {
     position: "absolute",
-    top: -110,
-    left: -90,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: "rgba(255,255,255,0.10)",
+    top: -90,
+    left: -80,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: onBrand.disc,
   },
-  blobBottomRight: {
+  discWarm: {
     position: "absolute",
-    bottom: -130,
-    right: -80,
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: "rgba(255,255,255,0.10)",
+    bottom: 120,
+    right: -90,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: "rgba(192,128,60,0.14)",
   },
 
-  floater: {
-    position: "absolute",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    paddingHorizontal: space.md,
-    paddingVertical: 7,
-    borderRadius: radius.pill,
-  },
-  floaterText: { color: colors.white, fontSize: font.tiny, fontFamily: font.semi },
-
-  brand: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.sm },
-  scooter: { fontSize: 40 },
+  brand: { alignItems: "center", gap: 16, marginBottom: 26 },
   wordmark: {
     color: colors.white,
-    fontSize: 34,
+    fontSize: 31,
     fontFamily: font.black,
-    letterSpacing: -0.8,
+    letterSpacing: -1.2,
   },
   pitch: {
-    color: colors.white,
-    fontSize: 25,
-    fontFamily: font.black,
+    color: onBrand.text,
+    fontSize: font.body,
+    fontFamily: font.regular,
     textAlign: "center",
-    lineHeight: 32,
-    marginTop: space.lg,
-    marginBottom: space.xxl,
+    lineHeight: 23,
+    maxWidth: 270,
   },
 
   card: {
     backgroundColor: colors.white,
-    borderRadius: radius.xxl,
-    padding: space.xxl,
+    borderRadius: radius.huge,
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 24,
   },
-  cardTitle: { color: colors.ink, fontSize: 25, fontFamily: font.black },
+  cardHead: { flexDirection: "row", alignItems: "center", gap: 12 },
+  cardTitle: { color: colors.ink, fontSize: 23, fontFamily: font.black, letterSpacing: -0.5 },
+  cardSub: { color: colors.muted, fontSize: font.small, fontFamily: font.regular, marginTop: 3 },
+  shield: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.brandTint,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
   newHere: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
+    gap: 6,
     marginTop: space.xl,
+    paddingTop: 18,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
   },
+  newHereText: { color: colors.muted, fontSize: font.small, fontFamily: font.regular },
   link: { color: colors.brand, fontSize: font.small, fontFamily: font.bold },
   forgot: {
     color: colors.muted,
@@ -255,4 +257,12 @@ const s = StyleSheet.create({
     textAlign: "center",
   },
 
+  assurance: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: space.xl,
+  },
+  assuranceText: { color: onBrand.eyebrow, fontSize: 11.5, fontFamily: font.semi },
 });

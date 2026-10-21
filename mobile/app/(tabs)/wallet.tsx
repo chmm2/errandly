@@ -3,56 +3,55 @@ import { useMemo } from "react";
 import { RefreshControl, StyleSheet, Text, View } from "react-native";
 
 import { type LedgerEntry, fetchWallet } from "../../src/api/wallet";
+import { Icon, type IconName } from "../../src/components/icons";
 import {
-  Body,
   Button,
-  Caption,
-  Card,
   EmptyState,
+  Eyebrow,
   Hero,
-  Loading,
-  Row,
+  Pill,
   Screen,
+  SkeletonRow,
 } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
 import { notify } from "../../src/lib/dialog";
-import { colors, font, rupees, space } from "../../src/theme";
+import { colors, font, radius, rupeesLong, shadow, space } from "../../src/theme";
 
 /**
  * Every entry type the ledger can write, in the words a student would use.
  *
- * The ledger's own names are accounting terms — HOLD, CLAWBACK, REIMBURSEMENT —
- * and they are correct there. They are not what someone checking why their
- * balance moved wants to read, and a wallet that cannot explain a debit is a
- * wallet nobody trusts.
+ * The ledger's own names are accounting terms, HOLD and CLAWBACK and
+ * REIMBURSEMENT, and they are correct there. They are not what someone checking
+ * why their balance moved wants to read, and a wallet that cannot explain a
+ * debit is a wallet nobody trusts.
  */
-const ENTRY: Record<string, { label: string; note: string; emoji: string }> = {
-  TOPUP: { label: "Money added", note: "You topped up your wallet", emoji: "＋" },
+const ENTRY: Record<string, { label: string; note: string; icon: IconName }> = {
+  TOPUP: { label: "Money added", note: "You topped up your wallet", icon: "in" },
   HOLD: {
     label: "Held for an errand",
-    note: "Ring-fenced until the errand is confirmed",
-    emoji: "🔒",
+    note: "Ring fenced until you confirm",
+    icon: "lock",
   },
   REFUND: {
     label: "Returned to you",
     note: "The errand did not go ahead",
-    emoji: "↩",
+    icon: "in",
   },
-  REWARD: { label: "You earned this", note: "Runner fee for a completed errand", emoji: "🛵" },
+  REWARD: { label: "You earned this", note: "Runner fee for a completed errand", icon: "bike" },
   REIMBURSEMENT: {
     label: "Spending returned",
     note: "What you paid at the counter",
-    emoji: "🧾",
+    icon: "receipt",
   },
   REVIEW_REFUND: {
     label: "Returned after review",
     note: "An admin reviewed a held amount",
-    emoji: "⚖️",
+    icon: "scale",
   },
   CLAWBACK: {
     label: "Taken back",
     note: "Reversed after a review went against it",
-    emoji: "↖",
+    icon: "out",
   },
 };
 
@@ -61,7 +60,7 @@ function describe(entry: LedgerEntry) {
     ENTRY[entry.entry_type] ?? {
       label: entry.entry_type.replaceAll("_", " ").toLowerCase(),
       note: "",
-      emoji: "•",
+      icon: "cash" as IconName,
     }
   );
 }
@@ -98,67 +97,84 @@ export default function WalletScreen() {
 
   const days = useMemo(() => byDay(data?.recent ?? []), [data?.recent]);
 
+  const available = data?.balance ?? 0;
+  const held = data?.held ?? 0;
+  const total = available + held;
+  // Guard the split bar against a zero total, which would otherwise divide by
+  // nothing and render an empty track that looks like a loading state.
+  const availablePct = total > 0 ? (available / total) * 100 : 100;
+
   return (
     <Screen
       scroll
       padded={false}
+      edges={[]}
+      bg={colors.bgSoft}
       refreshControl={
-        <RefreshControl
-          refreshing={isRefetching}
-          onRefresh={refetch}
-          tintColor={colors.brand}
-        />
+        <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.brand} />
       }
     >
-      <Hero eyebrow="Your money" title="Wallet" />
+      <Hero tone="deep" eyebrow="Your money" padBottom={74}>
+        <View style={s.titleRow}>
+          <Text style={s.walletTitle}>Wallet</Text>
+          <Pill
+            label="Escrow protected"
+            icon="shield"
+            bg="rgba(255,255,255,0.14)"
+            color={colors.white}
+            style={{ marginBottom: 6 }}
+          />
+        </View>
+      </Hero>
 
-      <View style={{ paddingHorizontal: space.lg }}>
-        {/* Two partitions, two boxes. Held is not a footnote on the balance:
-            it is the other half of the answer to "where is my money", and a
-            line of caption text under a big number reads as a disclaimer
-            rather than as an amount the wallet actually holds. */}
-        <Row gap={space.md} style={s.partitions}>
-          <Card raised style={s.partition}>
-            <Row gap={space.xs}>
-              <Text style={{ fontSize: 12 }}>💸</Text>
-              <Caption style={{ color: colors.muted }}>Available</Caption>
-            </Row>
-            <Text style={s.partitionAmount}>
-              {isLoading ? "—" : rupees(data?.balance ?? 0)}
+      <View style={s.body}>
+        {/* One card, one bar. Held is not a footnote on the balance: it is the
+            other half of the answer to "where is my money", and the split bar
+            says what share of the total is still locked before either number
+            is read. */}
+        <View style={[s.balanceCard, shadow.raised]}>
+          <Text style={s.balanceLabel}>Total in wallet</Text>
+          <View style={s.balanceRow}>
+            <Text style={s.rupee}>₹</Text>
+            <Text style={s.balance}>
+              {isLoading ? "—" : Math.round(total).toLocaleString("en-IN")}
             </Text>
-            <Caption style={{ color: colors.muted }}>
-              Yours to spend right now
-            </Caption>
-          </Card>
+          </View>
 
-          <Card raised style={[s.partition, s.heldPartition]}>
-            <Row gap={space.xs}>
-              <Text style={{ fontSize: 12 }}>🔒</Text>
-              <Caption style={{ color: colors.amberText }}>Held</Caption>
-            </Row>
-            <Text style={[s.partitionAmount, { color: colors.amberText }]}>
-              {isLoading ? "—" : rupees(data?.held ?? 0)}
-            </Text>
-            <Caption style={{ color: colors.amberText }}>
-              {(data?.held ?? 0) > 0
-                ? "Locked on live orders — unspent money comes back"
-                : "No orders in flight"}
-            </Caption>
-          </Card>
-        </Row>
+          <View style={s.splitBar}>
+            <View style={{ width: `${availablePct}%`, backgroundColor: colors.brand }} />
+            <View style={{ width: `${100 - availablePct}%`, backgroundColor: colors.money }} />
+          </View>
 
-        <Card raised style={s.balanceCard}>
-          <Caption style={{ color: colors.muted }}>Total in wallet</Caption>
-          <Text style={s.balance}>
-            {isLoading
-              ? "—"
-              : rupees((data?.balance ?? 0) + (data?.held ?? 0))}
-          </Text>
+          <View style={s.partitions}>
+            <View style={[s.partition, { backgroundColor: colors.bgSoft }]}>
+              <View style={s.partitionHead}>
+                <Icon name="cash" size={15} color={colors.brand} />
+                <Text style={[s.partitionLabel, { color: colors.brand }]}>Available</Text>
+              </View>
+              <Text style={s.partitionAmount}>{isLoading ? "—" : rupeesLong(available)}</Text>
+              <Text style={s.partitionNote}>Yours to spend now</Text>
+            </View>
 
-          <Row gap={space.sm} style={{ marginTop: space.lg }}>
+            <View style={[s.partition, { backgroundColor: colors.warnBg }]}>
+              <View style={s.partitionHead}>
+                <Icon name="lock" size={15} color={colors.warnText} />
+                <Text style={[s.partitionLabel, { color: colors.warnText }]}>Held</Text>
+              </View>
+              <Text style={[s.partitionAmount, { color: colors.warnText }]}>
+                {isLoading ? "—" : rupeesLong(held)}
+              </Text>
+              <Text style={[s.partitionNote, { color: colors.warnText }]}>
+                {held > 0 ? "Locked on live orders" : "No orders in flight"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={s.actions}>
             <View style={{ flex: 1 }}>
               <Button
                 title="Add money"
+                icon="in"
                 onPress={() =>
                   notify(
                     "Not connected yet",
@@ -169,7 +185,8 @@ export default function WalletScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Button
-                title="Retrieve money"
+                title="Withdraw"
+                icon="out"
                 variant="outline"
                 onPress={() =>
                   notify(
@@ -179,90 +196,102 @@ export default function WalletScreen() {
                 }
               />
             </View>
-          </Row>
-        </Card>
-
-        {/* History */}
-        <Row justify="space-between" style={{ marginTop: space.xxl }}>
-          <Body style={{ fontFamily: font.bold }}>Transactions</Body>
-          {data?.recent?.length ? (
-            <Caption>{data.recent.length} most recent</Caption>
-          ) : null}
-        </Row>
+          </View>
+        </View>
 
         {isLoading ? (
-          <Loading label="Loading your wallet…" />
-        ) : isError ? (
-          <EmptyState
-            emoji="😕"
-            title="Couldn't load your wallet"
-            body={apiErrorMessage(error, "Check your connection and try again.")}
-            action={<Button title="Try again" onPress={() => refetch()} />}
-          />
-        ) : !data?.recent?.length ? (
-          <EmptyState
-            emoji="🪙"
-            title="Nothing yet"
-            body="Money you add, earn or spend will show up here with the reason."
-          />
-        ) : (
-          <View style={{ marginTop: space.md }}>
-            {days.map(([day, entries]) => (
-              <View key={day} style={{ marginBottom: space.lg }}>
-                <Caption style={s.dayHeading}>{dayLabel(day)}</Caption>
-                <Card style={{ padding: 0 }}>
-                  {entries.map((e, i) => {
-                    const meta = describe(e);
-                    const credit = e.direction === "CREDIT";
-                    return (
-                      <View
-                        key={e.id}
-                        style={[s.entry, i > 0 && s.entryDivider]}
-                      >
-                        <View
-                          style={[
-                            s.icon,
-                            { backgroundColor: credit ? colors.greenBg : colors.bgSoft },
-                          ]}
-                        >
-                          <Text style={{ fontSize: 15 }}>{meta.emoji}</Text>
-                        </View>
-
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          <Body numberOfLines={1} style={{ fontFamily: font.semi }}>
-                            {meta.label}
-                          </Body>
-                          <Caption numberOfLines={1}>
-                            {e.memo || meta.note}
-                          </Caption>
-                        </View>
-
-                        <View style={{ alignItems: "flex-end" }}>
-                          {/* Sign, not colour alone — the direction has to be
-                              readable without relying on hue. */}
-                          <Text
-                            style={[
-                              s.amount,
-                              { color: credit ? colors.greenText : colors.ink },
-                            ]}
-                          >
-                            {credit ? "+" : "−"}
-                            {rupees(e.amount)}
-                          </Text>
-                          <Caption style={{ fontSize: 10 }}>
-                            {new Date(e.created_at).toLocaleTimeString(undefined, {
-                              hour: "numeric",
-                              minute: "2-digit",
-                            })}
-                          </Caption>
-                        </View>
-                      </View>
-                    );
-                  })}
-                </Card>
-              </View>
-            ))}
+          <View style={{ marginTop: space.lg, gap: space.sm }}>
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
           </View>
+        ) : isError ? (
+          <View style={{ marginTop: space.lg }}>
+            <EmptyState
+              icon="alert"
+              title="Couldn't load your wallet"
+              body={apiErrorMessage(error, "Check your connection and try again.")}
+              action={<Button title="Try again" onPress={() => refetch()} />}
+            />
+          </View>
+        ) : !data?.recent?.length ? (
+          <View style={{ marginTop: space.lg }}>
+            <EmptyState
+              icon="cash"
+              title="Nothing yet"
+              body="Money you add, earn or spend will show up here with the reason."
+            />
+          </View>
+        ) : (
+          days.map(([day, entries], gi) => (
+            <View key={day} style={{ marginTop: gi === 0 ? space.lg : space.xl }}>
+              <View style={s.sectionHead}>
+                {gi === 0 ? <Text style={s.sectionTitle}>Transactions</Text> : <View />}
+                <Eyebrow>{dayLabel(day)}</Eyebrow>
+              </View>
+
+              <View style={s.list}>
+                {entries.map((e, i) => {
+                  const meta = describe(e);
+                  const credit = e.direction === "CREDIT";
+                  return (
+                    <View key={e.id} style={[s.entry, i > 0 && s.entryDivider]}>
+                      <View
+                        style={[
+                          s.entryIcon,
+                          {
+                            backgroundColor: credit
+                              ? colors.creditBg
+                              : e.entry_type === "HOLD"
+                                ? colors.warnBg
+                                : colors.bgSoft,
+                          },
+                        ]}
+                      >
+                        <Icon
+                          name={meta.icon}
+                          size={19}
+                          color={
+                            credit
+                              ? colors.credit
+                              : e.entry_type === "HOLD"
+                                ? colors.warnText
+                                : colors.muted
+                          }
+                        />
+                      </View>
+
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text numberOfLines={1} style={s.entryLabel}>
+                          {meta.label}
+                        </Text>
+                        <Text numberOfLines={1} style={s.entryNote}>
+                          {e.memo || meta.note}
+                        </Text>
+                      </View>
+
+                      <View style={{ alignItems: "flex-end" }}>
+                        {/* Sign, not colour alone: the direction has to be
+                            readable without relying on hue. */}
+                        <Text
+                          style={[s.amount, { color: credit ? colors.credit : colors.ink }]}
+                        >
+                          {credit ? "+" : "−"}
+                          {rupeesLong(e.amount)}
+                        </Text>
+                        <Text style={s.entryTime}>
+                          {new Date(e.created_at).toLocaleTimeString(undefined, {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          ))
         )}
       </View>
     </Screen>
@@ -270,47 +299,82 @@ export default function WalletScreen() {
 }
 
 const s = StyleSheet.create({
-  partitions: { marginTop: space.xl, alignItems: "stretch" },
-  partition: { flex: 1, alignItems: "flex-start" },
-  heldPartition: { backgroundColor: colors.amberBg },
+  titleRow: { flexDirection: "row", alignItems: "flex-end", gap: 10, marginTop: 8 },
+  walletTitle: { color: colors.white, fontSize: 32, fontFamily: font.black, letterSpacing: -1 },
+
+  // Pulled up so the card straddles the band, which is what makes the balance
+  // read as sitting on top of the wallet rather than under a heading.
+  body: { paddingHorizontal: 22, marginTop: -56 },
+
+  balanceCard: {
+    backgroundColor: colors.white,
+    borderRadius: radius.big,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    padding: space.xl,
+  },
+  balanceLabel: { color: colors.muted, fontSize: 12, fontFamily: font.semi },
+  balanceRow: { flexDirection: "row", alignItems: "baseline", gap: 4, marginTop: 4 },
+  rupee: { color: colors.mutedCool, fontSize: 26, fontFamily: font.bold, letterSpacing: -0.6 },
+  balance: { color: colors.ink, fontSize: 42, fontFamily: font.black, letterSpacing: -1.6 },
+
+  splitBar: {
+    flexDirection: "row",
+    gap: 6,
+    marginTop: space.lg,
+    height: 8,
+    borderRadius: 4,
+    overflow: "hidden",
+    backgroundColor: colors.hairline,
+  },
+
+  partitions: { flexDirection: "row", gap: 12, marginTop: 14 },
+  partition: { flex: 1, borderRadius: radius.lg, padding: 13 },
+  partitionHead: { flexDirection: "row", alignItems: "center", gap: 6 },
+  partitionLabel: { fontSize: 11.5, fontFamily: font.bold },
   partitionAmount: {
     color: colors.ink,
-    fontSize: 26,
+    fontSize: 22,
     fontFamily: font.black,
-    letterSpacing: -0.5,
-    marginTop: 2,
-    marginBottom: 2,
+    letterSpacing: -0.6,
+    marginTop: 4,
   },
-  balanceCard: { marginTop: space.md, alignItems: "stretch" },
-  balance: {
-    color: colors.ink,
-    fontSize: 40,
-    fontFamily: font.black,
-    letterSpacing: -1,
-    marginTop: 2,
+  partitionNote: { color: colors.muted, fontSize: 11, fontFamily: font.regular, marginTop: 1 },
+
+  actions: { flexDirection: "row", gap: 10, marginTop: space.lg },
+
+  sectionHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
   },
-  dayHeading: {
-    fontFamily: font.bold,
-    color: colors.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    fontSize: 10,
-    marginBottom: space.sm,
+  sectionTitle: { color: colors.ink, fontSize: 16, fontFamily: font.black, letterSpacing: -0.3 },
+
+  list: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: radius.xxl,
+    overflow: "hidden",
   },
   entry: {
     flexDirection: "row",
     alignItems: "center",
-    gap: space.md,
-    paddingHorizontal: space.lg,
-    paddingVertical: space.md,
+    gap: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
   },
-  entryDivider: { borderTopWidth: 1, borderTopColor: colors.line },
-  icon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+  entryDivider: { borderTopWidth: 1, borderTopColor: colors.hairlineSoft },
+  entryIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
     alignItems: "center",
     justifyContent: "center",
   },
-  amount: { fontSize: font.body, fontFamily: font.bold },
+  entryLabel: { color: colors.ink, fontSize: 13.5, fontFamily: font.semi },
+  entryNote: { color: colors.muted, fontSize: 11.5, fontFamily: font.regular, marginTop: 1 },
+  amount: { fontSize: 14, fontFamily: font.bold },
+  entryTime: { color: colors.mutedCool, fontSize: 10, fontFamily: font.regular },
 });

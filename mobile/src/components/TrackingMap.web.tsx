@@ -1,16 +1,15 @@
 import { useEffect, useRef } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { buildMapHtml } from "../lib/mapHtml";
-import { colors, font, radius, space } from "../theme";
-import { Caption } from "./ui";
+import { colors, font, radius, shadow } from "../theme";
 
 /**
  * Web build of the tracking map.
  *
  * Metro picks this file over TrackingMap.tsx on web, which matters for more
  * than looks: neither react-native-maps nor react-native-webview has a web
- * implementation — MapView.web.ts is literally an UnimplementedView — so the
+ * implementation (MapView.web.ts is literally an UnimplementedView), so the
  * map was a blank rectangle in the browser preview. Resolving to this file
  * keeps both packages out of the web bundle entirely.
  *
@@ -21,7 +20,7 @@ import { Caption } from "./ui";
 export function TrackingMap({
   drop,
   runner,
-  height = 240,
+  height = 150,
 }: {
   drop: { lat: number; lng: number };
   runner?: { lat: number; lng: number } | null;
@@ -48,10 +47,9 @@ export function TrackingMap({
         style={{ border: "none", width: "100%", height: "100%", display: "block" }}
         title="Live tracking map"
       />
-      <View style={[s.badge, { pointerEvents: "none" }]}>
-        <Caption style={s.badgeText}>
-          {runner ? "🛵 Runner is on the move" : "📍 Drop-off point"}
-        </Caption>
+      <View style={[s.badge, shadow.card, { pointerEvents: "none" }]}>
+        <View style={[s.dot, { backgroundColor: runner ? colors.credit : colors.mutedCool }]} />
+        <Text style={s.badgeText}>{runner ? "Live" : "Drop-off"}</Text>
       </View>
     </View>
   );
@@ -59,21 +57,25 @@ export function TrackingMap({
 
 const s = StyleSheet.create({
   wrap: {
-    marginTop: space.lg,
-    borderRadius: radius.xl,
+    marginTop: 12,
+    borderRadius: radius.card,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: colors.line,
-    backgroundColor: colors.bgSoft,
+    backgroundColor: colors.mapBg,
   },
   badge: {
     position: "absolute",
-    left: space.md,
-    top: space.md,
-    backgroundColor: "rgba(255,255,255,0.94)",
+    right: 14,
+    top: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.white,
     borderRadius: radius.pill,
-    paddingHorizontal: space.md,
-    paddingVertical: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  badgeText: { color: colors.ink, fontFamily: font.semi, fontSize: font.tiny },
+  dot: { width: 7, height: 7, borderRadius: 3.5 },
+  badgeText: { color: colors.brand, fontFamily: font.bold, fontSize: 11 },
 });

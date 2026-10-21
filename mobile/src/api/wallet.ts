@@ -19,6 +19,12 @@ export interface Wallet {
   balance: number;
   /** Ring-fenced against errands in flight. Already out of `balance`. */
   held: number;
+  /**
+   * The headroom rate the server applies to priced list lines, so the order
+   * screen can quote the hold before posting instead of hardcoding a rate the
+   * server might not agree with.
+   */
+  buffer_pct: number;
   recent: LedgerEntry[];
 }
 

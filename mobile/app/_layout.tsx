@@ -1,11 +1,12 @@
+import { IBMPlexMono_400Regular, IBMPlexMono_500Medium } from "@expo-google-fonts/ibm-plex-mono";
 import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-  Inter_800ExtraBold,
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
   useFonts,
-} from "@expo-google-fonts/inter";
+} from "@expo-google-fonts/plus-jakarta-sans";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -67,14 +68,16 @@ export default function RootLayout() {
     useCallback((errandId: string) => router.push(`/errand/${errandId}`), [router]),
   );
 
-  // Inter, to match the web frontend. Rendering before it loads would show a
-  // frame of system font and then reflow.
+  // Plus Jakarta Sans for text, IBM Plex Mono for codes. Rendering before they
+  // load would show a frame of system font and then reflow.
   const [fontsLoaded] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
-    Inter_800ExtraBold,
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+    IBMPlexMono_400Regular,
+    IBMPlexMono_500Medium,
   });
 
   // Give zustand's async rehydrate one tick before rendering routes.
@@ -143,7 +146,7 @@ const frame = StyleSheet.create({
   backdrop: {
     flex: 1,
     minHeight: "100%",
-    backgroundColor: "#EDEDF0",
+    backgroundColor: "#EFF1F0",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -156,12 +159,12 @@ const frame = StyleSheet.create({
     maxHeight: 874,
     backgroundColor: colors.bg,
     overflow: "hidden",
-    borderRadius: 28,
+    borderRadius: 38,
     borderWidth: 1,
-    borderColor: "#DDDDE3",
-    shadowColor: "#282C3F",
-    shadowOpacity: 0.16,
-    shadowRadius: 28,
-    shadowOffset: { width: 0, height: 10 },
+    borderColor: colors.line,
+    shadowColor: "#16302F",
+    shadowOpacity: 0.3,
+    shadowRadius: 70,
+    shadowOffset: { width: 0, height: 30 },
   },
 });

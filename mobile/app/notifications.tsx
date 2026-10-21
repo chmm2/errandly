@@ -1,35 +1,31 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useCallback } from "react";
-import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, StyleSheet, View } from "react-native";
 
 import { fetchNotifications, markAllRead } from "../src/api/notifications";
-import {
-  Body,
-  Caption,
-  Card,
-  Divider,
-  EmptyState,
-  Hero,
-  Loading,
-  Row,
-  Screen,
-} from "../src/components/ui";
+import { Icon, type IconName } from "../src/components/icons";
+import { Body, Caption, EmptyState, Hero, Screen, SkeletonRow } from "../src/components/ui";
 import { useSocket } from "../src/lib/ws";
 import { goBack } from "../src/lib/nav";
-import { colors, font, space, timeAgo } from "../src/theme";
+import { colors, font, radius, space, timeAgo } from "../src/theme";
 
-/** Map notification types onto the same glyphs the rest of the app uses. */
-const ICONS: Record<string, string> = {
-  ORDER_ACCEPTED: "🤝",
-  ORDER_PICKED_UP: "📦",
-  ORDER_DELIVERED: "🎉",
-  ORDER_COMPLETED: "✅",
-  ORDER_CANCELLED: "🚫",
-  ERRAND_EXPIRED: "😔",
-  ERRAND_CANCELLED_BY_RUNNER: "😔",
-  SETTLEMENT: "💰",
+/**
+ * Notification types onto the same drawn glyphs the rest of the app uses, with
+ * a tone per outcome: credit for things that went well, caution for things
+ * that fell through, and the brand teal for progress in between.
+ */
+const ICONS: Record<string, { icon: IconName; fg: string; bg: string }> = {
+  ORDER_ACCEPTED: { icon: "connects", fg: colors.brand, bg: colors.brandTint },
+  ORDER_PICKED_UP: { icon: "bag", fg: colors.brand, bg: colors.brandTint },
+  ORDER_DELIVERED: { icon: "check", fg: colors.credit, bg: colors.creditBg },
+  ORDER_COMPLETED: { icon: "check", fg: colors.credit, bg: colors.creditBg },
+  ORDER_CANCELLED: { icon: "close", fg: colors.caution, bg: colors.cautionBg },
+  ERRAND_EXPIRED: { icon: "clock", fg: colors.caution, bg: colors.cautionBg },
+  ERRAND_CANCELLED_BY_RUNNER: { icon: "close", fg: colors.caution, bg: colors.cautionBg },
+  SETTLEMENT: { icon: "cash", fg: colors.credit, bg: colors.creditBg },
 };
+const FALLBACK = { icon: "bell" as IconName, fg: colors.brand, bg: colors.brandTint };
 
 export default function Notifications() {
   const router = useRouter();
@@ -56,6 +52,8 @@ export default function Notifications() {
     <Screen
       scroll
       padded={false}
+      edges={[]}
+      bg={colors.bgSoft}
       tabBarClearance={false}
       refreshControl={
         <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.brand} />
@@ -70,9 +68,8 @@ export default function Notifications() {
         }
       />
 
-      <View style={{ paddingHorizontal: space.lg, paddingTop: space.lg }}>
-        <Row justify="space-between" style={{ marginBottom: space.md }}>
-          <View />
+      <View style={{ paddingHorizontal: 22, paddingTop: space.lg }}>
+        <View style={s.toolbar}>
           {data?.unread ? (
             <Pressable
               hitSlop={8}
@@ -86,31 +83,39 @@ export default function Notifications() {
               </Caption>
             </Pressable>
           ) : null}
-        </Row>
+        </View>
 
         {isLoading ? (
-          <View style={{ height: 220 }}>
-            <Loading />
+          <View style={{ gap: space.sm }}>
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
           </View>
         ) : items.length === 0 ? (
           <EmptyState
-            emoji="🔔"
+            icon="bell"
             title="Nothing yet"
             body="When a runner accepts, picks up or delivers your errand, you'll hear about it here."
           />
         ) : (
-          <Card raised style={{ padding: 0 }}>
+          <View style={s.list}>
             {items.map((n, i) => {
               const errandId = (n.data as { errand_id?: string } | null)?.errand_id;
+              const tone = ICONS[n.type] ?? FALLBACK;
               return (
                 <View key={n.id}>
-                  {i > 0 ? <Divider /> : null}
                   <Pressable
                     onPress={() => (errandId ? router.push(`/errand/${errandId}`) : undefined)}
-                    style={({ pressed }) => [s.row, pressed && { backgroundColor: colors.bgSoft }]}
+                    style={({ pressed }) => [
+                      s.row,
+                      i > 0 && s.divider,
+                      pressed && { backgroundColor: colors.bgSoft },
+                    ]}
                   >
-                    <View style={[s.iconWrap, !n.read_at && { backgroundColor: colors.brandSoft }]}>
-                      <Text style={{ fontSize: 17 }}>{ICONS[n.type] ?? "🔔"}</Text>
+                    <View
+                      style={[s.iconWrap, { backgroundColor: n.read_at ? colors.chip : tone.bg }]}
+                    >
+                      <Icon name={tone.icon} size={19} color={n.read_at ? colors.mutedCool : tone.fg} />
                     </View>
 
                     <View style={{ flex: 1 }}>
@@ -132,7 +137,7 @@ export default function Notifications() {
                 </View>
               );
             })}
-          </Card>
+          </View>
         )}
       </View>
     </Screen>
@@ -140,12 +145,20 @@ export default function Notifications() {
 }
 
 const s = StyleSheet.create({
-  row: { flexDirection: "row", gap: space.md, alignItems: "flex-start", padding: space.lg },
+  toolbar: { flexDirection: "row", justifyContent: "flex-end", marginBottom: space.md, minHeight: 4 },
+  list: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: radius.xxl,
+    overflow: "hidden",
+  },
+  row: { flexDirection: "row", gap: 12, alignItems: "flex-start", paddingHorizontal: 15, paddingVertical: 13 },
+  divider: { borderTopWidth: 1, borderTopColor: colors.hairlineSoft },
   iconWrap: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.bgSoft,
+    borderRadius: radius.sm,
     alignItems: "center",
     justifyContent: "center",
   },

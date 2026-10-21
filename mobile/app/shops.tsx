@@ -4,16 +4,8 @@ import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { fetchVendors, type Vendor } from "../src/api/vendors";
-import {
-  Body,
-  Caption,
-  EmptyState,
-  Hero,
-  Loading,
-  Pill,
-  Row,
-  Screen,
-} from "../src/components/ui";
+import { Icon } from "../src/components/icons";
+import { EmptyState, Hero, IconTile, Screen, SkeletonRow } from "../src/components/ui";
 import { categoryIcon, colors, font, radius, space } from "../src/theme";
 import { goBack } from "../src/lib/nav";
 
@@ -46,6 +38,8 @@ export default function Shops() {
     <Screen
       scroll
       padded={false}
+      edges={[]}
+      bg={colors.bgSoft}
       tabBarClearance={false}
       refreshControl={
         <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.brand} />
@@ -54,30 +48,35 @@ export default function Shops() {
       <Hero
         compact
         onBack={() => goBack(router)}
-        title={foodMode ? "Food on campus 🍔" : "Campus stores 🏪"}
+        eyebrow={foodMode ? "Order in" : "Shop"}
+        title={foodMode ? "Food on campus" : "Campus stores"}
         subtitle={
           foodMode
-            ? "Every canteen, food court and night mess on campus. Order off the menu — a runner brings it to you."
-            : "Order straight off the menu — a runner picks it up and brings it to you."
+            ? "Every canteen, food court and night mess. Order off the menu and a runner brings it to you."
+            : "Order straight off the menu and a runner brings it to you."
         }
       >
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder={foodMode ? "🔍 Search canteens & food spots" : "🔍 Search stores"}
-          placeholderTextColor={colors.muted}
-          style={s.search}
-        />
+        <View style={s.search}>
+          <Icon name="search" size={20} color={colors.brand} />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder={foodMode ? "Search canteens and food spots" : "Search stores"}
+            placeholderTextColor={colors.mutedCool}
+            style={s.searchInput}
+          />
+        </View>
       </Hero>
 
-      <View style={{ paddingHorizontal: space.lg, paddingTop: space.xl }}>
+      <View style={{ paddingHorizontal: 22, paddingTop: 18 }}>
         {isLoading ? (
-          <View style={{ height: 220 }}>
-            <Loading />
+          <View style={{ gap: space.sm }}>
+            <SkeletonRow />
+            <SkeletonRow />
           </View>
         ) : filtered.length === 0 ? (
           <EmptyState
-            emoji="🏪"
+            icon={foodMode ? "bowl" : "bag"}
             title={
               (vendors ?? []).length === 0
                 ? "No stores onboarded yet"
@@ -90,7 +89,7 @@ export default function Shops() {
             }
           />
         ) : (
-          <Row gap={space.md} wrap align="stretch">
+          <View style={s.grid}>
             {filtered.map((v: Vendor) => (
               <Pressable
                 key={v.id}
@@ -101,25 +100,31 @@ export default function Shops() {
                   pressed && { borderColor: colors.brand },
                 ]}
               >
-                <Text style={{ fontSize: 30 }}>{categoryIcon[v.category] ?? "🏪"}</Text>
-                <Body numberOfLines={1} style={{ fontFamily: font.bold, marginTop: space.sm }}>
+                <IconTile
+                  icon={categoryIcon[v.category as keyof typeof categoryIcon] ?? "bag"}
+                  size={40}
+                />
+                <Text numberOfLines={1} style={s.name}>
                   {v.name}
-                </Body>
+                </Text>
                 {v.description ? (
-                  <Caption numberOfLines={2} style={{ marginTop: 2 }}>
+                  <Text numberOfLines={2} style={s.desc}>
                     {v.description}
-                  </Caption>
+                  </Text>
                 ) : null}
-                <View style={{ marginTop: space.sm }}>
-                  <Pill
-                    label={v.is_open ? "● Open" : "Closed"}
-                    bg={v.is_open ? colors.greenBg : colors.grayBg}
-                    color={v.is_open ? colors.greenText : colors.muted}
+                <View
+                  style={[s.status, { backgroundColor: v.is_open ? colors.creditBg : colors.chip }]}
+                >
+                  <View
+                    style={[s.dot, { backgroundColor: v.is_open ? colors.credit : colors.mutedCool }]}
                   />
+                  <Text style={[s.statusText, { color: v.is_open ? colors.credit : colors.muted }]}>
+                    {v.is_open ? "Open" : "Closed"}
+                  </Text>
                 </View>
               </Pressable>
             ))}
-          </Row>
+          </View>
         )}
       </View>
     </Screen>
@@ -128,22 +133,43 @@ export default function Shops() {
 
 const s = StyleSheet.create({
   search: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
     marginTop: space.lg,
-    backgroundColor: "rgba(255,255,255,0.95)",
-    borderRadius: radius.lg,
-    paddingHorizontal: space.lg,
-    paddingVertical: space.md + 1,
+    backgroundColor: colors.white,
+    borderRadius: radius.xxl,
+    paddingHorizontal: 15,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 12,
     color: colors.ink,
-    fontSize: font.body,
+    fontSize: 14.5,
     fontFamily: font.regular,
   },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
   card: {
-    width: "48%",
-    borderRadius: radius.xl,
+    width: "48.4%",
+    borderRadius: radius.xxl,
     borderWidth: 1,
     borderColor: colors.line,
     backgroundColor: colors.white,
-    padding: space.lg,
+    padding: 13,
     minHeight: 150,
   },
+  name: { color: colors.ink, fontSize: 14.5, fontFamily: font.bold, marginTop: 8 },
+  desc: { color: colors.muted, fontSize: 12, fontFamily: font.regular, lineHeight: 17, marginTop: 2 },
+  status: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    alignSelf: "flex-start",
+    marginTop: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+  },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: { fontSize: 11, fontFamily: font.bold },
 });

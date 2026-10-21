@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 
 import { fetchMe } from "../../src/api/auth";
-import { fetchNotifications } from "../../src/api/notifications";
 import {
   cancelErrand,
   completeErrand,
@@ -12,19 +11,18 @@ import {
   type ErrandStatus,
   fetchMyErrands,
 } from "../../src/api/errands";
+import { fetchNotifications } from "../../src/api/notifications";
+import { Icon, Mark } from "../../src/components/icons";
 import {
-  Body,
   Button,
   Caption,
-  Card,
   Footer,
   Heading,
   Hero,
+  HeroButton,
   IconTile,
-  Loading,
-  Pill,
-  Row,
   Screen,
+  SkeletonRow,
 } from "../../src/components/ui";
 import { useSocket } from "../../src/lib/ws";
 import { useAuth } from "../../src/stores/auth";
@@ -34,6 +32,7 @@ import {
   ETA_MINUTES,
   font,
   minsAgo,
+  onBrand,
   radius,
   rupees,
   space,
@@ -53,33 +52,64 @@ function useNow(intervalMs = 20_000) {
   return now;
 }
 
-/** Live "how long" line — time since posting, or an ETA once accepted. */
+/**
+ * How far along the strip under an errand should be filled. These are the five
+ * steps the tracking screen names, collapsed to a fraction.
+ */
+const PROGRESS: Partial<Record<ErrandStatus, number>> = {
+  OPEN: 0.2,
+  ACCEPTED: 0.4,
+  IN_PROGRESS: 0.64,
+  DELIVERED: 0.85,
+  COMPLETED: 1,
+};
+
+/** Live "how long" line: time since posting, or an ETA once accepted. */
 function EtaLine({ errand }: { errand: Errand }) {
   const now = useNow();
 
   if (errand.status === "OPEN") {
     const m = minsAgo(errand.created_at);
     return (
-      <Text style={[s.eta, { color: colors.amberText }]}>
-        ⏳ Finding a runner · posted {m === 0 ? "just now" : `${m} min ago`}
-      </Text>
+      <Line icon="clock" color={colors.warnText}>
+        Finding a runner, posted {m === 0 ? "just now" : `${m} min ago`}
+      </Line>
     );
   }
   if (errand.status === "ACCEPTED" || errand.status === "IN_PROGRESS") {
     const base = errand.accepted_at ? new Date(errand.accepted_at).getTime() : now;
     const remaining = Math.round((base + ETA_MINUTES * 60_000 - now) / 60_000);
     return (
-      <Text style={[s.eta, { color: colors.brandDark }]}>
-        ⏱️ {remaining > 1 ? `ETA ~${remaining} min` : "Arriving any moment"}
-      </Text>
+      <Line icon="clock" color={colors.brand}>
+        {remaining > 1 ? `Arriving in about ${remaining} min` : "Arriving any moment"}
+      </Line>
     );
   }
   if (errand.status === "DELIVERED") {
     return (
-      <Text style={[s.eta, { color: colors.purpleText }]}>✅ Handed over — confirm to close</Text>
+      <Line icon="check" color={colors.warnText}>
+        Handed over, confirm to close
+      </Line>
     );
   }
   return null;
+}
+
+function Line({
+  icon,
+  color,
+  children,
+}: {
+  icon: "clock" | "check";
+  color: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={s.etaRow}>
+      <Icon name={icon} size={15} color={color} />
+      <Text style={[s.eta, { color }]}>{children}</Text>
+    </View>
+  );
 }
 
 function ErrandRow({ errand, onRate }: { errand: Errand; onRate: (id: string) => void }) {
@@ -96,6 +126,7 @@ function ErrandRow({ errand, onRate }: { errand: Errand; onRate: (id: string) =>
 
   const status = statusStyle[errand.status];
   const cancellable = errand.status === "OPEN" || errand.status === "ACCEPTED";
+  const progress = PROGRESS[errand.status] ?? 0;
 
   // Live status: the backend publishes every transition to this errand's
   // channel; refetch the moment one arrives (polling stays as fallback).
@@ -105,68 +136,93 @@ function ErrandRow({ errand, onRate }: { errand: Errand; onRate: (id: string) =>
   );
 
   return (
-    <Card raised style={{ padding: space.lg }}>
+    <View style={s.flightCard}>
       <Pressable onPress={() => router.push(`/errand/${errand.id}`)}>
-        <Row gap={space.md} align="flex-start">
-          <IconTile emoji={categoryIcon[errand.category] ?? "✨"} />
+        <View style={s.flightTop}>
+          <IconTile icon={categoryIcon[errand.category] ?? "gate"} size={46} />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Body numberOfLines={1} style={{ fontFamily: font.bold }}>
+            <Text numberOfLines={1} style={s.flightTitle}>
               {errand.title}
-            </Body>
-            <Caption numberOfLines={1} style={{ marginTop: 2 }}>
-              from {errand.pickup_label} · {rupees(errand.reward)} reward · track →
-            </Caption>
-            <View style={{ marginTop: 5 }}>
+            </Text>
+            <Text numberOfLines={1} style={s.flightSub}>
+              {errand.pickup_label}
+              {errand.runner ? `, ${errand.runner.display_name} running it` : ""}
+            </Text>
+            <View style={{ marginTop: 8 }}>
               <EtaLine errand={errand} />
             </View>
           </View>
-        </Row>
+          <View style={{ alignItems: "flex-end" }}>
+            <Text style={s.reward}>{rupees(errand.reward)}</Text>
+            <Text style={s.rewardLabel}>reward</Text>
+          </View>
+        </View>
       </Pressable>
 
-      <Row gap={space.sm} wrap style={{ marginTop: space.md }}>
-        <Pill label={status.label} bg={status.bg} color={status.text} />
+      <View style={s.flightFoot}>
+        <View style={[s.statusPill, { backgroundColor: status.bg }]}>
+          <Icon name="bike" size={13} color={status.text} />
+          <Text style={[s.statusText, { color: status.text }]}>{status.label}</Text>
+        </View>
 
-        {errand.status === "DELIVERED" ? (
-          <Button
-            title="Confirm ✓"
-            variant="success"
-            full={false}
-            loading={confirm.isPending}
-            onPress={() => confirm.mutate()}
-            style={s.rowBtn}
-          />
-        ) : null}
+        <View style={s.track}>
+          <View style={[s.trackFill, { width: `${Math.round(progress * 100)}%` }]} />
+        </View>
 
-        {errand.status === "COMPLETED" && !errand.rated ? (
-          <Button
-            title="Rate ★"
-            variant="outline"
-            full={false}
-            onPress={() => onRate(errand.id)}
-            style={s.rowBtn}
-          />
-        ) : null}
+        <Pressable
+          onPress={() => router.push(`/errand/${errand.id}`)}
+          hitSlop={8}
+          style={s.trackLink}
+        >
+          <Text style={s.trackLinkText}>Track</Text>
+          <Icon name="chev" size={14} color={colors.brand} />
+        </Pressable>
+      </View>
 
-        {cancellable ? (
-          <Pressable
-            onPress={() => cancel.mutate()}
-            disabled={cancel.isPending}
-            style={{ marginLeft: "auto", justifyContent: "center" }}
-            hitSlop={8}
-          >
-            <Caption style={{ fontFamily: font.semi }}>
-              {cancel.isPending ? "Cancelling…" : "Cancel"}
-            </Caption>
-          </Pressable>
-        ) : null}
-      </Row>
-    </Card>
+      {errand.status === "DELIVERED" || (errand.status === "COMPLETED" && !errand.rated) || cancellable ? (
+        <View style={s.flightActions}>
+          {errand.status === "DELIVERED" ? (
+            <Button
+              title="Confirm"
+              icon="check"
+              full={false}
+              loading={confirm.isPending}
+              onPress={() => confirm.mutate()}
+              style={s.rowBtn}
+            />
+          ) : null}
+
+          {errand.status === "COMPLETED" && !errand.rated ? (
+            <Button
+              title="Rate"
+              icon="star"
+              variant="outline"
+              full={false}
+              onPress={() => onRate(errand.id)}
+              style={s.rowBtn}
+            />
+          ) : null}
+
+          {cancellable ? (
+            <Pressable
+              onPress={() => cancel.mutate()}
+              disabled={cancel.isPending}
+              style={{ marginLeft: "auto", justifyContent: "center" }}
+              hitSlop={8}
+            >
+              <Text style={s.cancelText}>
+                {cancel.isPending ? "Cancelling…" : "Cancel"}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
 export default function Home() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const user = useAuth((s) => s.user);
   const setUser = useAuth((s) => s.setUser);
 
@@ -192,7 +248,7 @@ export default function Home() {
     (e) => !["COMPLETED", "CANCELLED", "EXPIRED"].includes(e.status),
   );
 
-  // You can't order while mid-delivery for someone else — the backend rejects
+  // You can't order while mid-delivery for someone else: the backend rejects
   // it, so don't offer the button. Same rule the web's Order/Run lock enforces.
   const onActiveRun = (mine?.running ?? []).some((e) =>
     ["ACCEPTED", "IN_PROGRESS"].includes(e.status),
@@ -204,79 +260,100 @@ export default function Home() {
     <Screen
       scroll
       padded={false}
+      edges={[]}
+      bg={colors.white}
       refreshControl={
         <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.brand} />
       }
     >
       <Hero
         title={`Hey ${firstName}, what do you need today?`}
-        subtitle="A verified student runner is minutes away. Post an errand or pick one up on your way back to the hostel."
+        right={
+          <HeroButton
+            icon="bell"
+            badge={unread}
+            label="Notifications"
+            onPress={() => router.push("/notifications")}
+          />
+        }
       >
+        <View style={s.campusRow}>
+          <Mark size={22} color={onBrand.text} weight={6} />
+          <Text style={s.campus}>Katpadi campus</Text>
+        </View>
+
         {onActiveRun ? (
           <View style={s.lockNote}>
+            <Icon name="bike" size={15} color={colors.white} />
             <Text style={s.lockText}>
-              🛵 Finish the run you're on before posting your own errand.
+              Finish the run you're on before posting your own errand.
             </Text>
           </View>
         ) : null}
       </Hero>
 
-      {/* Bell sits over the hero, same position the web navbar puts it. */}
-      <Pressable onPress={() => router.push("/notifications")} style={s.bell} hitSlop={10}>
-        <Text style={{ fontSize: 17 }}>🔔</Text>
-        {unread > 0 ? (
-          <View style={s.badge}>
-            <Text style={s.badgeText}>{unread > 9 ? "9+" : unread}</Text>
+      <View style={s.body}>
+        {/* Starting an errand is why you opened the app, so it leads. */}
+        <Pressable
+          disabled={onActiveRun}
+          onPress={() => router.push({ pathname: "/errand/new", params: { mode: "shopping" } })}
+          style={({ pressed }) => [s.search, pressed && { borderColor: colors.brand }]}
+        >
+          <Icon name="search" size={20} color={colors.brand} />
+          <Text style={s.searchText}>Milk, printouts, a parcel at the gate</Text>
+          <View style={s.searchPlus}>
+            <Icon name="plus" size={17} color={colors.white} />
           </View>
-        ) : null}
-      </Pressable>
+        </Pressable>
 
-      <View style={{ paddingHorizontal: space.lg }}>
-        {/* Starting an errand is why you opened the app, so it leads. The
-            category tiles double as the primary action — a separate "post an
-            errand" button above them was the same journey twice. */}
-        <View style={{ paddingTop: space.xxl }}>
-          <Heading>What can we get you?</Heading>
-          <Row gap={space.md} wrap style={{ marginTop: space.lg }}>
-            {startOptions.map((c) => (
-              <Pressable
-                key={c.name}
-                disabled={onActiveRun}
-                onPress={() => router.push({ pathname: c.route, params: c.params } as never)}
-                style={({ pressed }) => [
-                  s.startCard,
-                  pressed && s.startCardOn,
-                  onActiveRun && { opacity: 0.45 },
-                ]}
-              >
-                <Text style={{ fontSize: 30 }}>{c.icon}</Text>
-                <Body style={{ fontFamily: font.bold, marginTop: space.sm }}>{c.name}</Body>
-                <Caption style={{ marginTop: 2 }}>{c.desc}</Caption>
-              </Pressable>
-            ))}
-          </Row>
-        </View>
-
-        {/* Anything in flight, underneath */}
         {isLoading ? (
-          <View style={{ height: 150 }}>
-            <Loading />
+          <View style={{ marginTop: space.lg, gap: space.sm }}>
+            <SkeletonRow />
+            <SkeletonRow />
           </View>
         ) : active.length > 0 ? (
-          <View style={{ paddingTop: space.xxl }}>
-            <Heading>Your active errands</Heading>
-            <View style={{ gap: space.md, marginTop: space.lg }}>
+          <>
+            <View style={s.sectionHead}>
+              <Heading>In flight</Heading>
+              <Text style={s.sectionCount}>
+                {active.length} errand{active.length === 1 ? "" : "s"}
+              </Text>
+            </View>
+            <View style={{ gap: space.sm, marginTop: 11 }}>
               {active.map((e) => (
                 <ErrandRow key={e.id} errand={e} onRate={(id) => router.push(`/errand/${id}`)} />
               ))}
             </View>
-          </View>
-        ) : (
-          <Caption style={{ marginTop: space.xl }}>
-            Nothing in flight right now — pick a category above to post your first errand. Past
+          </>
+        ) : null}
+
+        <View style={s.grid}>
+          {startOptions.map((c) => (
+            <Pressable
+              key={c.name}
+              disabled={onActiveRun}
+              onPress={() => router.push({ pathname: c.route, params: c.params } as never)}
+              style={({ pressed }) => [
+                s.startCard,
+                pressed && s.startCardOn,
+                onActiveRun && { opacity: 0.45 },
+              ]}
+            >
+              <IconTile icon={c.icon as never} size={40} />
+              <View style={{ marginTop: 6 }}>
+                <Text style={s.startName}>{c.name}</Text>
+                <Text style={s.startDesc}>{c.desc}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+
+        {!isLoading && active.length === 0 ? (
+          <Caption style={{ marginTop: space.lg }}>
+            Nothing in flight right now. Pick a category above to post your first errand. Past
             errands live in your profile.
           </Caption>
-        )}
+        ) : null}
 
         <Footer />
       </View>
@@ -285,52 +362,119 @@ export default function Home() {
 }
 
 const s = StyleSheet.create({
+  campusRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
+  campus: {
+    color: onBrand.textDim,
+    fontSize: font.tiny,
+    fontFamily: font.bold,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+  },
+
   lockNote: {
-    marginTop: space.xl,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: space.lg,
     alignSelf: "flex-start",
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: radius.lg,
-    paddingHorizontal: space.lg,
-    paddingVertical: space.md,
+    backgroundColor: onBrand.fill,
+    borderRadius: radius.md,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
   },
-  lockText: { color: colors.white, fontSize: font.small, fontFamily: font.semi },
+  lockText: { flex: 1, color: colors.white, fontSize: 12.5, fontFamily: font.semi },
 
-  bell: {
-    position: "absolute",
-    top: space.xl,
-    right: space.lg,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255,255,255,0.22)",
+  body: { paddingHorizontal: 22, paddingTop: 14 },
+
+  search: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-  },
-  badge: {
-    position: "absolute",
-    top: -2,
-    right: -2,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    paddingHorizontal: 4,
+    gap: 11,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.xxl,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
     backgroundColor: colors.white,
+  },
+  searchText: { flex: 1, color: colors.mutedCool, fontSize: 14.5, fontFamily: font.regular },
+  searchPlus: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.brand,
     alignItems: "center",
     justifyContent: "center",
   },
-  badgeText: { color: colors.brand, fontSize: 10, fontFamily: font.black },
 
-  eta: { fontSize: font.tiny, fontFamily: font.semi },
-  rowBtn: { height: 36, paddingHorizontal: space.lg },
+  sectionHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: space.lg,
+  },
+  sectionCount: { color: colors.muted, fontSize: 12, fontFamily: font.semi },
 
+  flightCard: {
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+    borderRadius: radius.xxl,
+    padding: 14,
+    backgroundColor: colors.white,
+  },
+  flightTop: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
+  flightTitle: { color: colors.ink, fontSize: 14.5, fontFamily: font.bold },
+  flightSub: { color: colors.muted, fontSize: 12, fontFamily: font.regular, marginTop: 2 },
+  reward: { color: colors.moneyText, fontSize: 19, fontFamily: font.black, letterSpacing: -0.4 },
+  rewardLabel: { color: colors.mutedCool, fontSize: 10, fontFamily: font.regular },
+
+  etaRow: { flexDirection: "row", alignItems: "center", gap: 7 },
+  eta: { fontSize: 12, fontFamily: font.bold },
+
+  flightFoot: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 11,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
+  statusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+  },
+  statusText: { fontSize: 11, fontFamily: font.bold },
+  track: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.hairline, overflow: "hidden" },
+  trackFill: { height: "100%", borderRadius: 2, backgroundColor: colors.brand },
+  trackLink: { flexDirection: "row", alignItems: "center", gap: 4 },
+  trackLinkText: { color: colors.brand, fontSize: 12, fontFamily: font.bold },
+
+  flightActions: { flexDirection: "row", gap: space.sm, marginTop: space.md, alignItems: "center" },
+  rowBtn: { height: 38, paddingHorizontal: space.lg },
+  cancelText: { color: colors.muted, fontSize: 12, fontFamily: font.semi },
+
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 9, marginTop: 12 },
   startCard: {
-    width: "48%",
-    borderRadius: radius.xl,
+    width: "48.4%",
+    borderRadius: radius.xxl,
     borderWidth: 1,
     borderColor: colors.line,
     backgroundColor: colors.white,
-    padding: space.lg,
-    minHeight: 132,
+    padding: 13,
+    minHeight: 116,
   },
-  startCardOn: { borderColor: colors.brand, opacity: 0.9 },
+  startCardOn: { borderColor: colors.brand },
+  startName: { color: colors.ink, fontSize: 14.5, fontFamily: font.bold },
+  startDesc: {
+    color: colors.muted,
+    fontSize: 12,
+    fontFamily: font.regular,
+    lineHeight: 17,
+    marginTop: 2,
+  },
 });

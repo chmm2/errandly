@@ -3,17 +3,8 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { forgotPassword, resetPassword } from "../../src/api/auth";
-import {
-  Body,
-  Button,
-  Caption,
-  Card,
-  ErrorNote,
-  Field,
-  Row,
-  Screen,
-  Title,
-} from "../../src/components/ui";
+import { Icon, type IconName } from "../../src/components/icons";
+import { Body, Button, ErrorNote, Field, Screen, Title } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
 import { goBack } from "../../src/lib/nav";
 import { colors, font, radius, space } from "../../src/theme";
@@ -70,8 +61,8 @@ export default function Forgot() {
 
   if (done) {
     return (
-      <Screen scroll>
-        <Text style={s.emoji}>✅</Text>
+      <Screen scroll bg={colors.white} tabBarClearance={false}>
+        <IconDisc icon="check" tone="credit" />
         <Title>Password updated</Title>
         <Body muted style={{ marginTop: space.xs }}>
           You've been signed out everywhere else. Log in with your new password.
@@ -87,16 +78,18 @@ export default function Forgot() {
   }
 
   return (
-    <Screen scroll>
+    <Screen scroll bg={colors.white} tabBarClearance={false}>
       <Pressable
         onPress={() => (step === "reset" ? setStep("email") : goBack(router, "login"))}
-        style={s.back}
+        style={({ pressed }) => [s.back, pressed && { opacity: 0.7 }]}
         hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
       >
-        <Text style={s.backGlyph}>←</Text>
+        <Icon name="back" size={21} color={colors.brand} />
       </Pressable>
 
-      <Text style={s.emoji}>{step === "email" ? "🔑" : "📬"}</Text>
+      <IconDisc icon={step === "email" ? "lock" : "mail"} />
 
       {step === "email" ? (
         <>
@@ -108,6 +101,7 @@ export default function Forgot() {
           <View style={{ gap: space.lg, marginTop: space.xxl }}>
             <Field
               label="University email"
+              icon="mail"
               placeholder="you@vitstudent.ac.in"
               value={email}
               onChangeText={setEmail}
@@ -139,23 +133,20 @@ export default function Forgot() {
           </Body>
 
           {devOtp ? (
-            <Card style={s.devCard}>
-              <Row gap={space.sm} align="flex-start">
-                <Text style={{ fontSize: 16 }}>🛠️</Text>
-                <View style={{ flex: 1 }}>
-                  <Caption style={{ color: colors.amberText, fontFamily: font.bold }}>
-                    DEV MODE — EMAIL NOT SENT
-                  </Caption>
-                  <Text style={s.devCode}>{devOtp}</Text>
-                  <Caption>Shown because SMTP is off on the backend.</Caption>
-                </View>
-              </Row>
-            </Card>
+            <View style={s.devNotice}>
+              <Icon name="alert" size={20} color={colors.warnText} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.devLabel}>Dev mode, email not sent</Text>
+                <Text style={s.devCode}>{devOtp}</Text>
+                <Text style={s.devHint}>Shown because email sending is off on the server.</Text>
+              </View>
+            </View>
           ) : null}
 
           <View style={{ gap: space.lg, marginTop: space.xxl }}>
             <Field
               label="Reset code"
+              mono
               placeholder="000000"
               value={code}
               onChangeText={setCode}
@@ -165,6 +156,7 @@ export default function Forgot() {
             />
             <Field
               label="New password"
+              icon="lock"
               placeholder="••••••••"
               value={password}
               onChangeText={setPassword}
@@ -197,37 +189,68 @@ export default function Forgot() {
   );
 }
 
+/** The round tinted badge that heads each step, in place of an emoji. */
+function IconDisc({ icon, tone = "brand" }: { icon: IconName; tone?: "brand" | "credit" }) {
+  const credit = tone === "credit";
+  return (
+    <View style={[s.disc, { backgroundColor: credit ? colors.creditBg : colors.brandTint }]}>
+      <Icon name={icon} size={30} color={credit ? colors.credit : colors.brand} />
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   back: {
     width: 42,
     height: 42,
     borderRadius: radius.pill,
-    backgroundColor: colors.brandSoft,
+    backgroundColor: colors.brandTint,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 14,
+    marginBottom: space.xl,
+  },
+  disc: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     alignItems: "center",
     justifyContent: "center",
     marginTop: space.sm,
-    marginBottom: space.xl,
+    marginBottom: space.lg,
   },
-  backGlyph: { color: colors.brandDark, fontSize: 19, fontFamily: font.bold },
-  emoji: { fontSize: 42, marginBottom: space.md },
 
-  devCard: {
+  devNotice: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
     marginTop: space.xl,
-    backgroundColor: colors.amberBg,
-    borderColor: "#FDE68A",
+    padding: 16,
+    borderRadius: radius.xl,
+    backgroundColor: colors.warnBg,
+    borderWidth: 1,
+    borderColor: colors.warnBorder,
+  },
+  devLabel: {
+    color: colors.warnText,
+    fontSize: 11,
+    fontFamily: font.bold,
+    letterSpacing: 1.1,
+    textTransform: "uppercase",
   },
   devCode: {
     color: colors.ink,
-    fontSize: 28,
-    fontFamily: font.black,
-    letterSpacing: 7,
-    marginVertical: space.xs,
+    fontSize: 22,
+    fontFamily: font.monoMedium,
+    letterSpacing: 6,
+    marginTop: 5,
+    marginBottom: 3,
   },
+  devHint: { color: colors.warnText, fontSize: 12, fontFamily: font.regular },
 
   codeInput: {
-    fontSize: 24,
-    fontFamily: font.black,
-    letterSpacing: 9,
+    fontSize: 22,
+    letterSpacing: 8,
     textAlign: "center",
   },
 });

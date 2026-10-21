@@ -86,7 +86,13 @@ export interface ErrandCreate {
   category: Category;
   vendor_id?: string;
   items?: { menu_item_id: string; quantity: number }[];
-  list_items?: { name: string; quantity: number; note?: string }[];
+  list_items?: {
+    name: string;
+    quantity: number;
+    note?: string;
+    /** A line picked off the campus price list. The server reprices from it. */
+    reference_id?: string;
+  }[];
   title: string;
   notes?: string;
   pickup_label: string;

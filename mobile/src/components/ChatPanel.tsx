@@ -6,7 +6,8 @@ import { type ChatMessage, fetchChat, sendChat } from "../api/chat";
 import { useSocket } from "../lib/ws";
 import { useAuth } from "../stores/auth";
 import { colors, font, radius, space } from "../theme";
-import { Caption, Card, Heading, Row } from "./ui";
+import { Icon } from "./icons";
+import { Caption, Heading, Row } from "./ui";
 
 export function ChatPanel({ errandId }: { errandId: string }) {
   const myId = useAuth((s) => s.user?.id);
@@ -23,13 +24,13 @@ export function ChatPanel({ errandId }: { errandId: string }) {
     if (data) setMessages(data);
   }, [data]);
 
-  // Chat rides the errand's status channel — same socket the tracker uses.
+  // Chat rides the errand's status channel, the same socket the tracker uses.
   useSocket(
     `/ws/errands/${errandId}`,
     useCallback((payload: Record<string, unknown>) => {
       if (payload.type !== "chat") return;
       const msg = payload as unknown as ChatMessage;
-      // Our own message echoes back over the socket — dedupe on id.
+      // Our own message echoes back over the socket, so dedupe on id.
       setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
     }, []),
   );
@@ -51,11 +52,11 @@ export function ChatPanel({ errandId }: { errandId: string }) {
 
   return (
     <>
-      <Heading style={{ marginTop: space.xxl, marginBottom: space.md }}>Chat</Heading>
-      <Card style={{ padding: space.md, gap: space.sm }}>
+      <Heading style={{ marginTop: space.xl, marginBottom: 10, fontSize: 16 }}>Chat</Heading>
+      <View style={s.card}>
         {messages.length === 0 ? (
           <Caption style={{ textAlign: "center", paddingVertical: space.lg }}>
-            Say hi — messages are delivered instantly.
+            Say hi. Messages are delivered instantly.
           </Caption>
         ) : (
           <View style={{ gap: space.sm }}>
@@ -88,16 +89,26 @@ export function ChatPanel({ errandId }: { errandId: string }) {
             onPress={send}
             disabled={!draft.trim() || sending}
             style={[s.send, (!draft.trim() || sending) && { opacity: 0.4 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Send message"
           >
-            <Text style={{ fontSize: 15, color: colors.white }}>➤</Text>
+            <Icon name="chev" size={19} color={colors.white} />
           </Pressable>
         </Row>
-      </Card>
+      </View>
     </>
   );
 }
 
 const s = StyleSheet.create({
+  card: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: radius.xxl,
+    padding: space.md,
+    gap: space.sm,
+  },
   bubbleRow: { flexDirection: "row" },
   bubble: {
     maxWidth: "82%",
@@ -106,18 +117,18 @@ const s = StyleSheet.create({
     paddingVertical: space.sm,
   },
   mine: { backgroundColor: colors.brand, borderBottomRightRadius: 4 },
-  theirs: { backgroundColor: colors.brandSoft, borderBottomLeftRadius: 4 },
-  sender: { color: colors.brandDark, fontFamily: font.bold, fontSize: font.tiny, marginBottom: 2 },
-  text: { color: colors.ink, fontSize: font.body, fontFamily: font.regular, lineHeight: 20 },
+  theirs: { backgroundColor: colors.brandTint, borderBottomLeftRadius: 4 },
+  sender: { color: colors.brand, fontFamily: font.bold, fontSize: font.tiny, marginBottom: 2 },
+  text: { color: colors.ink, fontSize: 14, fontFamily: font.regular, lineHeight: 20 },
 
   input: {
     flex: 1,
     backgroundColor: colors.white,
     borderRadius: radius.pill,
     paddingHorizontal: space.lg,
-    paddingVertical: space.md,
+    paddingVertical: 11,
     color: colors.ink,
-    fontSize: font.body,
+    fontSize: 14,
     fontFamily: font.regular,
     borderWidth: 1,
     borderColor: colors.line,

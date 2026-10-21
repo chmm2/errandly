@@ -8,22 +8,11 @@ import { Image, Pressable, RefreshControl, StyleSheet, Text, View } from "react-
 import { fetchMe, setPhoto } from "../../src/api/auth";
 import { type Errand, fetchMyErrands } from "../../src/api/errands";
 import { fetchEarnings } from "../../src/api/ledger";
-import {
-  Body,
-  Button,
-  Caption,
-  Card,
-  Divider,
-  Footer,
-  Heading,
-  Hero,
-  IconTile,
-  Row,
-  Screen,
-} from "../../src/components/ui";
+import { Icon, type IconName } from "../../src/components/icons";
+import { PushStatus } from "../../src/components/PushStatus";
+import { Footer, Hero, IconTile, Screen } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
 import { notify } from "../../src/lib/dialog";
-import { PushStatus } from "../../src/components/PushStatus";
 import { unregisterForPush } from "../../src/lib/push";
 import { useAuth } from "../../src/stores/auth";
 import {
@@ -32,6 +21,8 @@ import {
   font,
   radius,
   rupees,
+  rupeesLong,
+  shadow,
   space,
   statusStyle,
   timeAgo,
@@ -43,31 +34,75 @@ const DONE = ["COMPLETED", "CANCELLED", "EXPIRED"];
 const AVATAR_PX = 512;
 
 /** A finished errand or run, in the compact history style. */
-function HistoryRow({ errand, onPress }: { errand: Errand; onPress: () => void }) {
+function HistoryRow({
+  errand,
+  onPress,
+  first,
+}: {
+  errand: Errand;
+  onPress: () => void;
+  first: boolean;
+}) {
   const status = statusStyle[errand.status];
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [s.histRow, pressed && s.pressed]}>
-      <IconTile emoji={categoryIcon[errand.category] ?? "✨"} size={38} />
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [s.histRow, !first && s.histDivider, pressed && s.pressed]}
+    >
+      <IconTile icon={categoryIcon[errand.category] ?? "gate"} size={36} />
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Body numberOfLines={1} style={{ fontFamily: font.semi }}>
+        <Text numberOfLines={1} style={s.histTitle}>
           {errand.title}
-        </Body>
-        <Caption numberOfLines={1}>
-          {rupees(errand.reward)} · {timeAgo(errand.created_at)}
-        </Caption>
+        </Text>
+        <Text numberOfLines={1} style={s.histSub}>
+          {rupees(errand.reward)} reward, {timeAgo(errand.created_at)}
+        </Text>
       </View>
-      <Caption style={{ color: status.text, fontFamily: font.bold, fontSize: 10 }}>
-        {status.label}
-      </Caption>
+      <Text style={[s.histStatus, { color: status.text }]}>{status.label}</Text>
     </Pressable>
   );
 }
 
-function StatBlock({ value, label }: { value: string | number; label: string }) {
+function StatBox({ value, label }: { value: string | number; label: string }) {
   return (
-    <View style={{ flex: 1 }}>
+    <View style={s.statBox}>
       <Text style={s.stat}>{value}</Text>
-      <Caption>{label}</Caption>
+      <Text style={s.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function SectionHead({ icon, title }: { icon: IconName; title: string }) {
+  return (
+    <View style={s.sectionHead}>
+      <Icon name={icon} size={17} color={colors.brand} />
+      <Text style={s.sectionTitle}>{title}</Text>
+    </View>
+  );
+}
+
+function History({
+  items,
+  empty,
+  onOpen,
+}: {
+  items: Errand[];
+  empty: string;
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <View style={s.list}>
+      {items.length === 0 ? (
+        <View style={s.emptyInline}>
+          <Text style={s.emptyText}>{empty}</Text>
+        </View>
+      ) : (
+        items
+          .slice(0, 5)
+          .map((e, i) => (
+            <HistoryRow key={e.id} errand={e} first={i === 0} onPress={() => onOpen(e.id)} />
+          ))
+      )}
     </View>
   );
 }
@@ -92,7 +127,10 @@ export default function Profile() {
   const pastOrders = ordered.filter((e) => DONE.includes(e.status));
   const pastRuns = ran.filter((e) => DONE.includes(e.status));
   const completedOrders = ordered.filter((e) => e.status === "COMPLETED");
-  const spent = completedOrders.reduce((sum, e) => sum + Number(e.reward) + Number(e.items_total), 0);
+  const spent = completedOrders.reduce(
+    (sum, e) => sum + Number(e.reward) + Number(e.items_total),
+    0,
+  );
 
   const savePhoto = useMutation({
     mutationFn: (dataUrl: string | null) => setPhoto(dataUrl),
@@ -108,8 +146,8 @@ export default function Profile() {
    *
    * The photo travels inside the JSON body as base64, which inflates it by a
    * third, so a straight-from-camera shot blows the field's 300k limit every
-   * time. Downscaling first is what the web client does too — an avatar is
-   * never rendered above ~64pt, so 512px is already generous.
+   * time. Downscaling first is what the web client does too: an avatar is never
+   * rendered above ~64pt, so 512px is already generous.
    */
   async function pickPhoto() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -154,24 +192,31 @@ export default function Profile() {
     .join("")
     .toUpperCase();
 
-  // No confirmation — logging back in is a few taps, so a dialog is pure
-  // friction. Cancelling an errand still confirms; that one can't be undone.
+  // No confirmation on log out: logging back in is a few taps, so a dialog is
+  // pure friction. Cancelling an errand still confirms, that one can't be undone.
 
   return (
     <Screen
       scroll
       padded={false}
+      edges={[]}
+      bg={colors.bgSoft}
       refreshControl={
         <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.brand} />
       }
     >
-      <Hero compact title="Your profile" />
+      <Hero title="Your profile" padBottom={60} />
 
-      <View style={{ paddingHorizontal: space.lg }}>
-        {/* Identity */}
-        <Card raised style={s.idCard}>
-          <Row gap={space.lg}>
-            <Pressable onPress={pickPhoto} disabled={uploading}>
+      <View style={s.body}>
+        {/* Identity, pulled up over the band */}
+        <View style={[s.idCard, shadow.raised]}>
+          <View style={s.idRow}>
+            <Pressable
+              onPress={pickPhoto}
+              disabled={uploading}
+              accessibilityRole="button"
+              accessibilityLabel="Change profile photo"
+            >
               <View style={s.avatar}>
                 {user?.photo_url ? (
                   <Image source={{ uri: user.photo_url }} style={s.avatarImg} />
@@ -180,97 +225,82 @@ export default function Profile() {
                 )}
               </View>
               <View style={s.camera}>
-                <Text style={{ fontSize: 11 }}>{uploading ? "…" : "📷"}</Text>
+                {uploading ? (
+                  <Text style={s.cameraBusy}>…</Text>
+                ) : (
+                  <Icon name="camera" size={13} color={colors.brand} />
+                )}
               </View>
             </Pressable>
 
-            <View style={{ flex: 1 }}>
-              <Body numberOfLines={1} style={{ fontFamily: font.black, fontSize: font.h3 }}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text numberOfLines={1} style={s.name}>
                 {user?.display_name ?? "—"}
-              </Body>
-              <Caption numberOfLines={1}>{user?.email}</Caption>
-              <Row gap={space.sm} style={{ marginTop: 5 }} wrap>
-                <Text style={s.stars}>★ {(user?.reputation_score ?? 5).toFixed(2)}</Text>
-                {user?.student_id ? <Caption>· {user.student_id}</Caption> : null}
-              </Row>
+              </Text>
+              <Text numberOfLines={1} style={s.email}>
+                {user?.email}
+              </Text>
+              <View style={s.badges}>
+                <View style={[s.badge, { backgroundColor: colors.brandTint }]}>
+                  <Icon name="star" size={12} color={colors.brand} />
+                  <Text style={[s.badgeText, { color: colors.brand }]}>
+                    {(user?.reputation_score ?? 5).toFixed(2)}
+                  </Text>
+                </View>
+                {user?.account_status === "ACTIVE" ? (
+                  <View style={[s.badge, { backgroundColor: colors.creditBg }]}>
+                    <Icon name="shield" size={12} color={colors.credit} />
+                    <Text style={[s.badgeText, { color: colors.credit }]}>Verified</Text>
+                  </View>
+                ) : null}
+                {user?.student_id ? <Text style={s.studentId}>{user.student_id}</Text> : null}
+              </View>
             </View>
-          </Row>
-          <Caption style={{ marginTop: space.md }}>Tap your photo to change it.</Caption>
-        </Card>
+          </View>
+        </View>
 
         {/* Only renders when push is actually broken. */}
         <PushStatus />
 
-
         {/* ---------------------------------------------------- as a customer */}
-        <Heading style={{ marginTop: space.xxl, marginBottom: space.md }}>🧑 As a customer</Heading>
-        <Card raised>
-          <Row gap={space.md}>
-            <StatBlock value={ordered.length} label="errands posted" />
-            <StatBlock value={completedOrders.length} label="completed" />
-            <StatBlock value={rupees(spent)} label="total spent" />
-          </Row>
-        </Card>
-
-        <Row justify="space-between" style={{ marginTop: space.lg, marginBottom: space.md }}>
-          <Body style={{ fontFamily: font.bold }}>Previous errands</Body>
-          {pastOrders.length > 5 ? <Caption>{pastOrders.length} total</Caption> : null}
-        </Row>
-        <Card raised style={{ padding: 0 }}>
-          {pastOrders.length === 0 ? (
-            <View style={s.emptyInline}>
-              <Caption>Nothing finished yet — your past errands will show up here.</Caption>
-            </View>
-          ) : (
-            pastOrders.slice(0, 5).map((e, i) => (
-              <View key={e.id}>
-                {i > 0 ? <Divider /> : null}
-                <HistoryRow errand={e} onPress={() => router.push(`/errand/${e.id}`)} />
-              </View>
-            ))
-          )}
-        </Card>
+        <SectionHead icon="order" title="As a customer" />
+        <View style={s.stats}>
+          <StatBox value={ordered.length} label="posted" />
+          <StatBox value={completedOrders.length} label="completed" />
+          <StatBox value={rupeesLong(spent)} label="spent" />
+        </View>
+        <History
+          items={pastOrders}
+          empty="Nothing finished yet. Your past errands will show up here."
+          onOpen={(id) => router.push(`/errand/${id}`)}
+        />
 
         {/* ------------------------------------------------------ as a runner */}
-        <Heading style={{ marginTop: space.xxl, marginBottom: space.md }}>🛵 As a runner</Heading>
-        <Card raised>
-          <Row gap={space.md}>
-            <StatBlock value={rupees(earnings?.balance ?? 0)} label="balance" />
-            <StatBlock value={rupees(earnings?.week_total ?? 0)} label="this week" />
-            <StatBlock value={earnings?.week_runs ?? 0} label="runs this week" />
-          </Row>
-        </Card>
+        <SectionHead icon="bike" title="As a runner" />
+        <View style={s.stats}>
+          <StatBox value={rupeesLong(earnings?.balance ?? 0)} label="balance" />
+          <StatBox value={rupeesLong(earnings?.week_total ?? 0)} label="this week" />
+          <StatBox value={earnings?.week_runs ?? 0} label="runs" />
+        </View>
+        <History
+          items={pastRuns}
+          empty="No completed runs yet. Accept an errand from the Run tab."
+          onOpen={(id) => router.push(`/errand/${id}`)}
+        />
 
-        <Row justify="space-between" style={{ marginTop: space.lg, marginBottom: space.md }}>
-          <Body style={{ fontFamily: font.bold }}>Previous runs</Body>
-          {pastRuns.length > 5 ? <Caption>{pastRuns.length} total</Caption> : null}
-        </Row>
-        <Card raised style={{ padding: 0 }}>
-          {pastRuns.length === 0 ? (
-            <View style={s.emptyInline}>
-              <Caption>No completed runs yet — accept an errand from the Run tab.</Caption>
-            </View>
-          ) : (
-            pastRuns.slice(0, 5).map((e, i) => (
-              <View key={e.id}>
-                {i > 0 ? <Divider /> : null}
-                <HistoryRow errand={e} onPress={() => router.push(`/errand/${e.id}`)} />
-              </View>
-            ))
-          )}
-        </Card>
-
-        <Button
-          title="Log out"
-          variant="outline"
+        <Pressable
           onPress={async () => {
-            // Drop this device first — once the token is gone the request
+            // Drop this device first: once the token is gone the request
             // would be unauthenticated.
             await unregisterForPush();
             logout();
           }}
-          style={{ marginTop: space.xxl }}
-        />
+          style={({ pressed }) => [s.logout, pressed && s.pressed]}
+          accessibilityRole="button"
+        >
+          <Icon name="logout" size={18} color={colors.caution} />
+          <Text style={s.logoutText}>Log out</Text>
+        </Pressable>
 
         <Footer />
       </View>
@@ -279,60 +309,109 @@ export default function Profile() {
 }
 
 const s = StyleSheet.create({
-  badgeDot: {
-    minWidth: 22,
-    height: 22,
-    paddingHorizontal: 6,
-    borderRadius: 11,
-    backgroundColor: colors.brand,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgeDotText: { color: colors.white, fontSize: 11, fontFamily: font.black },
-
-  idCard: { marginTop: -space.xl },
+  body: { paddingHorizontal: 22, marginTop: -42 },
   pressed: { opacity: 0.7 },
 
+  idCard: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: radius.big,
+    padding: 18,
+  },
+  idRow: { flexDirection: "row", alignItems: "center", gap: 14 },
   avatar: {
     width: 62,
     height: 62,
     borderRadius: 31,
-    backgroundColor: colors.brandSoft,
+    backgroundColor: colors.brandTint,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
   },
   avatarImg: { width: "100%", height: "100%" },
-  initials: { color: colors.brandDark, fontSize: 21, fontFamily: font.black },
+  initials: { color: colors.brand, fontSize: 22, fontFamily: font.black },
   camera: {
     position: "absolute",
-    right: -2,
-    bottom: -2,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    right: -3,
+    bottom: -3,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.line,
     alignItems: "center",
     justifyContent: "center",
   },
-  stars: { color: colors.brand, fontSize: font.small, fontFamily: font.bold },
+  cameraBusy: { color: colors.brand, fontSize: 11, fontFamily: font.bold },
+  name: { color: colors.ink, fontSize: 17, fontFamily: font.black, letterSpacing: -0.3 },
+  email: { color: colors.muted, fontSize: 12, fontFamily: font.regular, marginTop: 1 },
+  badges: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 6 },
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+  },
+  badgeText: { fontSize: 11, fontFamily: font.bold },
+  studentId: { color: colors.mutedCool, fontSize: 11, fontFamily: font.mono },
 
-  stat: { color: colors.ink, fontSize: font.h3, fontFamily: font.black },
+  sectionHead: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: space.xl },
+  sectionTitle: { color: colors.ink, fontSize: 15, fontFamily: font.black, letterSpacing: -0.3 },
 
+  stats: { flexDirection: "row", gap: 10, marginTop: 10 },
+  statBox: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: radius.xl,
+    padding: 14,
+  },
+  stat: { color: colors.ink, fontSize: 20, fontFamily: font.black, letterSpacing: -0.5 },
+  statLabel: { color: colors.muted, fontSize: 11, fontFamily: font.regular, marginTop: 1 },
+
+  list: {
+    marginTop: 14,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: radius.xxl,
+    overflow: "hidden",
+  },
   histRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: space.md,
-    padding: space.lg,
+    gap: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 13,
   },
+  histDivider: { borderTopWidth: 1, borderTopColor: colors.hairlineSoft },
+  histTitle: { color: colors.ink, fontSize: 13.5, fontFamily: font.semi },
+  histSub: { color: colors.muted, fontSize: 11.5, fontFamily: font.regular },
+  histStatus: { fontSize: 10.5, fontFamily: font.bold },
   emptyInline: { padding: space.xl, alignItems: "center" },
+  emptyText: {
+    color: colors.muted,
+    fontSize: 12.5,
+    fontFamily: font.regular,
+    textAlign: "center",
+    lineHeight: 19,
+  },
 
-  link: {
+  logout: {
+    marginTop: space.lg,
+    height: 48,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.cautionBorder,
     flexDirection: "row",
     alignItems: "center",
-    gap: space.md,
-    padding: space.lg,
+    justifyContent: "center",
+    gap: 8,
   },
+  logoutText: { color: colors.caution, fontSize: 14, fontFamily: font.bold },
 });

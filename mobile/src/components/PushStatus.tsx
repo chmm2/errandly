@@ -3,6 +3,7 @@ import { Linking, Platform, StyleSheet, Text, View } from "react-native";
 
 import { getCurrentPushToken, getPushFailure, registerForPush } from "../lib/push";
 import { colors, font, radius, space } from "../theme";
+import { Icon } from "./icons";
 import { Button, Caption, Card, Row } from "./ui";
 
 /**
@@ -32,7 +33,7 @@ export function PushStatus() {
   return (
     <Card style={s.card}>
       <Row gap={space.md} align="flex-start">
-        <Text style={{ fontSize: 18 }}>🔕</Text>
+        <Icon name="bell" size={19} color={colors.warnText} />
         <View style={{ flex: 1 }}>
           <Text style={s.title}>Notifications are off</Text>
           <Caption style={{ marginTop: 2 }}>{failure}</Caption>
@@ -63,8 +64,8 @@ export function PushStatus() {
 const s = StyleSheet.create({
   card: {
     marginTop: space.lg,
-    backgroundColor: colors.amberBg,
-    borderColor: "#FDE68A",
+    backgroundColor: colors.warnBg,
+    borderColor: colors.warnBorder,
     borderRadius: radius.xl,
   },
   title: { color: colors.ink, fontSize: font.body, fontFamily: font.bold },

@@ -6,22 +6,22 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { createErrand } from "../../src/api/errands";
 import { fetchMenu, type MenuItem } from "../../src/api/vendors";
+import { Icon } from "../../src/components/icons";
 import {
   Body,
+  Button,
   Caption,
-  Card,
-  Divider,
+  EmptyState,
   Heading,
   Hero,
-  Button,
-  EmptyState,
-  Loading,
+  Notice,
   Pill,
   Row,
   Screen,
+  SkeletonRow,
 } from "../../src/components/ui";
 import { apiErrorMessage } from "../../src/lib/api";
-import { confirm, notify } from "../../src/lib/dialog";
+import { notify } from "../../src/lib/dialog";
 import { goBack } from "../../src/lib/nav";
 import { colors, font, radius, rupees, shadow, space } from "../../src/theme";
 
@@ -101,64 +101,72 @@ export default function VendorMenu() {
   // permanent loading state.
   if (isError || (!isLoading && !data)) {
     return (
-      <Screen>
-        <EmptyState
-          emoji="😕"
-          title="Couldn't load this menu"
-          body={error ? apiErrorMessage(error) : "It may have been removed, or the link is wrong."}
-          action={<Button title="Try again" onPress={() => refetch()} />}
-        />
+      <Screen padded={false} edges={[]} tabBarClearance={false}>
+        <Hero compact onBack={() => goBack(router)} title="Menu" />
+        <View style={{ padding: 22 }}>
+          <EmptyState
+            icon="alert"
+            title="Couldn't load this menu"
+            body={error ? apiErrorMessage(error) : "It may have been removed, or the link is wrong."}
+            action={<Button title="Try again" onPress={() => refetch()} />}
+          />
+        </View>
       </Screen>
     );
   }
 
   if (isLoading || !data) {
     return (
-      <Screen>
-        <Loading label="Loading menu…" />
+      <Screen padded={false} edges={[]} tabBarClearance={false}>
+        <Hero compact onBack={() => goBack(router)} title="Loading menu…" />
+        <View style={{ padding: 22, gap: space.sm }}>
+          <SkeletonRow />
+          <SkeletonRow />
+          <SkeletonRow />
+        </View>
       </Screen>
     );
   }
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} edges={[]} bg={colors.bgSoft}>
       <View style={{ flex: 1 }}>
-        <Screen scroll padded={false} edges={[]}>
+        <Screen scroll padded={false} edges={[]} bg={colors.bgSoft}>
           <Hero compact onBack={() => goBack(router)} title={data.vendor.name} subtitle={data.vendor.description ?? undefined}>
             <View style={{ marginTop: space.md, alignSelf: "flex-start" }}>
               <Pill
-                label={data.vendor.is_open ? "● Open now" : "Closed"}
-                bg={data.vendor.is_open ? "rgba(255,255,255,0.22)" : colors.grayBg}
-                color={data.vendor.is_open ? colors.white : colors.muted}
+                label={data.vendor.is_open ? "Open now" : "Closed"}
+                icon={data.vendor.is_open ? "clock" : "close"}
+                bg="rgba(255,255,255,0.16)"
+                color={colors.white}
               />
             </View>
           </Hero>
 
-          <View style={{ paddingHorizontal: space.lg, paddingTop: space.lg }}>
+          <View style={{ paddingHorizontal: 22, paddingTop: space.lg, paddingBottom: 110 }}>
             {data.stale ? (
-              <Card style={s.stale}>
-                <Caption style={{ color: colors.amberText }}>
-                  ⚠️ Showing a slightly older menu — live prices couldn't be reached.
-                </Caption>
-              </Card>
+              <Notice
+                icon="alert"
+                title="Showing a slightly older menu"
+                body="Live prices couldn't be reached, so these may have moved."
+              />
             ) : null}
 
             {!data.vendor.is_open ? (
-              <Card style={{ marginTop: space.lg }}>
+              <View style={[s.list, { padding: 14, marginTop: space.md }]}>
                 <Caption>This store is closed right now, so orders can't be placed.</Caption>
-              </Card>
+              </View>
             ) : null}
 
             {sections.map(([section, items]) => (
-              <View key={section} style={{ marginTop: space.xxl }}>
-                <Heading style={{ marginBottom: space.md }}>{section}</Heading>
-                <Card raised style={{ padding: 0 }}>
+              <View key={section} style={{ marginTop: space.xl }}>
+                <Heading style={{ marginBottom: 10, fontSize: 16 }}>{section}</Heading>
+                <View style={s.list}>
                   {items.map((item, i) => {
                     const qty = cart[item.id] ?? 0;
                     return (
-                      <View key={item.id}>
-                        {i > 0 ? <Divider /> : null}
-                        <Row justify="space-between" gap={space.md} style={{ padding: space.lg }}>
+                      <View key={item.id} style={i > 0 ? s.divider : undefined}>
+                        <Row justify="space-between" gap={space.md} style={{ padding: 14 }}>
                           <View style={{ flex: 1 }}>
                             <Body
                               style={{
@@ -168,28 +176,45 @@ export default function VendorMenu() {
                             >
                               {item.name}
                             </Body>
-                            <Caption style={{ marginTop: 2, color: colors.brand, fontFamily: font.bold }}>
+                            <Caption style={{ marginTop: 2, color: colors.moneyText, fontFamily: font.bold }}>
                               {rupees(item.price)}
                             </Caption>
                             {!item.is_available ? (
-                              <Caption style={{ color: colors.redText }}>Sold out</Caption>
+                              <Caption style={{ color: colors.caution }}>Sold out</Caption>
                             ) : null}
                           </View>
 
                           {item.is_available && data.vendor.is_open ? (
                             qty > 0 ? (
-                              <Row gap={space.sm}>
-                                <Pressable onPress={() => bump(item.id, -1)} style={s.step}>
-                                  <Text style={s.stepGlyph}>−</Text>
+                              <View style={s.stepper}>
+                                <Pressable
+                                  onPress={() => bump(item.id, -1)}
+                                  style={s.stepBtn}
+                                  hitSlop={6}
+                                  accessibilityRole="button"
+                                  accessibilityLabel="One fewer"
+                                >
+                                  <Icon name="minus" size={15} color={colors.brand} />
                                 </Pressable>
                                 <Text style={s.qty}>{qty}</Text>
-                                <Pressable onPress={() => bump(item.id, 1)} style={s.step}>
-                                  <Text style={s.stepGlyph}>+</Text>
+                                <Pressable
+                                  onPress={() => bump(item.id, 1)}
+                                  style={s.stepBtn}
+                                  hitSlop={6}
+                                  accessibilityRole="button"
+                                  accessibilityLabel="One more"
+                                >
+                                  <Icon name="plus" size={15} color={colors.brand} />
                                 </Pressable>
-                              </Row>
+                              </View>
                             ) : (
-                              <Pressable onPress={() => bump(item.id, 1)} style={s.add}>
-                                <Text style={s.addText}>ADD</Text>
+                              <Pressable
+                                onPress={() => bump(item.id, 1)}
+                                style={s.add}
+                                accessibilityRole="button"
+                                accessibilityLabel={"Add " + item.name}
+                              >
+                                <Icon name="plus" size={16} color={colors.white} />
                               </Pressable>
                             )
                           ) : null}
@@ -197,7 +222,7 @@ export default function VendorMenu() {
                       </View>
                     );
                   })}
-                </Card>
+                </View>
               </View>
             ))}
           </View>
@@ -209,9 +234,9 @@ export default function VendorMenu() {
             <Row justify="space-between" gap={space.md}>
               <View>
                 <Text style={s.cartCount}>
-                  {count} item{count > 1 ? "s" : ""} · {rupees(total)}
+                  {count} item{count > 1 ? "s" : ""}, {rupees(total)}
                 </Text>
-                <Text style={s.cartHint}>+ {rupees(DEFAULT_REWARD)} runner reward</Text>
+                <Text style={s.cartHint}>plus {rupees(DEFAULT_REWARD)} runner reward</Text>
               </View>
               <Pressable
                 onPress={checkout}
@@ -219,8 +244,11 @@ export default function VendorMenu() {
                 style={[s.cartBtn, (post.isPending || posting) && { opacity: 0.6 }]}
               >
                 <Text style={s.cartBtnText}>
-                  {post.isPending || posting ? "Posting…" : "Post errand →"}
+                  {post.isPending || posting ? "Posting…" : "Post errand"}
                 </Text>
+                {post.isPending || posting ? null : (
+                  <Icon name="chev" size={17} color={colors.brand} />
+                )}
               </Pressable>
             </Row>
           </View>
@@ -231,57 +259,60 @@ export default function VendorMenu() {
 }
 
 const s = StyleSheet.create({
-  stale: {
-    marginTop: space.lg,
-    backgroundColor: colors.amberBg,
-    borderColor: "#FDE68A",
+  list: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: radius.xxl,
+    overflow: "hidden",
   },
+  divider: { borderTopWidth: 1, borderTopColor: colors.hairlineSoft },
 
   add: {
-    paddingHorizontal: space.lg,
-    paddingVertical: space.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.brand,
-    backgroundColor: colors.white,
-  },
-  addText: { color: colors.brand, fontSize: font.small, fontFamily: font.black, letterSpacing: 0.5 },
-
-  step: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.md,
-    backgroundColor: colors.brandSoft,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.brand,
     alignItems: "center",
     justifyContent: "center",
   },
-  stepGlyph: { color: colors.brandDark, fontSize: 16, fontFamily: font.bold },
+  stepper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.sm,
+    height: 34,
+  },
+  stepBtn: { paddingHorizontal: 8, height: "100%", justifyContent: "center" },
   qty: {
     color: colors.ink,
-    fontSize: font.body,
+    fontSize: 13,
     fontFamily: font.bold,
-    minWidth: 18,
+    minWidth: 14,
     textAlign: "center",
   },
 
   cartBar: {
     position: "absolute",
-    left: space.lg,
-    right: space.lg,
+    left: 22,
+    right: 22,
     bottom: space.xl,
     borderRadius: radius.xl,
     padding: space.lg,
     backgroundColor: colors.brand,
   },
-  cartCount: { color: colors.white, fontSize: font.h3, fontFamily: font.black },
-  cartHint: { color: "rgba(255,255,255,0.85)", fontSize: font.tiny, fontFamily: font.medium, marginTop: 1 },
+  cartCount: { color: colors.white, fontSize: 16, fontFamily: font.black },
+  cartHint: { color: "rgba(255,255,255,0.78)", fontSize: 11, fontFamily: font.regular, marginTop: 1 },
   cartBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     paddingHorizontal: space.lg,
     height: 42,
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     backgroundColor: colors.white,
-    alignItems: "center",
     justifyContent: "center",
   },
-  cartBtnText: { color: colors.brand, fontSize: font.body, fontFamily: font.bold },
+  cartBtnText: { color: colors.brand, fontSize: 14, fontFamily: font.bold },
 });
