@@ -36,9 +36,13 @@ The manuscript is original, has not been published, and is not under considerati
 elsewhere. It extends work done for the authors' undergraduate project at Vellore
 Institute of Technology; the project report is unpublished. All authors have approved
 the submission. The authors declare no conflict of interest [and received no specific
-funding for this work]. The use of an AI writing and coding assistant is disclosed in
-the Acknowledgment, as IEEE policy requires. The code and experiment scripts are
-available at https://github.com/chmm2/errandly [add Zenodo DOI if created].
+funding for this work]. The authors used an AI writing and coding assistant (Claude,
+Anthropic) to help draft and edit the text and to write the evaluation scripts; the
+authors reviewed and verified all content, code and results. The code is available
+at https://github.com/chmm2/errandly, and the datasets, raw results, run logs and
+test report behind every table and figure are in its paper-artifacts folder,
+https://github.com/chmm2/errandly/tree/feat/payments-fraud-detection/paper-artifacts
+[add Zenodo DOI if created].
 
 [Optional: suggested reviewers, with affiliations and e-mail addresses, who have no
 conflict of interest with the authors.]

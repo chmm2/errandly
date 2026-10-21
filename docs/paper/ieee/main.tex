@@ -911,6 +911,35 @@ the detail behind each row.
 %======================================================================
 \input{sections/conclusion.tex}
 
+\section*{Data and Code Availability}
+The datasets and the proof of every experiment are in the \code{paper-artifacts}
+folder of the project repository on GitHub:
+
+\smallskip
+{\raggedright\footnotesize
+\url{https://github.com/chmm2/errandly/tree/feat/payments-fraud-detection/paper-artifacts}\par}
+\smallskip
+
+\noindent The folder holds the simulated datasets as CSV files, among them the campus,
+friendships, errands, payments and offer log of a representative seed, the price
+claims of each attack, the escrow orders and the item names. It also holds the raw
+output of every experiment with its seeds, the run logs, the result figures as
+images, the test report and a description of the machine. Its README maps every
+table and figure in this paper to the result file, dataset and script that produced
+it, and a checksum manifest lets a reader confirm the files are unchanged. The source
+code and the experiment scripts are in the same repository; the results were
+produced by the code of commit \code{c43fc91}, which the result files label
+\code{00d8928+review-fixes} because they were written before that commit was
+recorded. No data about real students were collected.
+
+\section*{Acknowledgment}
+The authors thank the School of Computer Science and Engineering, Vellore Institute
+of Technology, for supporting this work. The authors reviewed and verified all
+content, code and results and take full responsibility for them.
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
 \section*{Author Contributions}
 C.~M.~Mattam designed and built the backend services, the event pipeline, the
 mobile client and the social trust graph. U.~Gogoi designed and built the escrow and
@@ -918,24 +947,6 @@ payment flow and the price-claim fraud controls, and ran the evaluation.
 S.~Sajlal built the web and administrator client, tested the applications, and
 contributed the literature review and the editing of the manuscript. R.~S supervised
 the work and reviewed the manuscript. All authors approved the final version.
-
-\section*{Data and Code Availability}
-The source code, the experiment scripts and the result files with their seeds are
-in the project repository at commit \code{c43fc91}. The results were produced from
-the working tree of that commit before it was recorded, which the result files label
-\code{00d8928+review-fixes}. The README in \code{backend/evals/paper} gives the
-command that regenerates every table and figure. No data about real students were
-collected.
-
-\section*{Acknowledgment}
-The authors thank the School of Computer Science and Engineering, Vellore Institute
-of Technology, for supporting this work. The authors used an AI writing and coding
-assistant (Claude, Anthropic) to help draft and edit the text of this manuscript and
-to write the evaluation scripts; the authors reviewed and verified all content,
-code and results and take full responsibility for them.
-
-\bibliographystyle{IEEEtran}
-\bibliography{refs}
 
 % Biographies are required by IEEE Access at submission. Each author should
 % rewrite their own; IEEE Access also asks for a photo with the final files

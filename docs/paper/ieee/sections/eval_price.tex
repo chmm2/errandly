@@ -52,6 +52,23 @@ the reference at Rs.~20 in every one of the 30 seeds was the exclusion of runner
 under a near-line flag. Across all 4,620 runs no honest runner received a near-line
 flag and no honest claim was judged FLAGGED.
 
+\emph{Reading Fig.~\ref{fig:reference}.} The figure follows the hardest case in
+Table~\ref{tab:reference}, 60\% of runners line-walking, week by week. The horizontal
+axis is the week of the 16-week run, and the vertical axis is the reference price in
+force that week, against which every claim is judged. The true price is Rs.~20, and
+the two thin dashed lines mark the administrator's band of Rs.~15 to Rs.~30. Each line
+is the mean over the 30 seeds of one estimator, and the grey band around it spans the
+5th to 95th percentile of seeds, so a narrow band means every seed behaved alike. A
+line that rises above Rs.~20 means the attack is moving the reference. That matters
+because the allowance grows with the reference, so each rise makes the next inflated
+claim look normal. The dotted line (mean of claims) drifts up steadily to about
+Rs.~38. The dashed line (one vote per runner) runs away to about Rs.~97, because the
+attackers are the majority of voters and their claims are never flagged. The band
+alone (long dashes) stops the drift at about Rs.~27.5, inside the band. The deployed
+estimator (solid line) rises to about Rs.~27 in the first two weeks while the
+near-line rule is still collecting four claims from each attacker. It then falls back
+to Rs.~20 and stays there once the flagged runners lose their vote.
+
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{figures/fig_reference.pdf}

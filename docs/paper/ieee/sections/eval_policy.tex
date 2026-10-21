@@ -3,6 +3,24 @@
 Fig.~\ref{fig:z} plots the policy statistic~\eqref{eq:z} for every planted group in the
 main runs, under both acceptance models.
 
+\emph{Reading Fig.~\ref{fig:z}.} Each marker is one planted group in one trial. An
+open circle is an honest close-knit group and a filled square is a collusion ring.
+Each regime has one column: up to 840 honest groups (28 per seed over 30 seeds) and
+150 rings (5 per seed). Markers are spread sideways only so that they do not hide one
+another; the horizontal position inside a column carries no meaning. The vertical
+axis is $z$, how many standard deviations a group's in-group takes lie above what the
+acceptance model predicted. At $z=0$ the group did exactly what the model expected;
+a positive $z$ means its members took one another's errands more often than
+predicted. The horizontal line at $z=3$ is the decision threshold. If the ring search
+flags a group below the line, the test clears it; a group above the line goes to a
+reviewer. The two numbers above each column count the honest groups (top) and rings
+(bottom) on or above the line. A good test puts the circles below the line and the
+squares above it. Panel (a) does this in the routine and busy regimes but not with
+coordinated rings, whose squares sit among the circles. In panel (b) those squares
+rise above the line while the circles stay near zero. In the favours and hard
+columns, many circles cross the line in both panels: honest groups that deliberately
+route favours look like rings to any test built on these logs.
+
 \emph{Calibration.} With the router's scores (Fig.~\ref{fig:z}(a)), honest groups in
 the routine regime had a median $z$ of $-2.1$: the router's scores predict more
 in-group takes than honest groups make, because every candidate in a tier is told at
@@ -51,6 +69,23 @@ honest student per trial at every rate, against 1.1 to 3.8 for the ring search a
 Since exploration costs service (Section~\ref{sec:eval-dispatch}), the fitted model
 removes the main reason to raise it.
 
+\emph{Reading Fig.~\ref{fig:explore}.} The horizontal axis of both panels is the
+exploration rate, the share of first offers sent without the social boost; the dotted
+vertical line marks the deployed 5\%. Panel (a) measures recall against coordinated
+rings: the share of the 26 ring members still flagged after the policy test. The
+dashed line with open circles is the ring search alone, an upper bound, because the
+test can only remove flags, never add them. The dotted line with triangles is the
+original test, using the router's scores, and the solid line with filled squares is
+the deployed test, using the fitted model. The vertical gap between the dashed line
+and a test's line is the share of ring members that test wrongly cleared. The
+original test closes that gap only at 40\% exploration; the fitted test stays close
+to it at every rate. Panel (b) counts honest students falsely flagged per trial in
+the busy regime, where the router itself puts honest friends together, so lower is
+better. Here the dashed line shows how many flags the router causes, and the two test
+lines show how many remain. Each point is the mean over ten seeds, and its error bar
+is the 95\% confidence interval of that mean. The bars in panel (b) are wide because
+false positives are few and vary from seed to seed between zero and a handful.
+
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{figures/fig_explore.pdf}
@@ -84,6 +119,23 @@ pipeline is blind, but the farming is also small: at four errands per member the
 rings together moved about Rs.~1,600 in a semester, and under one vote per rater a
 member farming from three partners gets three votes however many errands they run
 (Section~\ref{sec:eval-farming}).
+
+\emph{Reading Fig.~\ref{fig:sweeps}.} In panel (a) the horizontal axis is the number
+of favours each honest group member deliberately routes to a friend in a semester,
+and the vertical axis is the number of honest students flagged per trial. The three
+lines use the same markers as Fig.~\ref{fig:explore}. The gap between the dashed line
+(ring search alone) and the solid line (deployed test) is the honest flags that the
+test clears. That gap is wide at three and six favours, narrows at twelve and all but
+closes at twenty-four, where the lines meet: there the test, correctly by its own
+definition, finds the routing unexplained. In panel (b) the horizontal axis is the
+number of farmed errands per ring member in a semester, and the vertical axis is
+recall. The dashed line is careless (routine) rings against the ring search alone;
+where it rises shows the qualification floor of a payment leg. The solid line is
+coordinated rings, which choose their own volume, against the deployed pipeline;
+where it rises shows how much an adaptive ring can farm before it is caught. The
+point where a curve leaves zero is the volume a ring can stay under. Error bars are
+95\% confidence intervals over ten seeds; they are widest at eight errands, where
+whether a ring is caught depends on chance in individual seeds.
 
 \begin{figure}[!t]
 \centering

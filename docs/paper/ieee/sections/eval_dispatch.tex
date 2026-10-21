@@ -75,6 +75,22 @@ Section~\ref{sec:design-reference}: an unpriced line can be over-claimed only up
 the slack in the hold, Rs.~12.7 per order on average and Rs.~32 at the 95th
 percentile here, before the payout freezes for a person to look at.
 
+\emph{Reading Fig.~\ref{fig:escrow}.} Each line traces one rule for what the escrow
+headroom covers. Each marker is one headroom percentage, from 5\% at the left end of
+a line to 50\% at the right end. The horizontal axis is the money a hold locks
+without need: the hold minus what the order finally paid, averaged per order. The
+vertical axis is the share of payouts that freeze for review because the runner is
+owed more than the hold. Both are costs, so a better rule has its curve nearer the
+bottom-left corner: fewer freezes for the same money locked. The solid line with
+filled squares puts headroom only on loose-priced items, as deployed, and the dashed
+line with open circles puts it on the whole order. The arrow marks the deployed 16\%.
+In both panels the solid curve lies below the dashed one wherever the two lock the
+same money, which is the case for targeting the part of the order whose price is
+uncertain. Panel (b) repeats the experiment with dearer counters. Every point moves
+up, because more claims exceed any given hold, but the ordering of the two rules
+stays the same. Error bars are 95\% confidence intervals over ten seeds of 3,000
+orders; they are smaller than the markers at most points.
+
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{figures/fig_escrow.pdf}

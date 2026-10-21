@@ -562,7 +562,7 @@ if __name__ == "__main__":
         print(zs)
     elif which == "main":
         if len(sys.argv) > 2:
-            # e.g. main routine,busy  -> results/exp2_main_routine-busy.json
+            # e.g. main routine,busy  -> paper-artifacts/results/exp2_main_routine-busy.json
             names = tuple(sys.argv[2].split(","))
             asyncio.run(main_ablation(regimes=names, tag="-".join(names)))
         else:

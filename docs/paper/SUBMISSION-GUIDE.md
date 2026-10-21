@@ -14,12 +14,16 @@ covers the rest, and the parts only the authors can do.
    is zero-sum. The answers are in Sections IV and VI. If a sentence does not sound
    like you, rewrite it in your own words. That is also the honest way to make the
    text yours.
-2. **Keep the AI disclosure in the Acknowledgment.** IEEE requires that use of
-   AI-generated text, figures or code be disclosed in the acknowledgments, naming the
-   tool and what it was used for ([IEEE author guidelines on AI-generated text](https://open.ieee.org/author-guidelines-for-artificial-intelligence-ai-generated-text/)).
+2. **Disclose the AI assistance somewhere IEEE will see it.** At the faculty's
+   request the sentence was taken out of the Acknowledgment, and the disclosure now
+   sits in the cover letter; declare it in the submission form as well. Be aware that
+   IEEE's policy asks for the disclosure in the acknowledgments section of the article
+   itself, so an editor may ask you to put it back; raise this with your guide before
+   submitting. IEEE requires that use of AI-generated text, figures or code be
+   disclosed, naming the tool and what it was used for ([IEEE author guidelines on AI-generated text](https://open.ieee.org/author-guidelines-for-artificial-intelligence-ai-generated-text/)).
    The IEEE Access checklist repeats it ([IEEE Access submission checklist](https://ieeeaccess.ieee.org/wp-content/uploads/2025/09/IEEE-Access-Submission-Checklist.pdf)).
-   Do not remove the statement or try to disguise AI-assisted text with paraphrasing
-   tools. Undisclosed use can lead to rejection or a later retraction, and paraphrasers
+   Do not drop the disclosure altogether or try to disguise AI-assisted text with
+   paraphrasing tools. Undisclosed use can lead to rejection or a later retraction, and paraphrasers
    introduce errors. If you rewrite large parts yourselves, update the statement so it
    describes what the assistant actually did.
 3. **Confirm the author list and order with Dr. Ranjithkumar S.** The draft lists
@@ -118,7 +122,7 @@ page limit.
 | "Your baselines are weak." | Table VI: single-signal baselines, an any-pair cycle search, FRAUDAR-style peeling and label propagation, the last two given the true ring size | Learned graph detectors once real labelled data exist |
 | "Is the simulator tuned to make you look good?" | The paper reports where the design fails: the first policy test, the identifiability limit with honest favours, adaptive rings that farm little, the breadth attack, shops with few reporters, the unpriced-line swap | Have someone outside the team pick one behavioural setting before seeing results |
 | "Is this new?" | Table I and the contribution list | Be ready to say in two sentences what is new: a social dispatcher and a collusion detector interfere, and the detector must be conditioned on a fitted model of the dispatcher's effect, not on its design weights |
-| "Error bars?" | 30 seeds for main results and 10 per sweep point, with 95% confidence intervals; Table IV collects them; per-trial values are in `backend/evals/paper/results/*.json` | Nothing more needed for a simulation study |
+| "Error bars?" | 30 seeds for main results and 10 per sweep point, with 95% confidence intervals; Table IV collects them; per-trial values are in `paper-artifacts/results/*.json` | Nothing more needed for a simulation study |
 | "Ethics and privacy?" | VII-D and IV-B: automation may warn, demote and pause, but account suspension needs upheld flags; every flag carries its evidence; dismissal lifts the pause; local model; ethics approval before a pilot | Get the approval letter before the pilot, not after |
 
 ---

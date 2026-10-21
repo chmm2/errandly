@@ -22,23 +22,28 @@ docker run -d --name errandly-paper-neo4j --network project_1_default \
   neo4j:5.26-community
 ```
 
-The collusion runs are long, so the paper's numbers were produced with four such
-instances (`errandly-paper-neo4j`, `-2`, `-3`, `-4`) running parts in parallel.
+The collusion runs are long, so the paper's numbers were produced with up to five
+such instances (`errandly-paper-neo4j`, `-2` to `-5`) running parts in parallel.
 Each process needs its own instance, because a trial wipes the graph.
 
-Run any experiment in a one-off backend container (from the repository root):
+Run any experiment in a one-off backend container (from the repository root). The
+results folder is `paper-artifacts/results` at the repository root, outside the
+`backend` mount, so mount it into the container at `/paper-artifacts`:
 
 ```bash
 docker compose run --rm --no-deps -T \
+  -v "$(pwd)/paper-artifacts:/paper-artifacts" \
   -e PAPER_GIT_COMMIT=$(git rev-parse --short HEAD) \
   -e NEO4J_URL=bolt://errandly-paper-neo4j:7687 -e REDIS_URL=redis://redis:6379/1 \
   -e LLM_PROVIDER= -e ANTHROPIC_API_KEY= \
   backend python -m evals.paper.exp2_collusion main routine,busy
 ```
 
-Results land in `results/*.json` with the commit given in `PAPER_GIT_COMMIT`, the
-Python version, the CPU, core count and memory the container saw, and a
-timestamp. Then draw the figures on the host:
+Results land in `paper-artifacts/results/*.json` with the commit given in
+`PAPER_GIT_COMMIT`, the Python version, the CPU, core count and memory the
+container saw, and a timestamp. `export_datasets.py` writes the CSV datasets to
+`paper-artifacts/datasets/`; see `paper-artifacts/README.md`. Then draw the figures
+on the host (PDFs for the paper, PNG copies into `paper-artifacts/figures/`):
 
 ```bash
 python docs/paper/ieee/figures/make_figures.py

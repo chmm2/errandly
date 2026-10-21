@@ -21,7 +21,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
-RESULTS = HERE.parents[3] / "backend" / "evals" / "paper" / "results"
+RESULTS = HERE.parents[3] / "paper-artifacts" / "results"
+PNG_DIR = HERE.parents[3] / "paper-artifacts" / "figures"
 COL = 3.45  # IEEE single-column width, inches
 DEPLOYED_EXPLORE = 0.05
 
@@ -75,7 +76,11 @@ def load_sweeps():
 
 
 def save(fig, name):
+    """The PDF goes into the paper; a PNG copy goes into paper-artifacts so the
+    figure can be seen on GitHub without building the manuscript."""
     fig.savefig(HERE / f"{name}.pdf")
+    PNG_DIR.mkdir(parents=True, exist_ok=True)
+    fig.savefig(PNG_DIR / f"{name}.png", dpi=200)
     plt.close(fig)
     print("wrote", name)
 

@@ -19,7 +19,14 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
-RESULTS_DIR = Path(__file__).parent / "results"
+# Results live in the repository's paper-artifacts folder, next to the exported
+# datasets and run logs. Three levels up from here is the repository root on the
+# host and "/" in the backend container, so the container needs the folder
+# mounted at /paper-artifacts (see README.md); PAPER_RESULTS_DIR overrides both.
+RESULTS_DIR = Path(
+    os.environ.get("PAPER_RESULTS_DIR")
+    or Path(__file__).resolve().parents[3] / "paper-artifacts" / "results"
+)
 
 # The driver logs an INFO line for every schema notice and planner hint. They
 # are not errors and they drown the experiment output.

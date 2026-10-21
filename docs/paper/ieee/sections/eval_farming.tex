@@ -27,6 +27,23 @@ for a real errand, and friendship maturity (Section~\ref{sec:design-trust}) make
 new ties count for less in trust, though not in reputation. We do not defend against
 it beyond that cost.
 
+\emph{Reading Fig.~\ref{fig:farming}.} The vertical axis of both panels is the score
+the dispatcher uses for ranking, $m$ in~\eqref{eq:effective}, on the one-to-five-star
+scale; the grey horizontal line at 4.57 is the honest benchmark. In panel (a) the
+horizontal axis is the number of five-star ratings the penalised runner has collected
+from three friends after the penalty. Its ticks (0, 5, 10, 20, 40, 80, 160, 300) are
+equally spaced although the values roughly double, so the axis is categorical, not
+linear. Three weightings of the same history are shown. The dotted line with triangles
+is the plain average that a student sees on a profile, and the dashed line with open
+circles weights every rating equally, as the system did before. Both climb past the
+benchmark, which means farming would pay. The solid line with filled squares is the
+deployed one-vote-per-rater score, which stays flat below 3.7 however many ratings
+are farmed. Panel (b) is the breadth attack under the deployed weighting. Its
+horizontal axis is the number of different friends who each give one rating, and the
+score reaches the benchmark at 80 such friends. Each point is one constructed
+history, run once through the production code; the computation is deterministic, so
+there are no error bars.
+
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{figures/fig_farming.pdf}

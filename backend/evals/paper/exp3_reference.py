@@ -76,7 +76,7 @@ def honest_price(rng) -> int:
 
 
 async def run(estimator_name: str, attack_frac: float, strategy: str, seed: int,
-        n_runners: int = 40, claims_per_week: float = 1.5) -> dict:
+        n_runners: int = 40, claims_per_week: float = 1.5, keep_claims: bool = False) -> dict:
     rng = random.Random(seed * 1009 + int(attack_frac * 100))
     runners = [str(uuid.UUID(int=i + 1)) for i in range(n_runners)]
     n_att = round(attack_frac * n_runners)
@@ -121,7 +121,10 @@ async def run(estimator_name: str, attack_frac: float, strategy: str, seed: int,
                     price = Decimal(truth)
                 j = fraud.judge(price, 1, reference_obj(ref))
                 claim = {"runner": r, "day": day, "price": price, "verdict": j.verdict,
-                         "delta": j.delta_abs, "threshold": j.threshold, "eligible": j.eligible}
+                         "delta": j.delta_abs, "threshold": j.threshold, "eligible": j.eligible,
+                         # Kept for the exported dataset only; the logic never reads them.
+                         "attacker": r in attackers, "true_price": truth,
+                         "reference": float(ref), "runner_flagged": r in near_flagged}
                 claims.append(claim)
                 by_runner_claims[r].append(claim)
                 if r in attackers:
@@ -171,6 +174,7 @@ async def run(estimator_name: str, attack_frac: float, strategy: str, seed: int,
         "attackers_flagged_near_line": len(near_flagged & attackers),
         "honest_flagged_near_line": len(near_flagged - attackers),
         "proposals": proposals,
+        **({"claims": claims} if keep_claims else {}),
     }
 
 
