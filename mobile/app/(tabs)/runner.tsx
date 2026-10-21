@@ -350,7 +350,8 @@ function Toggle({
       onPress={() => onChange(!value)}
       disabled={disabled}
       accessibilityRole="switch"
-      accessibilityState={{ checked: value, disabled }}
+      aria-checked={value}
+      aria-disabled={disabled}
       accessibilityLabel="Availability"
       style={[
         s.toggle,

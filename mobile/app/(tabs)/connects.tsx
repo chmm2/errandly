@@ -173,7 +173,7 @@ function TabChip({
       onPress={onPress}
       style={({ pressed }) => [s.tab, active && s.tabActive, pressed && { opacity: 0.85 }]}
       accessibilityRole="tab"
-      accessibilityState={{ selected: active }}
+      aria-selected={active}
     >
       {icon ? (
         <Icon name="search" size={14} color={active ? colors.white : colors.muted} />

@@ -317,7 +317,7 @@ export default function NewErrand() {
                             onPress={() => setCategory(c.value)}
                             style={[s.segItem, on && s.segItemOn]}
                             accessibilityRole="tab"
-                            accessibilityState={{ selected: on }}
+                            aria-selected={on}
                           >
                             <Icon
                               name={categoryIcon[c.value as keyof typeof categoryIcon] as IconName}
