@@ -47,3 +47,7 @@ docs/report/deck_png/
 docs/report/deck_chris_png/
 docs/report/deck_v2_png/
 docs/report/deck_sk_png/
+
+# Rendered diagrams — regenerate with docs/report/sketch_figures.py.
+# The .excalidraw scenes ARE tracked: they are the editable source.
+docs/report/figures_sketch/
