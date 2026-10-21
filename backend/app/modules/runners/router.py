@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,7 +35,15 @@ async def set_availability(
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
-    profile = await service.set_availability(db, redis, user, data)
+    try:
+        profile = await service.set_availability(db, redis, user, data)
+    except service.RunnerBlockedError as e:
+        until = e.until.strftime("%d %b, %H:%M")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"Running is paused on your account until {until} after repeated "
+            "over-reported prices. See your standing for details.",
+        ) from e
     return await _out(db, profile, user.id)
 
 

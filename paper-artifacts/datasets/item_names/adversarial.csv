@@ -1,0 +1,62 @@
+intended_item,attack_kind,typed_name,old_rule,deployed_rule
+Chicken Puff,misspell,chikn pufff,JUDGED_SAME,JUDGED_SAME
+Chicken Puff,misspell,chicken pufs,JUDGED_SAME,JUDGED_SAME
+Chicken Puff,misspell,chickn puff,JUDGED_SAME,JUDGED_SAME
+Chicken Puff,misspell,chicken poof,UNCHECKED,REFUSED
+Chicken Puff,padding,chicken puff special,UNCHECKED,REFUSED
+Chicken Puff,padding,chicken puff large,UNCHECKED,REFUSED
+Chicken Puff,padding,big chicken puff,UNCHECKED,REFUSED
+Chicken Puff,padding,fresh chicken puff,UNCHECKED,REFUSED
+Chicken Puff,obfuscation,ch1cken puff,JUDGED_SAME,JUDGED_SAME
+Chicken Puff,obfuscation,c h i c k e n puff,UNCHECKED,REFUSED
+Chicken Puff,obfuscation,chicken_puff,JUDGED_SAME,JUDGED_SAME
+Chicken Puff,obfuscation,chickenpuff,JUDGED_SAME,JUDGED_SAME
+Chicken Puff,obfuscation,chіcken puff,JUDGED_SAME,JUDGED_SAME
+Chicken Puff,obfuscation,CHICKEN PUFF :),JUDGED_SAME,JUDGED_SAME
+Chicken Puff,rename,snack,UNCHECKED,REFUSED
+Chicken Puff,rename,item 1,UNCHECKED,REFUSED
+Chicken Puff,rename,zzq special,UNCHECKED,REFUSED
+Chicken Puff,rename,bakery item,UNCHECKED,REFUSED
+Chicken Puff,rename,puff pastry,UNCHECKED,REFUSED
+Chicken Puff,swap,notebook,UNCHECKED,UNCHECKED
+Chicken Puff,swap,blue pen,UNCHECKED,UNCHECKED
+Veg Puff,misspell,vej puf,JUDGED_SAME,JUDGED_SAME
+Veg Puff,misspell,veg pufff,JUDGED_SAME,JUDGED_SAME
+Veg Puff,misspell,vg puff,UNCHECKED,REFUSED
+Veg Puff,misspell,veg poff,JUDGED_SAME,JUDGED_SAME
+Veg Puff,padding,veg puff special,UNCHECKED,REFUSED
+Veg Puff,padding,veg puff large,UNCHECKED,REFUSED
+Veg Puff,padding,big veg puff,JUDGED_SAME,JUDGED_SAME
+Veg Puff,padding,fresh veg puff,UNCHECKED,REFUSED
+Veg Puff,obfuscation,v3g puff,UNCHECKED,REFUSED
+Veg Puff,obfuscation,v e g puff,UNCHECKED,REFUSED
+Veg Puff,obfuscation,veg_puff,UNCHECKED,REFUSED
+Veg Puff,obfuscation,vegpuff,UNCHECKED,REFUSED
+Veg Puff,obfuscation,VEG PUFF!!,JUDGED_SAME,JUDGED_SAME
+Veg Puff,rename,snack,UNCHECKED,REFUSED
+Veg Puff,rename,item 2,UNCHECKED,REFUSED
+Veg Puff,rename,qqx,UNCHECKED,REFUSED
+Veg Puff,rename,bakery item,UNCHECKED,REFUSED
+Veg Puff,rename,vegetable pastry,UNCHECKED,REFUSED
+Veg Puff,swap,notebook,UNCHECKED,UNCHECKED
+Veg Puff,swap,blue pen,UNCHECKED,UNCHECKED
+Masala Tea,misspell,masla tee,UNCHECKED,REFUSED
+Masala Tea,misspell,masala teaa,JUDGED_SAME,JUDGED_SAME
+Masala Tea,misspell,msala tea,JUDGED_SAME,JUDGED_SAME
+Masala Tea,misspell,masala tae,JUDGED_SAME,JUDGED_SAME
+Masala Tea,padding,masala tea large,UNCHECKED,REFUSED
+Masala Tea,padding,special masala tea,UNCHECKED,REFUSED
+Masala Tea,padding,masala tea cup,UNCHECKED,REFUSED
+Masala Tea,padding,hot masala tea,UNCHECKED,REFUSED
+Masala Tea,obfuscation,m4sala tea,JUDGED_SAME,JUDGED_SAME
+Masala Tea,obfuscation,m a s a l a tea,UNCHECKED,REFUSED
+Masala Tea,obfuscation,masala_tea,JUDGED_SAME,JUDGED_SAME
+Masala Tea,obfuscation,masalatea,JUDGED_SAME,JUDGED_SAME
+Masala Tea,obfuscation,MASALA TEA...,JUDGED_SAME,JUDGED_SAME
+Masala Tea,rename,drink,UNCHECKED,REFUSED
+Masala Tea,rename,item 3,UNCHECKED,REFUSED
+Masala Tea,rename,chai,UNCHECKED,REFUSED
+Masala Tea,rename,beverage,UNCHECKED,REFUSED
+Masala Tea,rename,cutting,UNCHECKED,REFUSED
+Masala Tea,swap,notebook,UNCHECKED,UNCHECKED
+Masala Tea,swap,blue pen,UNCHECKED,UNCHECKED

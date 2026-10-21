@@ -12,11 +12,13 @@ from app.modules.auth import service
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.models import User
 from app.modules.auth.schemas import (
+    ForgotPasswordRequest,
     LoginRequest,
     PhotoUpdate,
     RefreshRequest,
     RegisterRequest,
     ResendOtpRequest,
+    ResetPasswordRequest,
     TokenPair,
     UserOut,
     VerifyEmailRequest,
@@ -27,6 +29,10 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 login_limiter = RateLimiter(times=10, seconds=60, scope="login")
 otp_limiter = RateLimiter(times=5, seconds=60, scope="otp")
+# Tighter than the OTP issue limit: this endpoint is the one an attacker would
+# use to brute-force a 6-digit code, and per-user attempt counting alone can be
+# sidestepped by cycling target addresses.
+reset_limiter = RateLimiter(times=10, seconds=60, scope="reset")
 
 
 def _dev_otp_header(response: Response, dev_otp: str | None) -> None:
@@ -83,6 +89,34 @@ async def resend_otp(
         raise HTTPException(e.status_code, e.message) from e
     _dev_otp_header(response, dev_otp)
     return {"status": "sent"}
+
+
+@router.post(
+    "/forgot-password",
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(otp_limiter)],
+)
+async def forgot_password(
+    data: ForgotPasswordRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    """Start a password reset. Always 202, whether or not the account exists —
+    see service.request_password_reset for why."""
+    dev_otp = await service.request_password_reset(db, data.email)
+    _dev_otp_header(response, dev_otp)
+    return {"status": "sent"}
+
+
+@router.post("/reset-password", dependencies=[Depends(reset_limiter)])
+async def reset_password(data: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """Finish a password reset. Revokes every existing session on success, so
+    the client must log in again with the new password."""
+    try:
+        await service.reset_password(db, data.email, data.code, data.new_password)
+    except service.AuthError as e:
+        raise HTTPException(e.status_code, e.message) from e
+    return {"status": "ok"}
 
 
 @router.post("/login", response_model=TokenPair, dependencies=[Depends(login_limiter)])

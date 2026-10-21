@@ -16,9 +16,14 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
-async def send_email(to: str, subject: str, body: str) -> bool:
-    """Send a plain-text email. Returns True if actually dispatched via SMTP,
-    False in dev mode (logged only)."""
+async def send_email(to: str, subject: str, body: str, html: str | None = None) -> bool:
+    """Send an email. Returns True if actually dispatched via SMTP, False in
+    dev mode (logged only).
+
+    When `html` is given the message goes out multipart/alternative: clients
+    that can't or won't render HTML fall back to `body`, and multipart mail
+    tends to be treated more kindly by spam filters than HTML alone.
+    """
     if not settings.smtp_configured:
         logger.warning(
             "SMTP not configured — email to %s NOT sent.\nSubject: %s\n%s", to, subject, body
@@ -31,6 +36,8 @@ async def send_email(to: str, subject: str, body: str) -> bool:
         msg["To"] = to
         msg["Subject"] = subject
         msg.set_content(body)
+        if html:
+            msg.add_alternative(html, subtype="html")
         with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as server:
             if settings.smtp_starttls:
                 server.starttls()

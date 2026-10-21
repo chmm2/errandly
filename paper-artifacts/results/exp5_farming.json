@@ -1,0 +1,861 @@
+{
+  "experiment": "exp5_farming",
+  "generated_at": "2026-10-20T14:27:02.284811+00:00",
+  "git_commit": "00d8928",
+  "python": "3.12.14",
+  "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+  "results": {
+    "honest_broad": {
+      "ratings": 25,
+      "raw_mean": 4.84,
+      "per_rating": 4.515,
+      "production": 4.515,
+      "confidence": 0.758,
+      "rank_offset_m": 812.0,
+      "flagged": false,
+      "reasons": [],
+      "signals": null
+    },
+    "honest_20_strangers_all_five": {
+      "ratings": 20,
+      "raw_mean": 5.0,
+      "per_rating": 4.571,
+      "production": 4.571,
+      "confidence": 0.714,
+      "rank_offset_m": 857.0,
+      "flagged": false,
+      "reasons": [],
+      "signals": null
+    },
+    "penalised_3_friends": [
+      {
+        "farmed": 0,
+        "ratings": 6,
+        "raw_mean": 2.667,
+        "per_rating": 3.143,
+        "production": 3.143,
+        "confidence": 0.429,
+        "rank_offset_m": -286.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 5,
+        "ratings": 11,
+        "raw_mean": 4.0,
+        "per_rating": 3.789,
+        "production": 3.647,
+        "confidence": 0.529,
+        "rank_offset_m": 118.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 10,
+        "ratings": 16,
+        "raw_mean": 4.125,
+        "per_rating": 3.825,
+        "production": 3.418,
+        "confidence": 0.513,
+        "rank_offset_m": -65.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 20,
+        "ratings": 26,
+        "raw_mean": 4.538,
+        "per_rating": 4.074,
+        "production": 3.48,
+        "confidence": 0.493,
+        "rank_offset_m": -16.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "friends",
+            "rate",
+            "them",
+            "2.0",
+            "stars",
+            "higher"
+          ],
+          [
+            "11",
+            "high",
+            "ratings",
+            "from",
+            "inside",
+            "their"
+          ]
+        ],
+        "signals": {
+          "differential": 2.0,
+          "burst": 11,
+          "concentration": 0.77
+        }
+      },
+      {
+        "farmed": 40,
+        "ratings": 46,
+        "raw_mean": 4.739,
+        "per_rating": 4.246,
+        "production": 3.435,
+        "confidence": 0.478,
+        "rank_offset_m": -52.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "friends",
+            "rate",
+            "them",
+            "2.0",
+            "stars",
+            "higher"
+          ],
+          [
+            "7",
+            "high",
+            "ratings",
+            "from",
+            "inside",
+            "their"
+          ]
+        ],
+        "signals": {
+          "differential": 2.0,
+          "burst": 7,
+          "concentration": 0.87
+        }
+      },
+      {
+        "farmed": 80,
+        "ratings": 86,
+        "raw_mean": 4.826,
+        "per_rating": 4.363,
+        "production": 3.208,
+        "confidence": 0.469,
+        "rank_offset_m": -234.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "friends",
+            "rate",
+            "them",
+            "2.5",
+            "stars",
+            "higher"
+          ],
+          [
+            "31",
+            "high",
+            "ratings",
+            "from",
+            "inside",
+            "their"
+          ]
+        ],
+        "signals": {
+          "differential": 2.5,
+          "burst": 31,
+          "concentration": 0.93
+        }
+      },
+      {
+        "farmed": 160,
+        "ratings": 166,
+        "raw_mean": 4.928,
+        "per_rating": 4.617,
+        "production": 3.391,
+        "confidence": 0.464,
+        "rank_offset_m": -88.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "friends",
+            "rate",
+            "them",
+            "2.0",
+            "stars",
+            "higher"
+          ],
+          [
+            "55",
+            "high",
+            "ratings",
+            "from",
+            "inside",
+            "their"
+          ]
+        ],
+        "signals": {
+          "differential": 2.0,
+          "burst": 55,
+          "concentration": 0.96
+        }
+      },
+      {
+        "farmed": 300,
+        "ratings": 306,
+        "raw_mean": 4.958,
+        "per_rating": 4.744,
+        "production": 3.315,
+        "confidence": 0.461,
+        "rank_offset_m": -148.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "friends",
+            "rate",
+            "them",
+            "2.2",
+            "stars",
+            "higher"
+          ],
+          [
+            "115",
+            "high",
+            "ratings",
+            "from",
+            "inside",
+            "their"
+          ]
+        ],
+        "signals": {
+          "differential": 2.17,
+          "burst": 115,
+          "concentration": 0.98
+        }
+      }
+    ],
+    "penalised_8_friends": [
+      {
+        "farmed": 0,
+        "ratings": 6,
+        "raw_mean": 3.333,
+        "per_rating": 3.429,
+        "production": 3.428,
+        "confidence": 0.429,
+        "rank_offset_m": -57.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 5,
+        "ratings": 11,
+        "raw_mean": 3.818,
+        "per_rating": 3.684,
+        "production": 3.684,
+        "confidence": 0.579,
+        "rank_offset_m": 147.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 10,
+        "ratings": 16,
+        "raw_mean": 4.25,
+        "per_rating": 3.915,
+        "production": 3.829,
+        "confidence": 0.61,
+        "rank_offset_m": 263.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 20,
+        "ratings": 26,
+        "raw_mean": 4.615,
+        "per_rating": 4.151,
+        "production": 3.828,
+        "confidence": 0.574,
+        "rank_offset_m": 262.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "friends",
+            "rate",
+            "them",
+            "1.7",
+            "stars",
+            "higher"
+          ],
+          [
+            "8",
+            "high",
+            "ratings",
+            "from",
+            "inside",
+            "their"
+          ]
+        ],
+        "signals": {
+          "differential": 1.67,
+          "burst": 8,
+          "concentration": 0.77
+        }
+      },
+      {
+        "farmed": 40,
+        "ratings": 46,
+        "raw_mean": 4.717,
+        "per_rating": 4.214,
+        "production": 3.577,
+        "confidence": 0.545,
+        "rank_offset_m": 61.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "friends",
+            "rate",
+            "them",
+            "2.2",
+            "stars",
+            "higher"
+          ],
+          [
+            "17",
+            "high",
+            "ratings",
+            "from",
+            "inside",
+            "their"
+          ]
+        ],
+        "signals": {
+          "differential": 2.17,
+          "burst": 17,
+          "concentration": 0.87
+        }
+      },
+      {
+        "farmed": 80,
+        "ratings": 86,
+        "raw_mean": 4.872,
+        "per_rating": 4.457,
+        "production": 3.634,
+        "confidence": 0.525,
+        "rank_offset_m": 107.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "friends",
+            "rate",
+            "them",
+            "1.8",
+            "stars",
+            "higher"
+          ],
+          [
+            "26",
+            "high",
+            "ratings",
+            "from",
+            "inside",
+            "their"
+          ]
+        ],
+        "signals": {
+          "differential": 1.83,
+          "burst": 26,
+          "concentration": 0.93
+        }
+      },
+      {
+        "farmed": 160,
+        "ratings": 166,
+        "raw_mean": 4.946,
+        "per_rating": 4.665,
+        "production": 3.722,
+        "confidence": 0.513,
+        "rank_offset_m": 178.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "friends",
+            "rate",
+            "them",
+            "1.5",
+            "stars",
+            "higher"
+          ],
+          [
+            "59",
+            "high",
+            "ratings",
+            "from",
+            "inside",
+            "their"
+          ]
+        ],
+        "signals": {
+          "differential": 1.5,
+          "burst": 59,
+          "concentration": 0.96
+        }
+      },
+      {
+        "farmed": 300,
+        "ratings": 306,
+        "raw_mean": 4.958,
+        "per_rating": 4.744,
+        "production": 3.46,
+        "confidence": 0.507,
+        "rank_offset_m": -32.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "friends",
+            "rate",
+            "them",
+            "2.2",
+            "stars",
+            "higher"
+          ],
+          [
+            "94",
+            "high",
+            "ratings",
+            "from",
+            "inside",
+            "their"
+          ]
+        ],
+        "signals": {
+          "differential": 2.17,
+          "burst": 94,
+          "concentration": 0.98
+        }
+      }
+    ],
+    "standing_start_3_friends": [
+      {
+        "farmed": 0,
+        "ratings": 0,
+        "raw_mean": 3.5,
+        "per_rating": 3.5,
+        "production": 3.5,
+        "confidence": 0.0,
+        "rank_offset_m": 0.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 5,
+        "ratings": 5,
+        "raw_mean": 5.0,
+        "per_rating": 3.703,
+        "production": 3.629,
+        "confidence": 0.086,
+        "rank_offset_m": 103.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 10,
+        "ratings": 10,
+        "raw_mean": 5.0,
+        "per_rating": 3.857,
+        "production": 3.629,
+        "confidence": 0.086,
+        "rank_offset_m": 103.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 20,
+        "ratings": 20,
+        "raw_mean": 5.0,
+        "per_rating": 4.077,
+        "production": 3.629,
+        "confidence": 0.086,
+        "rank_offset_m": 103.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "20",
+            "ratings",
+            "from",
+            "only",
+            "3",
+            "friends"
+          ]
+        ],
+        "signals": {
+          "differential": null,
+          "burst": 0,
+          "concentration": 1.0
+        }
+      },
+      {
+        "farmed": 40,
+        "ratings": 40,
+        "raw_mean": 5.0,
+        "per_rating": 4.333,
+        "production": 3.629,
+        "confidence": 0.086,
+        "rank_offset_m": 103.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "40",
+            "ratings",
+            "from",
+            "only",
+            "3",
+            "friends"
+          ]
+        ],
+        "signals": {
+          "differential": null,
+          "burst": 0,
+          "concentration": 1.0
+        }
+      },
+      {
+        "farmed": 80,
+        "ratings": 80,
+        "raw_mean": 5.0,
+        "per_rating": 4.571,
+        "production": 3.629,
+        "confidence": 0.086,
+        "rank_offset_m": 103.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "80",
+            "ratings",
+            "from",
+            "only",
+            "3",
+            "friends"
+          ]
+        ],
+        "signals": {
+          "differential": null,
+          "burst": 0,
+          "concentration": 1.0
+        }
+      },
+      {
+        "farmed": 160,
+        "ratings": 160,
+        "raw_mean": 5.0,
+        "per_rating": 4.75,
+        "production": 3.629,
+        "confidence": 0.086,
+        "rank_offset_m": 103.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "160",
+            "ratings",
+            "from",
+            "only",
+            "3",
+            "friends"
+          ]
+        ],
+        "signals": {
+          "differential": null,
+          "burst": 0,
+          "concentration": 1.0
+        }
+      },
+      {
+        "farmed": 300,
+        "ratings": 300,
+        "raw_mean": 5.0,
+        "per_rating": 4.855,
+        "production": 3.629,
+        "confidence": 0.086,
+        "rank_offset_m": 103.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "300",
+            "ratings",
+            "from",
+            "only",
+            "3",
+            "friends"
+          ]
+        ],
+        "signals": {
+          "differential": null,
+          "burst": 0,
+          "concentration": 1.0
+        }
+      }
+    ],
+    "standing_start_8_friends": [
+      {
+        "farmed": 0,
+        "ratings": 0,
+        "raw_mean": 3.5,
+        "per_rating": 3.5,
+        "production": 3.5,
+        "confidence": 0.0,
+        "rank_offset_m": 0.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 5,
+        "ratings": 5,
+        "raw_mean": 5.0,
+        "per_rating": 3.703,
+        "production": 3.703,
+        "confidence": 0.135,
+        "rank_offset_m": 162.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 10,
+        "ratings": 10,
+        "raw_mean": 5.0,
+        "per_rating": 3.857,
+        "production": 3.8,
+        "confidence": 0.2,
+        "rank_offset_m": 240.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 20,
+        "ratings": 20,
+        "raw_mean": 5.0,
+        "per_rating": 4.077,
+        "production": 3.8,
+        "confidence": 0.2,
+        "rank_offset_m": 240.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "20",
+            "ratings",
+            "from",
+            "only",
+            "8",
+            "friends"
+          ]
+        ],
+        "signals": {
+          "differential": null,
+          "burst": 0,
+          "concentration": 1.0
+        }
+      },
+      {
+        "farmed": 40,
+        "ratings": 40,
+        "raw_mean": 5.0,
+        "per_rating": 4.333,
+        "production": 3.8,
+        "confidence": 0.2,
+        "rank_offset_m": 240.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "40",
+            "ratings",
+            "from",
+            "only",
+            "8",
+            "friends"
+          ]
+        ],
+        "signals": {
+          "differential": null,
+          "burst": 0,
+          "concentration": 1.0
+        }
+      },
+      {
+        "farmed": 80,
+        "ratings": 80,
+        "raw_mean": 5.0,
+        "per_rating": 4.571,
+        "production": 3.8,
+        "confidence": 0.2,
+        "rank_offset_m": 240.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "80",
+            "ratings",
+            "from",
+            "only",
+            "8",
+            "friends"
+          ]
+        ],
+        "signals": {
+          "differential": null,
+          "burst": 0,
+          "concentration": 1.0
+        }
+      },
+      {
+        "farmed": 160,
+        "ratings": 160,
+        "raw_mean": 5.0,
+        "per_rating": 4.75,
+        "production": 3.8,
+        "confidence": 0.2,
+        "rank_offset_m": 240.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "160",
+            "ratings",
+            "from",
+            "only",
+            "8",
+            "friends"
+          ]
+        ],
+        "signals": {
+          "differential": null,
+          "burst": 0,
+          "concentration": 1.0
+        }
+      },
+      {
+        "farmed": 300,
+        "ratings": 300,
+        "raw_mean": 5.0,
+        "per_rating": 4.855,
+        "production": 3.8,
+        "confidence": 0.2,
+        "rank_offset_m": 240.0,
+        "flagged": true,
+        "reasons": [
+          [
+            "300",
+            "ratings",
+            "from",
+            "only",
+            "8",
+            "friends"
+          ]
+        ],
+        "signals": {
+          "differential": null,
+          "burst": 0,
+          "concentration": 1.0
+        }
+      }
+    ],
+    "breadth": [
+      {
+        "farmed": 0,
+        "ratings": 0,
+        "raw_mean": 3.5,
+        "per_rating": 3.5,
+        "production": 3.5,
+        "confidence": 0.0,
+        "rank_offset_m": 0.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 5,
+        "ratings": 5,
+        "raw_mean": 5.0,
+        "per_rating": 3.703,
+        "production": 3.703,
+        "confidence": 0.135,
+        "rank_offset_m": 162.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 10,
+        "ratings": 10,
+        "raw_mean": 5.0,
+        "per_rating": 3.857,
+        "production": 3.857,
+        "confidence": 0.238,
+        "rank_offset_m": 286.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 20,
+        "ratings": 20,
+        "raw_mean": 5.0,
+        "per_rating": 4.077,
+        "production": 4.077,
+        "confidence": 0.385,
+        "rank_offset_m": 462.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 40,
+        "ratings": 40,
+        "raw_mean": 5.0,
+        "per_rating": 4.333,
+        "production": 4.333,
+        "confidence": 0.556,
+        "rank_offset_m": 667.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 80,
+        "ratings": 80,
+        "raw_mean": 5.0,
+        "per_rating": 4.571,
+        "production": 4.571,
+        "confidence": 0.714,
+        "rank_offset_m": 857.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 160,
+        "ratings": 160,
+        "raw_mean": 5.0,
+        "per_rating": 4.75,
+        "production": 4.75,
+        "confidence": 0.833,
+        "rank_offset_m": 1000.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      },
+      {
+        "farmed": 300,
+        "ratings": 300,
+        "raw_mean": 5.0,
+        "per_rating": 4.855,
+        "production": 4.855,
+        "confidence": 0.904,
+        "rank_offset_m": 1084.0,
+        "flagged": false,
+        "reasons": [],
+        "signals": null
+      }
+    ]
+  }
+}

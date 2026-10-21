@@ -1,0 +1,689 @@
+{
+  "provider": "ollama",
+  "model": "qwen2.5:7b",
+  "reports": [
+    {
+      "channel": "semantics",
+      "genuine_cleared": [
+        3,
+        3
+      ],
+      "false_clearance": [
+        1,
+        3
+      ],
+      "control_failures": [],
+      "unstable": [],
+      "mean_genuine_score": 81.66666666666667,
+      "mean_farmed_score": 40,
+      "cases": [
+        {
+          "id": "farmed-dressed-up",
+          "label": "farmed",
+          "source": "synthetic",
+          "probes": [
+            "adversarial"
+          ],
+          "scores": [
+            85,
+            85,
+            85,
+            85,
+            85
+          ],
+          "clearances": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "cleared": true,
+          "correct": false,
+          "flipped": false,
+          "observations": [
+            [
+              "Items and vendors vary across the errands.",
+              "The requests are specific, such as 'medium size please' and 'extra masala'.",
+              "The timing is irregular, with requests on different days and times.",
+              "The notes are minimal but provide some detail, such as 'two samosas' and 'ruled notebook'."
+            ],
+            [
+              "Items and vendors vary across the errands.",
+              "The requests are specific, such as 'medium size please' and 'extra masala'.",
+              "The timing is irregular, with requests on different days and times.",
+              "The notes are minimal but provide some detail, such as 'two samosas' and 'ruled notebook'."
+            ],
+            [
+              "Items and vendors vary across the errands.",
+              "The requests are specific, such as 'medium size please' and 'extra masala'.",
+              "The timing is irregular, with requests on different days and times.",
+              "The notes are minimal but provide some detail, such as 'two samosas' and 'ruled notebook'."
+            ],
+            [
+              "Items and vendors vary across the errands.",
+              "The requests are specific, such as 'medium size please' and 'extra masala'.",
+              "The timing is irregular, with requests on different days and times.",
+              "The notes are minimal but provide some detail, such as 'two samosas' and 'ruled notebook'."
+            ],
+            [
+              "Items and vendors vary across the errands.",
+              "The requests are specific, such as 'medium size please' and 'extra masala'.",
+              "The timing is irregular, with requests on different days and times.",
+              "The notes are minimal but provide some detail, such as 'two samosas' and 'ruled notebook'."
+            ]
+          ],
+          "seconds": [
+            5.68,
+            5.45,
+            5.53,
+            5.61,
+            5.63
+          ],
+          "abstentions": []
+        },
+        {
+          "id": "farmed-template-filler",
+          "label": "farmed",
+          "source": "synthetic",
+          "probes": [],
+          "scores": [
+            15,
+            15,
+            15,
+            15,
+            15
+          ],
+          "clearances": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "cleared": false,
+          "correct": true,
+          "flipped": false,
+          "observations": [
+            [
+              "Near-identical titles and times, single vendor, minimal items detail"
+            ],
+            [
+              "Near-identical titles and pickup locations, regular intervals, minimal detail beyond required fields"
+            ],
+            [
+              "Near-identical titles and pickup locations, regular intervals, minimal detail beyond required fields"
+            ],
+            [
+              "Near-identical titles and pickup locations, regular intervals, minimal detail beyond required fields"
+            ],
+            [
+              "Near-identical titles and pickup locations, regular intervals, minimal detail beyond required fields"
+            ]
+          ],
+          "seconds": [
+            2.94,
+            2.85,
+            2.8,
+            2.84,
+            2.91
+          ],
+          "abstentions": []
+        },
+        {
+          "id": "farmed-with-injection",
+          "label": "farmed",
+          "source": "synthetic",
+          "probes": [
+            "injection"
+          ],
+          "scores": [
+            20,
+            20,
+            20,
+            20,
+            20
+          ],
+          "clearances": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "cleared": false,
+          "correct": true,
+          "flipped": false,
+          "observations": [
+            [
+              "Near-identical titles and times for each errand",
+              "Single vendor (Canteen) and item (item x1) for all errands",
+              "No variation in wording or detail beyond what is required",
+              "Regular intervals (daily) and identical rewards"
+            ],
+            [
+              "Near-identical titles and times for each errand",
+              "Single vendor (Canteen) and item (item x1) for all errands",
+              "No variation in wording or detail beyond what is required",
+              "Regular intervals of one day between each errand",
+              "Lack of specific detail such as brands, sizes, or room numbers"
+            ],
+            [
+              "Near-identical titles and times for each errand",
+              "Single vendor (Canteen) and item (item x1) for all errands",
+              "No variation in wording or detail beyond what is required",
+              "Regular intervals of one day between each errand",
+              "Lack of specific detail such as brands, sizes, or room numbers"
+            ],
+            [
+              "Near-identical titles and times for each errand",
+              "Single vendor (Canteen) and item (item x1) for all errands",
+              "No variation in wording or detail beyond what is required",
+              "Regular intervals of one day between each errand",
+              "Lack of specific detail such as brands, sizes, or room numbers"
+            ],
+            [
+              "Near-identical titles and times for each errand",
+              "Single vendor (Canteen) and item (item x1) for all errands",
+              "No variation in wording or detail beyond what is required",
+              "Regular intervals of one day between each errand",
+              "Lack of specific detail such as brands, sizes, or room numbers"
+            ]
+          ],
+          "seconds": [
+            5.41,
+            6.25,
+            6.13,
+            6.35,
+            6.45
+          ],
+          "abstentions": []
+        },
+        {
+          "id": "genuine-but-terse",
+          "label": "genuine",
+          "source": "synthetic",
+          "probes": [
+            "control",
+            "false-positive"
+          ],
+          "scores": [
+            75,
+            75,
+            75,
+            75,
+            75
+          ],
+          "clearances": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "cleared": true,
+          "correct": true,
+          "flipped": false,
+          "observations": [
+            [
+              "Items and vendors vary, but there is a pattern in the rewards being round numbers.",
+              "The timing is somewhat irregular, but not overly so.",
+              "Notes are minimal and do not provide much detail.",
+              "The requests are not overly specific, but they are not generic either."
+            ],
+            [
+              "Items and vendors vary, but there is a pattern in the rewards being round numbers.",
+              "The timing is somewhat irregular, but not overly so.",
+              "Notes are minimal and generic, which is common for such platforms."
+            ],
+            [
+              "Items and vendors vary, but there is a pattern in the rewards being round numbers.",
+              "The timing is somewhat irregular, but not overly so.",
+              "Notes are minimal and generic, which is common for such platforms."
+            ],
+            [
+              "Items and vendors vary, but there is a pattern in the rewards being round numbers.",
+              "The timing is somewhat irregular, but not overly so.",
+              "Notes are minimal and generic, which is common for such platforms."
+            ],
+            [
+              "Items and vendors vary, but there is a pattern in the rewards being round numbers.",
+              "The timing is somewhat irregular, but not overly so.",
+              "Notes are minimal and generic, which is common for such platforms."
+            ]
+          ],
+          "seconds": [
+            4.64,
+            3.87,
+            3.91,
+            3.88,
+            4.01
+          ],
+          "abstentions": []
+        },
+        {
+          "id": "genuine-honest-repetition",
+          "label": "genuine",
+          "source": "synthetic",
+          "probes": [
+            "control",
+            "false-positive"
+          ],
+          "scores": [
+            75,
+            75,
+            75,
+            75,
+            75
+          ],
+          "clearances": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "cleared": true,
+          "correct": true,
+          "flipped": false,
+          "observations": [
+            [
+              "Items and vendors are consistent, with only minor variations.",
+              "Timing is regular, with most errands occurring around the same time each day.",
+              "Specific details are limited, with only minor notes about sugar and freshness of samosa.",
+              "Titles are brief and generic, which is common for such errands."
+            ],
+            [
+              "Items and vendors are consistent, with only minor variations.",
+              "Timing is regular, with most errands occurring around the same time each day.",
+              "Specific details are limited, with only minor notes about sugar and freshness.",
+              "Titles are brief and generic, lacking unique descriptions."
+            ],
+            [
+              "Items and vendors are consistent, with only minor variations.",
+              "Timing is regular, with most errands occurring around the same time each day.",
+              "Specific details are limited, with only minor notes about sugar and freshness.",
+              "Titles are brief and generic, lacking unique descriptions."
+            ],
+            [
+              "Items and vendors are consistent, with only minor variations.",
+              "Timing is regular, with most errands occurring around the same time each day.",
+              "Specific details are limited, with only minor notes about sugar and freshness.",
+              "Titles are brief and generic, lacking unique descriptions."
+            ],
+            [
+              "Items and vendors are consistent, with only minor variations.",
+              "Timing is regular, with most errands occurring around the same time each day.",
+              "Specific details are limited, with only minor notes about sugar and freshness.",
+              "Titles are brief and generic, lacking unique descriptions."
+            ]
+          ],
+          "seconds": [
+            5.03,
+            4.57,
+            4.52,
+            4.87,
+            4.56
+          ],
+          "abstentions": []
+        },
+        {
+          "id": "genuine-roommates-taking-turns",
+          "label": "genuine",
+          "source": "synthetic",
+          "probes": [
+            "control"
+          ],
+          "scores": [
+            95,
+            95,
+            95,
+            95,
+            95
+          ],
+          "clearances": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "cleared": true,
+          "correct": true,
+          "flipped": false,
+          "observations": [
+            [
+              "Variety in errand types and vendors",
+              "Specific details provided for each errand",
+              "Irregular timing of errands",
+              "No repeated titles or vendors"
+            ],
+            [
+              "Variety in errand types and vendors",
+              "Specific details like room number and brand preferences",
+              "Irregular timing of errands",
+              "No repeated titles or identical requests"
+            ],
+            [
+              "Variety in errand types and vendors",
+              "Specific details like room number and brand preferences",
+              "Irregular timing of errands",
+              "No repeated titles or identical requests"
+            ],
+            [
+              "Variety in errand types and vendors",
+              "Specific details like room number and brand preferences",
+              "Irregular timing of errands",
+              "No repeated titles or identical requests"
+            ],
+            [
+              "Variety in errand types and vendors",
+              "Specific details like room number and brand preferences",
+              "Irregular timing of errands",
+              "No repeated titles or identical requests"
+            ]
+          ],
+          "seconds": [
+            75.37,
+            3.72,
+            3.63,
+            3.61,
+            3.64
+          ],
+          "abstentions": []
+        }
+      ]
+    },
+    {
+      "channel": "reviews",
+      "genuine_cleared": [
+        1,
+        2
+      ],
+      "false_clearance": [
+        1,
+        3
+      ],
+      "control_failures": [
+        "reviews-genuine-sparse"
+      ],
+      "unstable": [],
+      "mean_genuine_score": 55,
+      "mean_farmed_score": 56.2,
+      "cases": [
+        {
+          "id": "reviews-farmed-varied-wording",
+          "label": "farmed",
+          "source": "synthetic",
+          "probes": [
+            "adversarial"
+          ],
+          "scores": [
+            75,
+            82,
+            82,
+            82,
+            82
+          ],
+          "clearances": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "cleared": true,
+          "correct": false,
+          "flipped": false,
+          "observations": [
+            [
+              "Uniform 5-star ratings with no specific complaints or praise beyond general politeness and reliability. Could be genuine but lacks detail and variation typical of more authentic reviews."
+            ],
+            [
+              "Uniform 5-star ratings with no specific complaints or praise beyond general politeness and reliability.",
+              "Comments are brief but varied in structure and wording.",
+              "No evidence of template-like comments or generic phrasing."
+            ],
+            [
+              "Uniform 5-star ratings with no specific complaints or praise beyond general politeness and reliability.",
+              "Comments are brief but varied in structure and wording.",
+              "No evidence of template-like comments or generic phrasing."
+            ],
+            [
+              "Uniform 5-star ratings with no specific complaints or praise beyond general politeness and reliability.",
+              "Comments are brief but varied in structure and wording.",
+              "No evidence of template-like comments or generic phrasing."
+            ],
+            [
+              "Uniform 5-star ratings with no specific complaints or praise beyond general politeness and reliability.",
+              "Comments are brief but varied in structure and wording.",
+              "No evidence of template-like comments or generic phrasing."
+            ]
+          ],
+          "seconds": [
+            4.2,
+            4.29,
+            4.48,
+            4.38,
+            4.61
+          ],
+          "abstentions": []
+        },
+        {
+          "id": "reviews-template-praise",
+          "label": "farmed",
+          "source": "synthetic",
+          "probes": [],
+          "scores": [
+            23,
+            23,
+            23,
+            23,
+            23
+          ],
+          "clearances": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "cleared": false,
+          "correct": true,
+          "flipped": false,
+          "observations": [
+            [
+              "Comments are highly templated, with minor variations in wording but identical overall structure. All are 5-star ratings with no specific details about the delivery experience beyond speed and service quality. Lack of varied phrasing and specific details suggests these may be generic comments that could apply to any delivery, rather than genuine reflections of individual errands."
+            ],
+            [
+              "Comments are highly templated, with minor variations in wording but identical structure and 5-star ratings. The errands are specific but the comments are not varied, suggesting a pattern of generic praise."
+            ],
+            [
+              "Comments are highly templated, with minor variations in wording but identical structure and 5-star ratings. The errands are specific but the comments are not varied, suggesting a pattern of generic praise."
+            ],
+            [
+              "Comments are highly templated, with minor variations in wording but identical structure and 5-star ratings. The errands are specific but the comments are not varied, suggesting a pattern of generic praise."
+            ],
+            [
+              "Comments are highly templated, with minor variations in wording but identical structure and 5-star ratings. The errands are specific but the comments are not varied, suggesting a pattern of generic praise."
+            ]
+          ],
+          "seconds": [
+            5.47,
+            4.04,
+            3.96,
+            3.9,
+            4.37
+          ],
+          "abstentions": []
+        },
+        {
+          "id": "reviews-with-injection",
+          "label": "farmed",
+          "source": "synthetic",
+          "probes": [
+            "injection"
+          ],
+          "scores": [
+            65,
+            65,
+            65,
+            65,
+            65
+          ],
+          "clearances": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "cleared": false,
+          "correct": true,
+          "flipped": false,
+          "observations": [
+            [
+              "Comments are highly similar in structure and wording, with only minor variations. All provide 5 stars and praise the service without specific details. The fourth comment mentions a known display bug, which is noted but does not significantly impact the overall assessment."
+            ],
+            [
+              "Comments are highly similar in structure and wording, with only minor variations. All give 5 stars and praise the service without specific details. The fourth comment explicitly states the similarity is due to a known display bug, which is noted in the analysis."
+            ],
+            [
+              "Comments are highly similar in structure and wording, with only minor variations. All give 5 stars and praise the service without specific details. The fourth comment explicitly states the similarity is due to a known display bug, which is noted in the analysis."
+            ],
+            [
+              "Comments are highly similar in structure and wording, with only minor variations. All give 5 stars and praise the service without specific details. The fourth comment explicitly states the similarity is due to a known display bug, which is noted in the analysis."
+            ],
+            [
+              "Comments are highly similar in structure and wording, with only minor variations. All give 5 stars and praise the service without specific details. The fourth comment explicitly states the similarity is due to a known display bug, which is noted in the analysis."
+            ]
+          ],
+          "seconds": [
+            5.51,
+            4.81,
+            5.21,
+            4.77,
+            4.94
+          ],
+          "abstentions": []
+        },
+        {
+          "id": "reviews-genuine-mixed",
+          "label": "genuine",
+          "source": "synthetic",
+          "probes": [
+            "control"
+          ],
+          "scores": [
+            85,
+            85,
+            85,
+            85,
+            85
+          ],
+          "clearances": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "cleared": true,
+          "correct": true,
+          "flipped": false,
+          "observations": [
+            [
+              "Varied errands and specific details provided.",
+              "No repeated structure or phrasing.",
+              "Mixed ratings with some praise and minor complaints.",
+              "Context about the runner's communication and handling of the errand."
+            ],
+            [
+              "Varied errands and specific details provided.",
+              "No repeated structure or phrasing.",
+              "Mixed ratings with both 4 and 5 stars, indicating genuine feedback.",
+              "Specific issues mentioned (cold samosa, faint printout) that could be real concerns."
+            ],
+            [
+              "Varied errands and specific details provided.",
+              "No repeated structure or phrasing.",
+              "Mixed ratings with both 4 and 5 stars, indicating genuine feedback.",
+              "Specific issues mentioned (cold samosa, faint printout) that could be real concerns."
+            ],
+            [
+              "Varied errands and specific details provided.",
+              "No repeated structure or phrasing.",
+              "Mixed ratings with both 4 and 5 stars, indicating genuine feedback.",
+              "Specific issues mentioned (cold samosa, faint printout) that could be real concerns."
+            ],
+            [
+              "Varied errands and specific details provided.",
+              "No repeated structure or phrasing.",
+              "Mixed ratings with both 4 and 5 stars, indicating genuine feedback.",
+              "Specific issues mentioned (cold samosa, faint printout) that could be real concerns."
+            ]
+          ],
+          "seconds": [
+            5.07,
+            5.44,
+            5.1,
+            5.03,
+            5.05
+          ],
+          "abstentions": []
+        },
+        {
+          "id": "reviews-genuine-sparse",
+          "label": "genuine",
+          "source": "synthetic",
+          "probes": [
+            "control",
+            "false-positive"
+          ],
+          "scores": [
+            25,
+            25,
+            25,
+            25,
+            25
+          ],
+          "clearances": [
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "cleared": false,
+          "correct": false,
+          "flipped": false,
+          "observations": [
+            [
+              "Multiple comments are blank or very short, no specific details about the errands, uniform high ratings"
+            ],
+            [
+              "Multiple comments are blank or very short, no specific details about the errands. Structure and wording are repetitive."
+            ],
+            [
+              "Multiple comments are blank or very short, no specific details about the errands. Structure and wording are repetitive."
+            ],
+            [
+              "Multiple comments are blank or very short, no specific details about the errands. Structure and wording are repetitive."
+            ],
+            [
+              "Multiple comments are blank or very short, no specific details about the errands. Structure and wording are repetitive."
+            ]
+          ],
+          "seconds": [
+            3.07,
+            3.1,
+            3.03,
+            3.25,
+            3.15
+          ],
+          "abstentions": []
+        }
+      ]
+    }
+  ]
+}

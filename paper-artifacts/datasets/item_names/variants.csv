@@ -1,0 +1,201 @@
+intended_item,typed_name,resolved_key,matched_a_priced_key,correct
+Chicken Puff,chicken puffs,chicken puff,1,1
+Chicken Puff,CHICKEN PUFF,chicken puff,1,1
+Chicken Puff,chkn puf,chicken puff,1,1
+Chicken Puff,chiken puff,chicken puff,1,1
+Chicken Puff,chicken puf,chicken puff,1,1
+Chicken Puff,chicken-puff,chicken puff,1,1
+Chicken Puff,chikcen puff,chicken puff,1,1
+Chicken Puff,chicken  puff!!,chicken puff,1,1
+Chicken Puff,1 chicken puff,chicken puff,1,1
+Chicken Puff,chicken puff pc,chicken puff,1,1
+Veg Puff,veg puffs,vegetable puff,1,1
+Veg Puff,vej puff,vegetable puff,1,1
+Veg Puff,veg puf,vegetable puff,1,1
+Veg Puff,vegetable puff,vegetable puff,1,1
+Veg Puff,Veg-Puff,vegetable puff,1,1
+Veg Puff,veg pufff,vegetable puff,1,1
+Veg Puff,vg puff,vg puff,0,0
+Veg Puff,veg puff (1),vegetable puff,1,1
+Veg Puff,veg puffs x2,vegetable puff,1,1
+Veg Puff,VEG PUFF,vegetable puff,1,1
+Egg Puff,egg puffs,egg puff,1,1
+Egg Puff,egg puf,egg puff,1,1
+Egg Puff,eg puff,egg puff,1,1
+Egg Puff,Egg  Puff,egg puff,1,1
+Egg Puff,egg-puff,egg puff,1,1
+Egg Puff,egg pufs,egg puff,1,1
+Egg Puff,eggpuff,egg puff,1,1
+Egg Puff,egg puff pcs,egg puff,1,1
+Egg Puff,EGG PUFF,egg puff,1,1
+Egg Puff,egg puffe,egg puff,1,1
+Masala Tea,masala chai,masala tea,1,1
+Masala Tea,masla tea,masala tea,1,1
+Masala Tea,masala tea!,masala tea,1,1
+Masala Tea,Masala-Tea,masala tea,1,1
+Masala Tea,masala teaa,masala tea,1,1
+Masala Tea,MASALA TEA,masala tea,1,1
+Masala Tea,masala tee,masala tea,1,1
+Masala Tea,masal tea,masala tea,1,1
+Masala Tea,masala tea 1,masala tea,1,1
+Masala Tea,a masala tea,masala tea,1,1
+Ginger Tea,ginger chai,ginger tea,1,1
+Ginger Tea,ginger tea,ginger tea,1,1
+Ginger Tea,gingr tea,ginger tea,1,1
+Ginger Tea,Ginger-Tea,ginger tea,1,1
+Ginger Tea,ginger tee,ginger tea,1,1
+Ginger Tea,GINGER TEA,ginger tea,1,1
+Ginger Tea,ginger teas,ginger tea,1,1
+Ginger Tea,ginjer tea,ginger tea,1,1
+Ginger Tea,ginger tea pc,ginger tea,1,1
+Ginger Tea,the ginger tea,ginger tea,1,1
+Samosa,samosas,samosa,1,1
+Samosa,samos,samosa,1,1
+Samosa,SAMOSA,samosa,1,1
+Samosa,samoosa,samosa,1,1
+Samosa,smosa,samosa,1,1
+Samosa,samosa pcs,samosa,1,1
+Samosa,2 samosas,2 samosa,0,0
+Samosa,samosa (2),samosa 2,0,0
+Samosa,samosaa,samosa,1,1
+Samosa,Samosa.,samosa,1,1
+Veg Sandwich,veg sandwiches,vegetable sandwich,1,1
+Veg Sandwich,veg sandwitch,vegetable sandwich,1,1
+Veg Sandwich,veg sndwch,vegetable sandwich,1,1
+Veg Sandwich,vegetable sandwich,vegetable sandwich,1,1
+Veg Sandwich,veg sanwich,vegetable sandwich,1,1
+Veg Sandwich,VEG SANDWICH,vegetable sandwich,1,1
+Veg Sandwich,veg-sandwich,vegetable sandwich,1,1
+Veg Sandwich,veg sandwhich,vegetable sandwich,1,1
+Veg Sandwich,veg sandwich 1,vegetable sandwich,1,1
+Veg Sandwich,veg sandwichs,vegetable sandwich,1,1
+Chicken Sandwich,chicken sandwiches,chicken sandwich,1,1
+Chicken Sandwich,chkn sandwich,chicken sandwich,1,1
+Chicken Sandwich,chicken sandwitch,chicken sandwich,1,1
+Chicken Sandwich,chicken sndwch,chicken sandwich,1,1
+Chicken Sandwich,chiken sandwich,chicken sandwich,1,1
+Chicken Sandwich,CHICKEN SANDWICH,chicken sandwich,1,1
+Chicken Sandwich,chicken sanwich,chicken sandwich,1,1
+Chicken Sandwich,chicken-sandwich,chicken sandwich,1,1
+Chicken Sandwich,chicken sandwhich,chicken sandwich,1,1
+Chicken Sandwich,chicken sandwich pc,chicken sandwich,1,1
+Cold Coffee,cold cofee,cold coffee,1,1
+Cold Coffee,cold coffe,cold coffee,1,1
+Cold Coffee,COLD COFFEE,cold coffee,1,1
+Cold Coffee,cold-coffee,cold coffee,1,1
+Cold Coffee,cold coffees,cold coffee,1,1
+Cold Coffee,cold cofe,cold coffee,1,1
+Cold Coffee,cold kofee,cold kofee,0,0
+Cold Coffee,cold coffee!,cold coffee,1,1
+Cold Coffee,coldcoffee,cold coffee,1,1
+Cold Coffee,cold coffee 1,cold coffee,1,1
+Hot Coffee,hot cofee,hot coffee,1,1
+Hot Coffee,hot coffe,hot coffee,1,1
+Hot Coffee,HOT COFFEE,hot coffee,1,1
+Hot Coffee,hot-coffee,hot coffee,1,1
+Hot Coffee,hot coffees,hot coffee,1,1
+Hot Coffee,hot cofe,hot coffee,1,1
+Hot Coffee,hott coffee,hot coffee,1,1
+Hot Coffee,hot coffee!,hot coffee,1,1
+Hot Coffee,hotcoffee,hot coffee,1,1
+Hot Coffee,hot coffee pc,hot coffee,1,1
+Veg Biryani,veg biriyani,vegetable biryani,1,1
+Veg Biryani,veg biriani,vegetable biryani,1,1
+Veg Biryani,vegetable biryani,vegetable biryani,1,1
+Veg Biryani,veg briyani,vegetable biryani,1,1
+Veg Biryani,VEG BIRYANI,vegetable biryani,1,1
+Veg Biryani,veg-biryani,vegetable biryani,1,1
+Veg Biryani,veg biryanni,vegetable biryani,1,1
+Veg Biryani,veg biryani 1,vegetable biryani,1,1
+Veg Biryani,veg biriyani plate,vegetable biryani plate,0,0
+Veg Biryani,veg biryanis,vegetable biryani,1,1
+Chicken Biryani,chicken biriyani,chicken biryani,1,1
+Chicken Biryani,chicken biriani,chicken biryani,1,1
+Chicken Biryani,chkn biryani,chicken biryani,1,1
+Chicken Biryani,chiken biryani,chicken biryani,1,1
+Chicken Biryani,CHICKEN BIRYANI,chicken biryani,1,1
+Chicken Biryani,chicken-biryani,chicken biryani,1,1
+Chicken Biryani,chicken briyani,chicken biryani,1,1
+Chicken Biryani,chicken biryanni,chicken biryani,1,1
+Chicken Biryani,chicken biryani 1,chicken biryani,1,1
+Chicken Biryani,chicken biryanis,chicken biryani,1,1
+Paneer Roll,paneer rolls,paneer roll,1,1
+Paneer Roll,panner roll,paneer roll,1,1
+Paneer Roll,paneer rol,paneer roll,1,1
+Paneer Roll,PANEER ROLL,paneer roll,1,1
+Paneer Roll,paneer-roll,paneer roll,1,1
+Paneer Roll,paner roll,paneer roll,1,1
+Paneer Roll,paneer rool,paneer roll,1,1
+Paneer Roll,paneer roll pc,paneer roll,1,1
+Paneer Roll,paneer roll!,paneer roll,1,1
+Paneer Roll,panir roll,panir roll,0,0
+Chicken Roll,chicken rolls,chicken roll,1,1
+Chicken Roll,chkn roll,chicken roll,1,1
+Chicken Roll,chiken roll,chicken roll,1,1
+Chicken Roll,CHICKEN ROLL,chicken roll,1,1
+Chicken Roll,chicken-roll,chicken roll,1,1
+Chicken Roll,chicken rol,chicken roll,1,1
+Chicken Roll,chicken rool,chicken roll,1,1
+Chicken Roll,chicken roll pcs,chicken roll,1,1
+Chicken Roll,chicken roll 2,chicken roll,1,1
+Chicken Roll,chickn roll,chicken roll,1,1
+Veg Maggi,veg maggie,vegetable maggi,1,1
+Veg Maggi,veg magi,vegetable maggi,1,1
+Veg Maggi,vegetable maggi,vegetable maggi,1,1
+Veg Maggi,VEG MAGGI,vegetable maggi,1,1
+Veg Maggi,veg-maggi,vegetable maggi,1,1
+Veg Maggi,veg maggii,vegetable maggi,1,1
+Veg Maggi,veg magggi,vegetable maggi,1,1
+Veg Maggi,veg maggi 1,vegetable maggi,1,1
+Veg Maggi,veg maggi!,vegetable maggi,1,1
+Veg Maggi,vej maggi,vegetable maggi,1,1
+Lime Soda,lime sodas,lime soda,1,1
+Lime Soda,lime sodaa,lime soda,1,1
+Lime Soda,LIME SODA,lime soda,1,1
+Lime Soda,lime-soda,lime soda,1,1
+Lime Soda,lyme soda,lime soda,1,1
+Lime Soda,lime soad,lime soda,1,1
+Lime Soda,lime soda 1,lime soda,1,1
+Lime Soda,lime soda!,lime soda,1,1
+Lime Soda,limesoda,lime soda,1,1
+Lime Soda,lime sodda,lime soda,1,1
+Water Bottle,water bottles,water bottle,1,1
+Water Bottle,wtr btl,water bottle,1,1
+Water Bottle,water btl,water bottle,1,1
+Water Bottle,WATER BOTTLE,water bottle,1,1
+Water Bottle,water-bottle,water bottle,1,1
+Water Bottle,watr bottle,water bottle,1,1
+Water Bottle,water botle,water bottle,1,1
+Water Bottle,water bottle 1,water bottle,1,1
+Water Bottle,a water bottle,water bottle,1,1
+Water Bottle,water bottel,water bottle,1,1
+Chocolate Milkshake,choco milkshake,chocolate milkshake,1,1
+Chocolate Milkshake,choc milkshake,chocolate milkshake,1,1
+Chocolate Milkshake,chocolate milkshakes,chocolate milkshake,1,1
+Chocolate Milkshake,CHOCOLATE MILKSHAKE,chocolate milkshake,1,1
+Chocolate Milkshake,chocolate milk shake,chocolate milkshake,1,1
+Chocolate Milkshake,chocolate milkshak,chocolate milkshake,1,1
+Chocolate Milkshake,chocolate-milkshake,chocolate milkshake,1,1
+Chocolate Milkshake,chocolat milkshake,chocolate milkshake,1,1
+Chocolate Milkshake,chocolate milkshake 1,chocolate milkshake,1,1
+Chocolate Milkshake,chocolate milkshake!,chocolate milkshake,1,1
+Bread Omelette,bread omlette,bread omelette,1,1
+Bread Omelette,bread omelet,bread omelette,1,1
+Bread Omelette,bread omelettes,bread omelette,1,1
+Bread Omelette,BREAD OMELETTE,bread omelette,1,1
+Bread Omelette,bread-omelette,bread omelette,1,1
+Bread Omelette,bred omelette,bread omelette,1,1
+Bread Omelette,bread omellete,bread omelette,1,1
+Bread Omelette,bread omelette 1,bread omelette,1,1
+Bread Omelette,bread omlet,bread omelette,1,1
+Bread Omelette,bread omelette!,bread omelette,1,1
+Paratha,parathas,paratha,1,1
+Paratha,parota,paratha,1,1
+Paratha,porotta,paratha,1,1
+Paratha,PARATHA,paratha,1,1
+Paratha,paratha!,paratha,1,1
+Paratha,paratta,paratta,0,0
+Paratha,parata,paratha,1,1
+Paratha,paratha 2,paratha,1,1
+Paratha,paratha pcs,paratha,1,1
+Paratha,parantha,paratha,1,1

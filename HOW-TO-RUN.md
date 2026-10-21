@@ -58,6 +58,18 @@ If unsure, running the migration + rebuild command is always safe — it never d
 
 ## Useful extras
 
+### Tests
+
+The suite runs against its **own** database, `errandly_test`, created and
+migrated automatically on first run. It never touches the app database, so it
+is safe to run while somebody is demoing. To start from a clean schema:
+
+```
+docker compose exec db dropdb -U errandly errandly_test
+```
+
+The next `pytest` recreates and migrates it.
+
 ```
 docker compose exec backend pytest -q          # run backend tests
 docker compose exec backend ruff check .        # lint backend

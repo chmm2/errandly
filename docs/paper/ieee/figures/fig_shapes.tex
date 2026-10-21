@@ -1,0 +1,62 @@
+% (a) and (b): the same friendship triangle with money flowing out of it or
+% around it. (c): a neighbourhood that clustering calls maximally cohesive and
+% closure calls open.
+\begin{tikzpicture}[
+  font=\scriptsize,
+  person/.style={circle, draw, thick, minimum size=5mm, inner sep=0pt},
+  other/.style={circle, draw, fill=black!25, minimum size=2mm, inner sep=0pt},
+  friend/.style={dashed, thin},
+  paid/.style={-{Stealth[length=1.6mm]}, thick},
+  ring/.style={-{Stealth[length=2mm]}, very thick}]
+
+  % ---- (a) honest group: money leaves
+  \begin{scope}
+    \node[person] (a1) at (0,0.9) {A};
+    \node[person] (b1) at (-0.8,-0.3) {B};
+    \node[person] (c1) at (0.8,-0.3) {C};
+    \draw[friend] (a1) -- (b1) -- (c1) -- (a1);
+    \node[other] (x1) at (-1.6,1.0) {};  \node[other] (x2) at (1.6,1.0) {};
+    \node[other] (x3) at (-1.5,-1.0) {}; \node[other] (x4) at (1.5,-1.0) {};
+    \node[other] (x5) at (0,-1.3) {};
+    \draw[paid] (a1) -- (x1); \draw[paid] (x2) -- (a1);
+    \draw[paid] (b1) -- (x3); \draw[paid] (c1) -- (x4);
+    \draw[paid] (x5) -- (b1); \draw[paid] (a1) -- (c1);
+    \node at (0,-1.8) {(a) honest group: money leaves};
+  \end{scope}
+
+  % ---- (b) ring: money goes round
+  \begin{scope}[xshift=4.2cm]
+    \node[person] (a2) at (0,0.9) {A};
+    \node[person] (b2) at (-0.8,-0.3) {B};
+    \node[person] (c2) at (0.8,-0.3) {C};
+    \draw[friend] (a2) -- (b2) -- (c2) -- (a2);
+    \draw[ring] (a2) to[bend right=25] (b2);
+    \draw[ring] (b2) to[bend right=25] (c2);
+    \draw[ring] (c2) to[bend right=25] (a2);
+    \node[other] (y1) at (1.6,1.0) {};
+    \draw[paid] (y1) -- (a2);
+    \node at (0,-1.8) {(b) ring: money goes round};
+  \end{scope}
+
+  % ---- (c) closure versus clustering
+  \begin{scope}[yshift=-4.1cm, xshift=2.1cm]
+    \node[person] (u) at (0,-0.9) {$u$};
+    \node[person] (p) at (-1.0,0.2) {};
+    \node[person] (q) at (0,0.9) {};
+    \node[person] (r) at (1.0,0.2) {};
+    \draw[friend] (u) -- (p); \draw[friend] (u) -- (q); \draw[friend] (u) -- (r);
+    \draw[friend] (p) -- (q) -- (r) -- (p);
+    \foreach \n/\ang in {p/150, p/190, p/230, q/60, q/90, q/120, r/-10, r/30, r/-50} {
+      \node[other] (o\n\ang) at ($(\n)+(\ang:0.75)$) {};
+      \draw[friend] (\n) -- (o\n\ang);
+    }
+    \node[align=center] at (0,-1.75) {(c) $u$'s friends know each other but have lives outside:\\
+      clustering $=1.0$, closure $=0.048$ (20 outside ties each)};
+  \end{scope}
+
+  % legend
+  \begin{scope}[yshift=-6.6cm, xshift=0.2cm]
+    \draw[friend] (0,0) -- (0.6,0); \node[anchor=west] at (0.65,0) {friendship};
+    \draw[paid] (2.2,0) -- (2.8,0); \node[anchor=west] at (2.85,0) {payment (requester $\to$ runner)};
+  \end{scope}
+\end{tikzpicture}

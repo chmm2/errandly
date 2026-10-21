@@ -1,0 +1,57 @@
+% System architecture in two lanes. Upper lane: the synchronous request path.
+% Lower lane: asynchronous event traffic and background jobs. Solid arrows are
+% calls made inside a request; dashed arrows are events or read-model traffic.
+\begin{tikzpicture}[
+  font=\footnotesize,
+  box/.style={draw, thick, rectangle, align=center, inner sep=3pt, minimum height=8mm,
+              text width=#1, fill=white},
+  box/.default=24mm,
+  sync/.style={-{Stealth[length=2mm]}, thick},
+  async/.style={-{Stealth[length=2mm]}, thick, dashed},
+  lane/.style={font=\scriptsize\itshape, anchor=west}]
+
+  % lane labels and separator
+  \node[lane] at (-2mm, 21mm) {Request path (synchronous)};
+  \node[lane] at (-2mm, -15mm) {Event path and background jobs (asynchronous)};
+  \draw[densely dotted] (-2mm, -11mm) -- (176mm, -11mm);
+
+  % ---- upper lane
+  \node[box=22mm] (mob) at (11mm, 9mm) {Student app\\\scriptsize React Native};
+  \node[box=22mm] (web) at (11mm, -1mm) {Web and admin\\\scriptsize React};
+  \node[box=26mm, minimum height=18mm] (api) at (50mm, 4mm)
+       {\textbf{API service}\\\scriptsize FastAPI, async\\[1pt]\scriptsize dispatch, claims,\\
+        \scriptsize escrow, ratings};
+  \node[box=32mm, minimum height=12mm] (pg) at (96mm, 9mm)
+       {\textbf{PostgreSQL + PostGIS}\\\scriptsize source of truth: errands,\\
+        \scriptsize ledger, claims, flags, offer log};
+  \node[box=22mm] (rd) at (106mm, -4mm) {\textbf{Redis}\\\scriptsize geo index, accept locks};
+  \node[box=24mm, minimum height=12mm] (neo) at (164mm, 9mm)
+       {\textbf{Neo4j}\\\scriptsize derived read model:\\\scriptsize FRIEND and PAID edges};
+
+  % ---- lower lane
+  \node[box=22mm] (llm) at (11mm, -26mm) {Local LLM\\\scriptsize advisory only};
+  \node[box=26mm] (sch) at (50mm, -26mm) {\textbf{Scheduler}\\\scriptsize tier escalation, sweeps};
+  \node[box=20mm] (relay) at (85mm, -26mm) {Outbox relay};
+  \node[box=20mm] (kafka) at (116mm, -26mm) {Kafka};
+  \node[box=28mm, minimum height=12mm] (cons) at (154mm, -26mm)
+       {\textbf{Consumers}\\\scriptsize notification, analytics,\\\scriptsize settlement, projection};
+
+  % ---- request path
+  \draw[sync] (mob.east) -- (api.west |- mob.east);
+  \draw[sync] (web.east) -- (api.west |- web.east);
+  \draw[sync] (api.east |- pg.west) -- (pg.west);
+  \draw[sync] (api.east |- rd.west) -- (rd.west);
+  \draw[async] (neo.north) -- ++(0, 5mm) -| node[pos=0.25, above, font=\scriptsize]
+       {trust reads behind a circuit breaker; on failure, distance order} (api.north);
+
+  % ---- event path
+  \draw[async] ([xshift=-11mm]pg.south) -- node[left, font=\scriptsize] {outbox rows}
+       ([xshift=-11mm]pg.south |- relay.north);
+  \draw[async] (relay) -- (kafka);
+  \draw[async] (kafka) -- (cons);
+  \draw[async] (neo.south |- cons.north) -- node[right, font=\scriptsize] {projection} (neo.south);
+  \draw[async] ([xshift=-11mm]cons.north) |- node[pos=0.75, above, font=\scriptsize]
+       {settlement writes the ledger} (pg.east);
+  \draw[sync] (sch.north) -- node[right, font=\scriptsize] {escalate, sweep} (sch.north |- api.south);
+  \draw[sync] (sch.west) -- (llm.east);
+\end{tikzpicture}

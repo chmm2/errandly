@@ -4,6 +4,7 @@ import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { fetchMyErrands } from "./api/errands";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Campus from "./pages/Campus";
+import FraudAdmin from "./pages/FraudAdmin";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import NewErrand from "./pages/NewErrand";
@@ -14,6 +15,7 @@ import Runner from "./pages/Runner";
 import Shops from "./pages/Shops";
 import Track from "./pages/Track";
 import VendorPortal from "./pages/VendorPortal";
+import Wallet from "./pages/Wallet";
 
 // While you're carrying a run (accepted or picked up), you're locked into
 // runner mode — order-side pages redirect to /runner even via a direct URL,
@@ -37,6 +39,11 @@ export default function App() {
         <Route path="/runner" element={<Runner />} />
         <Route path="/campus" element={<Campus />} />
         <Route path="/vendor" element={<VendorPortal />} />
+        {/* Money and moderation stay reachable mid-run: a runner carrying a
+            delivery still needs their wallet and their fraud standing, and the
+            admin console has nothing to do with carrying a run. */}
+        <Route path="/wallet" element={<Wallet />} />
+        <Route path="/admin/fraud" element={<FraudAdmin />} />
 
         {/* Order-mode pages — blocked while you have a live run */}
         <Route element={<RequireNoActiveRun />}>

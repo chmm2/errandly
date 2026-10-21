@@ -106,6 +106,30 @@ that table is the interview/viva cheat sheet).
 - **Patterns:** CQRS/materialized view · ledger (append-only money) · polyglot persistence ·
   cache-aside · snapshot vs reference (price at order time)
 
+## Sprint 5.5 — Escrow payments & price-claim fraud (branch: `feat/payments-fraud-detection`)
+- [x] **wallet + escrow:** balance is derived (SUM credits − debits, never stored); `LedgerEntry`
+  gains a `direction` so escrow can debit. Order time places a **hold** for
+  items + reward + collect_amount; delivery **releases** it; cancel **refunds** it. A payout can
+  never exceed its hold — `released_amount <= amount` is a DB CHECK, not just service logic.
+- [x] **runner price claims:** runner reports what they actually paid at pickup
+  (`POST /fraud/errands/{id}/claims`). Reimbursement is drawn from the JUDGED claim, never from
+  the amount asked for.
+- [x] **reference prices (non-MRP items):** admin sets a hard **band** per item; a robust
+  estimator moves the reference only *inside* that band; band-edge drift raises a **proposal**
+  for admin approval. Admins click approve, they don't type data.
+- [x] **anti-poisoning:** estimate = median of *per-runner* medians, so volume buys no influence —
+  one runner claiming ₹40 two hundred times contributes a single ₹40. FLAGGED claims are excluded
+  from the evidence entirely. This is what stops the detector being trained by the fraud it polices.
+- [x] **escalation ladder:** flagged *errands* (not lines) in a 30-day window →
+  3 = warning · 5 = reputation penalty · 8 = runner block (7d) · 12 = account suspension.
+  One high claim is never punished; the pattern is.
+- [x] **appeal path:** admin uphold/dismiss actually moves money — dismissing pays the runner the
+  withheld amount and restores the claim as reference evidence.
+- **Demo:** runner claims ₹40 for a ₹20 chicken puff → paid ₹20, ₹40 held, flag raised; do it on
+  three errands → warning lands; admin dismisses one → the money moves back.
+- **Patterns:** escrow / hold-release · derived balances · robust estimation under adversarial
+  input · human-in-the-loop bounds · graduated sanctions
+
 ## Sprint 6 — Admin, security, observability, scale-out (Weeks 12–13)
 - [ ] disputes workflow; admin suspend/ban → Redis blacklist
 - [ ] SQLi/XSS/CSRF audit; secrets hygiene
@@ -158,6 +182,12 @@ that table is the interview/viva cheat sheet).
 | L7 load balancing, horizontal scaling | nginx + 2 API replicas | 6 |
 | Monitoring / instrumentation | Prometheus + Grafana + audit logs | 6 |
 | Sharding (designed-for, not built) | `campus_id` on every table = natural shard key | — |
+| Escrow / hold-release | `escrow_holds` + `ledger.place_hold/release_hold` | 5.5 |
+| Derived balances (no stored totals) | balance = SUM(credits) − SUM(debits) | 5.5 |
+| Idempotent payout | unique (errand, user, entry_type) + SAVEPOINT on conflict | 5.5 |
+| Robust estimation vs. adversary | median of per-runner medians; MAD outlier rejection | 5.5 |
+| Human-in-the-loop bounds | admin band caps what the estimator may write | 5.5 |
+| Graduated sanctions | flag count in window → warning → block → suspension | 5.5 |
 | **Consciously rejected** | CDN, geo-DNS, federation, service discovery, BFF — single campus, single client; know *why* | — |
 
 **Interview rule: every pattern must carry its failure story** (lock holder crashes → TTL + fencing;
