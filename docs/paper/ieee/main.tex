@@ -1,0 +1,963 @@
+% Trust Without Receipts -- IEEE journal manuscript (IEEEtran, journal mode).
+% Compiles with pdfLaTeX (Overleaf default) or XeLaTeX/Tectonic.
+% Every number in Section VI is produced by backend/evals/paper/*.py; see
+% backend/evals/paper/README.md for the command that regenerates each one.
+\documentclass[journal]{IEEEtran}
+
+\usepackage[T1]{fontenc}
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,patterns}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\Rs}{Rs.\,}
+\newcommand{\code}[1]{\texttt{#1}}
+\hyphenation{Errandly Post-gre-SQL}
+
+\begin{document}
+
+\title{Trust Without Receipts: Collusion-Aware Social Dispatch and Price-Claim Assessment for Campus Errand Platforms}
+
+\author{Chris~Martin~Mattam,
+        Ujjwal~Gogoi,
+        Sanskriti~Sajlal,
+        and~Ranjithkumar~S%
+\thanks{The authors are with the School of Computer Science and Engineering,
+Vellore Institute of Technology, Vellore 632014, Tamil Nadu, India.}%
+}
+
+\markboth{Manuscript submitted for review}%
+{Mattam \MakeLowercase{\textit{et al.}}: Trust Without Receipts}
+
+\maketitle
+
+\begin{abstract}
+Delivery platforms check a courier's expenses against a menu, a catalogue or a
+receipt. A campus errand platform has none of these: when a student runner buys a
+Rs.~20 puff at a hostel canteen, the claim is the only record of the price. We
+present Errandly, a peer-to-peer campus errand platform, and a problem its design
+creates: the dispatcher prefers friends, so money circulating inside honest friend
+groups resembles collusion. We flag only money cycles among mutual
+friends, then test each flagged group against an acceptance model fitted to logged
+dispatch rounds from outside every suspected group. Price claims are bound to the
+lines the requester ordered and judged against a one-vote-per-runner reference held
+inside an administrator's band. In simulated semesters on a 1,200-student campus
+that run the production code, with 30 seeds per setting, the cycle search alone
+reached an F1 score of 0.96. Structure-only and money-only baselines found almost no
+ring member, and two graph-mining baselines reached at most 0.48. The end-to-end pipeline, cycle search plus policy test,
+reached 0.93 to 0.97 when rings were careless and 0.87 to 0.88 when they were
+coordinated. The first version of the test, which reused the router's own scores,
+incorrectly suppressed 146 of 149 coordinated-ring flags. The price reference stayed
+at the true price with 60\% dishonest runners. We also identify a limit no such test
+can pass: honest favour-trading and careful collusion leave the same logs. All
+results come from simulation.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Collusion, fraud detection, peer-to-peer computing, reputation systems, social
+networks, trust management.
+\end{IEEEkeywords}
+
+%======================================================================
+\section{Introduction}
+%======================================================================
+
+\IEEEPARstart{O}{n} a residential campus, students already run errands for each
+other. Someone walking past the canteen brings dinner back to a friend in the
+hostel; someone going to the main gate collects a parcel for a roommate. Errandly
+turns this habit into a platform. A student posts an errand with a drop point and
+a fee, a nearby verified student accepts it, and the requester's money sits in
+escrow until the handoff is confirmed. The system is a working prototype with an
+Android and iOS client, a web client and an event-driven backend. It has not yet
+been piloted with students, so every result in this paper comes from tests and
+simulations of the code as built.
+
+The hard part is not matching. Commercial delivery platforms control expense fraud
+by knowing what things cost. Restaurant menus are integrated, and grocery orders are
+checked against a catalogue or a scanned receipt \cite{alnaggar2021crowdsourced,le2019supply}.
+A campus canteen offers none of that. It has no point-of-sale integration, no
+published price list and no receipt for a loose samosa. The runner pays at the
+counter and types in what it cost, and that number is the only record of the
+transaction. Neither the requester nor the platform can check it.
+
+This one property spreads through the whole system. Reimbursement can no longer be
+verified, only judged for plausibility. Plausibility needs a reference price, which
+has to be estimated from earlier claims made by the same people the reference will
+police. An estimator that learns from those claims can be steered by them, which is
+the situation studied as performative prediction \cite{perdomo2020performative}.
+Judgement then falls on people rather than documents, so reputation carries real
+weight, and because reputation decides who is offered work, repairing a damaged
+reputation pays. Repair is easiest among friends. The friendship graph that lets the
+platform prefer trusted runners is therefore the same structure that makes
+collusion cheap. Coleman described network closure as the source of the trust and
+sanctions that hold a group together \cite{coleman1988social}. On an errand
+platform, the same closure lets a group coordinate against everyone outside it.
+
+There is a second, quieter problem. Errandly offers each errand to the requester's
+friends before strangers. Honest friends therefore end up running each other's
+errands more often than chance would predict, and their money circulates inside
+the group. A detector that reads in-group circulation as evidence of collusion is
+then partly reading the router's own output. This is the shape of the runaway
+feedback loops described for predictive policing \cite{ensign2018runaway} and of
+algorithmic confounding in recommender systems \cite{chaney2018algorithmic}: the
+system's decisions produce the data that later judges the people affected by them.
+
+This paper is about that interaction between dispatch and detection, and about the
+price-claim checks that make the platform usable at all. Our contributions are as
+follows.
+
+\begin{enumerate}
+\item We formulate \emph{catalogue-free} errand commerce, in which expenditure is
+unverifiable by construction, and give a threat model in which a successful attack
+needs no forged record at all (Section~\ref{sec:model}).
+\item We show that a social dispatcher and a collusion detector that share one
+friendship graph interfere, and we measure by how much: staging offers by friendship
+distance doubles the share of an honest group's errands that stay inside the group,
+and a cycle detector that ignores this flags honest friend groups
+(Sections~\ref{sec:eval-rings} and~\ref{sec:eval-dispatch}).
+\item We introduce \emph{policy-conditioned evidence}. Every dispatch round is
+logged, a small share of rounds is offered without the social boost, an acceptance
+model is fitted to logged acceptances by people outside every suspected group, and a
+group's in-group takes are compared with what that model predicts through a
+Poisson-binomial $z$ statistic. We report where this clears honest groups, why the
+first version, which reused the router's own scores, cleared coordinated rings, and
+the limit no such test can pass: deliberate in-group routing by honest friends and
+by a careful ring leave the same logs (Sections~\ref{sec:design-policy}
+and~\ref{sec:eval-policy}).
+\item We separate structure from evidence in collusion detection. Neighbourhood
+closure discounts trust but never accuses anyone; an accusation needs a cycle of
+qualified payment legs among mutual friends. We compare it with single-signal
+baselines and with two standard graph-mining baselines, densest-block peeling and
+label-propagation communities (Section~\ref{sec:eval-rings}).
+\item We describe price-claim assessment against a reference estimated with one vote
+per runner inside an administrator's band, with runners who habitually claim just
+under the limit denied a vote, claims bound to the lines the requester ordered, and
+shop-level partial pooling. We measure money lost and time to detection under five
+attacker strategies (Section~\ref{sec:eval-price}).
+\end{enumerate}
+
+The platform has not been piloted with students. Every result comes from tests and
+from simulations that run the production code, and we report the failures we found,
+several of which led to the code changes described in Section~\ref{sec:impl}.
+
+Section~\ref{sec:related} positions this work against prior research.
+Section~\ref{sec:model} defines the system and threat model,
+Section~\ref{sec:design} presents the design and Section~\ref{sec:impl} the
+implementation. Section~\ref{sec:eval} evaluates each mechanism,
+Section~\ref{sec:discussion} discusses limitations, and
+Section~\ref{sec:conclusion} concludes.
+
+%======================================================================
+\section{Related Work}\label{sec:related}
+%======================================================================
+
+\subsection{Crowdsourced Delivery and Spatial Task Assignment}
+Alnaggar \emph{et al.} survey crowdsourced delivery platforms and classify them by
+matching mechanism, target market and pay scheme \cite{alnaggar2021crowdsourced};
+Le \emph{et al.} review the supply, demand and operations of crowd-shipping
+\cite{le2019supply}. Spatial crowdsourcing studies how location-bound tasks should
+be assigned to moving workers \cite{tong2020spatial,kazemi2012geocrowd}. These lines
+of work take the task's price as given. Price anomaly detection in marketplaces,
+such as the MoatPlus system of Sarpal \emph{et al.}, sets upper price bounds from
+historical and proximate prices of catalogued items \cite{sarpal2023marketplace};
+it assumes the catalogue we lack. Escrow services have been analysed as trusted
+third parties in online auctions \cite{hu2004hope}, but an escrow can only hold an
+amount that both sides agree on. In our setting the amount is the thing in dispute.
+
+\subsection{Trust, Reputation and Sybil Resistance}
+Reputation systems aggregate past feedback to predict future behaviour
+\cite{resnick2000reputation,dellarocas2003digitization,josang2007survey}, and
+Hoffman \emph{et al.} catalogue the attacks on them, collusion and identity
+manipulation among them \cite{hoffman2009survey}. EigenTrust propagates trust
+transitively through a peer network \cite{kamvar2003eigentrust}, and graph-based
+trust models for social networks commonly let trust decay with path length
+\cite{jiang2016trust}, which we follow. Sybil defences built on social graphs, such
+as SybilGuard, rely on a sparse cut between honest and fake regions
+\cite{yu2008sybilguard}, and Cheng and Friedman show that a large class of
+reputation functions cannot be Sybil-proof \cite{cheng2005sybilproof}. On our
+platform identity is tied to an institutional e-mail address, so fake accounts are
+costly \cite{douceur2002sybil}; the attacks that remain are carried out with real
+accounts. Studies of peer platforms report that ratings are shaped by reciprocity
+\cite{bolton2013engineering}, inflate over time \cite{filippas2022reputation} and
+respond to personal trust cues \cite{ert2016trust}. We take from these that a
+rating's meaning depends on who gave it.
+
+\subsection{Closure and Cohesion}
+Coleman \cite{coleman1988social} and Granovetter \cite{granovetter1985economic}
+argue that closed, embedded networks support trust and enforcement, while Burt
+stresses the value of ties that bridge otherwise separate groups
+\cite{burt1992structural}. The clustering coefficient of Watts and Strogatz
+\cite{watts1998collective} is the usual local measure of cohesion. Community
+detection methods such as modularity maximisation \cite{newman2006modularity}, the
+Louvain method \cite{blondel2008fast} and label propagation \cite{raghavan2007lpa}
+partition a whole graph. The closure score we use is not a new kind of measure. With
+the student removed, it is a monotone transform, $c=(1-\phi)/(1+\phi)$, of the
+conductance $\phi$ \cite{kannan2004clusterings} of the student's friend set, and it is
+close in spirit to Burt's ego-network constraint \cite{burt1992structural}. What we need from it is narrow: a per-student
+number that is cheap to refresh in plain Cypher, easy to explain to a reviewer, and
+sensitive to whether a neighbourhood is sealed off from the rest of campus.
+Section~\ref{sec:eval-closure} shows that the clustering coefficient does not have
+the last property. The novelty is in how the score is used, as a discount on trust
+that never accuses anyone, rather than in the score itself.
+
+\subsection{Collusion and Group Fraud}
+Fraud detection on review and social platforms looks for groups that act together:
+fake reviewer groups \cite{mukherjee2012spotting}, spammers with abnormal rating
+behaviour \cite{lim2010detecting}, accounts that act in lockstep
+\cite{beutel2013copycatch} and dense blocks hidden behind camouflage edges
+\cite{hooi2016fraudar}; Akoglu \emph{et al.} survey graph-based anomaly detection
+\cite{akoglu2015graph}. Shilling-attack detection for recommender systems targets
+injected profiles and rating time series \cite{gunes2014shilling,zhou2018shilling}.
+Collusion among crowd workers has its own literature. Xu \emph{et al.} review
+similarity-based, graph-based and learned detectors of worker collusion and note how
+hard it is to obtain ground truth \cite{xu2025collusionreview}. Han \emph{et al.}
+show that collusion can be organised anonymously at large scale and detect it with a
+graph algorithm over workers' answers \cite{han2025anonymous}, and Zhang \emph{et al.}
+predict fraudulent requesters on a contest platform from their centrality and
+clustering in the social network \cite{zhang2026sna}. These methods share an
+assumption: somewhere in the data there is a fake record, a copied answer or an
+abnormal position in the network. The attack we care about breaks that assumption.
+A ring's friendships are real, its errands are really run, and the ratings its
+members leave each other may be perfectly sincere. More importantly for us, none of
+these detectors runs beside a matcher that itself puts friends together, so none has
+to separate the platform's influence from the group's.
+
+\subsection{Truth Discovery and Robust Aggregation}
+Truth discovery infers true values from conflicting sources by estimating how
+reliable each source is \cite{li2016truth}; multi-truth discovery allows an object
+several correct values \cite{lin2018domain}, which matches an item that costs
+different amounts in different shops. Fang \emph{et al.} show that coordinated
+workers can poison such aggregates \cite{fang2021poisoning}. Robust statistics gives
+the tools we use: the influence curve \cite{hampel1974influence}, the median absolute
+deviation and its alternatives \cite{rousseeuw1993alternatives,huber2009robust}, and
+practical outlier rules based on it \cite{leys2013detecting}. Partial pooling toward
+a common mean follows the empirical Bayes argument of Efron and Morris
+\cite{efron1975data}.
+
+\subsection{Feedback Loops and Logged Exploration}
+Perdomo \emph{et al.} formalise predictions that change the distribution they are
+evaluated on \cite{perdomo2020performative}. Ensign \emph{et al.} show how a
+predictive-policing system that sends patrols where it previously found crime keeps
+confirming itself \cite{ensign2018runaway}, and Chaney \emph{et al.} show how
+recommender feedback homogenises behaviour \cite{chaney2018algorithmic}. Offline
+evaluation of deployed systems relies on logged decision probabilities
+\cite{bottou2013counterfactual} and on a small slice of randomised traffic
+\cite{li2010contextual}. Our policy test borrows both ideas in a simple form: the
+logged scores define a conditional-logit choice model \cite{mcfadden1974conditional},
+and the number of in-group takes is a sum of independent, non-identical Bernoulli
+trials \cite{wang1993number}.
+
+\subsection{Language Models in a Fraud Pipeline}
+Text sent to a language model inside an application can carry instructions aimed at
+the model \cite{greshake2023not}. In our case every string the model sees is written
+by the people being judged. We use a locally hosted Qwen2.5 7B model
+\cite{qwen2024qwen25} and keep it advisory (Section~\ref{sec:design-llm}).
+
+Table~\ref{tab:positioning} compares the detectors closest to ours on the three
+properties that matter here.
+
+\begin{table*}[!t]
+\caption{Collusion and Fraud Detectors Closest to This Work}
+\label{tab:positioning}
+\centering
+\footnotesize
+\begin{tabular}{@{}>{\raggedright}p{0.17\textwidth}>{\raggedright}p{0.17\textwidth}>{\raggedright}p{0.26\textwidth}ccc@{}}
+\toprule
+Work & Setting & Evidence used & Needs a & Accounts for & Judges \\
+& & & fake record & the matcher & unpriced claims \\
+\midrule
+Mukherjee \emph{et al.} \cite{mukherjee2012spotting} & product reviews & group
+behaviour features & yes & no & no \\
+CopyCatch \cite{beutel2013copycatch}, FRAUDAR \cite{hooi2016fraudar} & social and
+e-commerce graphs & lockstep edges, dense blocks & yes & no & no \\
+Han \emph{et al.} \cite{han2025anonymous}; review \cite{xu2025collusionreview} &
+crowdsourced labelling & answer similarity, worker graphs & yes & no & no \\
+Zhang \emph{et al.} \cite{zhang2026sna} & contest crowdsourcing & centrality and
+clustering of requesters & no & no & no \\
+Fang \emph{et al.} \cite{fang2021poisoning} & truth discovery & source reliability &
+yes & no & no \\
+MoatPlus \cite{sarpal2023marketplace} & online marketplace & catalogue price history
+& no & no & catalogued only \\
+Ensign \emph{et al.} \cite{ensign2018runaway} & predictive policing & (analysis of a
+feedback loop) & no & yes & no \\
+\textbf{This work} & campus errands & money cycles among friends, tested against a
+fitted model of logged routing & no & yes & yes \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+%======================================================================
+\section{System and Threat Model}\label{sec:model}
+%======================================================================
+
+\subsection{Actors and Errand Lifecycle}
+Students register with an institutional e-mail address verified by a one-time
+code. Any student can post an errand as a \emph{requester} or accept one as a
+\emph{runner}; administrators maintain reference prices and review flags. An errand
+has a drop point, a fee, an optional amount of cash to collect (for example at the
+gate) and an item list. Items are of three kinds: menu items from vendors registered
+on the platform, packaged goods with a printed maximum retail price (MRP), and
+\emph{loose-priced} items such as canteen food that carry no printed price. Only the
+last kind is reimbursed on the runner's word.
+
+Fig.~\ref{fig:lifecycle} shows the lifecycle. Money is placed in escrow before any
+runner sees the errand. Offers go out in timed tiers (Section~\ref{sec:design-dispatch}).
+Acceptance takes a Redis lock and then a row lock, so exactly one runner wins a
+race. Before marking the errand picked up, the runner must report the price of
+every loose-priced line, and each line is judged at that moment. Settlement happens
+once, when the requester confirms completion.
+
+\begin{figure}[!t]
+\centering
+\input{figures/fig_lifecycle.tex}
+\caption{Errand lifecycle. Money is held before any offer goes out, every
+loose-priced line is judged at the counter, and settlement pays only the eligible
+amount.}
+\label{fig:lifecycle}
+\end{figure}
+
+\subsection{Graphs, Logs and Claims}\label{sec:defs}
+Let $U$ be the students on one campus. The \emph{friendship graph}
+$G_F=(U,E_F)$ is undirected; an edge exists only for an accepted friend request and
+records when it was accepted. We write $N(u)$ for the friends of $u$.
+
+The \emph{payment graph} $G_P$ is a directed multigraph. A completed errand $e$
+posted by $a$ and run by $b$ adds an edge $a\to b$ with time $t_e$ and amount
+$x_e$, the fee plus any cash the runner collected for $a$. The reimbursement for
+goods is deliberately left out. It repays a shop for things $a$ received, so it is
+not value transferred from $a$ to $b$, and counting it would make a large grocery run
+for a friend look like a large gift.
+
+The \emph{offer log} records, for every dispatch round, the requester, each
+candidate's distance, friendship distance, trust, reputation, penalty and resulting
+score, whether the round was exploratory, and who accepted.
+
+An errand's \emph{order lines} are what the requester asked for: a name, a quantity
+and, for an item picked from the administrator's price list, a link to its
+reference. A \emph{claim} is the runner's report of the unit price paid for one order
+line. The unit is one of whatever the line names (one puff, one bottle), and the
+claimed quantity may not exceed the quantity ordered. A claim records the runner,
+item, shop, unit price, quantity, the reference and allowance it was judged against,
+and the verdict.
+
+\emph{Reference notation.} For item $k$, $r_k$ is the campus reference in force.
+The administrator sets its initial value and a band $[L_k,U_k]$;
+$\hat r_k$ is the estimate computed from recent claims, which replaces $r_k$ only
+inside the band (Section~\ref{sec:design-reference}); and $r^*_{k,s}$ is the
+shop-adjusted value used to judge a claim made at shop $s$ (equation~\eqref{eq:store}).
+Where the shop is unknown or barely observed, $r^*_{k,s}=r_k$.
+
+\emph{Outcome terms.} We use five words with fixed meanings. A claim, a runner or a
+group is \emph{flagged} when a rule writes a flag record; a flag is evidence, not a
+verdict. A ring flag is \emph{suppressed} when the policy test
+(Section~\ref{sec:design-policy}) finds the group's in-group activity explained, in
+which case no flag is written. A flag is \emph{reviewed} when an administrator marks
+it upheld or dismissed. A student is \emph{sanctioned} when an action is applied to
+their account: a warning, a rank penalty, a pause on running or a suspension. A
+student is \emph{cleared} when a dismissal releases withheld money and lifts any pause
+that the remaining flags no longer justify (Section~\ref{sec:design-claims}).
+
+\subsection{Threat Model}
+The attacker is a verified student who wants to be paid more than the work is worth,
+acting alone or with genuine friends. We assume the attacker knows every rule in this
+paper, can coordinate with friends over chat, and can run real errands at real cost.
+We assume the attacker cannot create accounts in bulk, because each needs an
+institutional address, and cannot tamper with the server or its logs.
+
+Fig.~\ref{fig:threat} and Table~\ref{tab:threat} show the campaign we design
+against. The loop closes because reputation decides who is offered work: a runner
+whose rank has fallen needs to repair it before reaching new victims, so repairing it
+is a precondition of the fraud rather than vanity. Stages 4 and 5 need no forged data.
+The friends are real, the errands are run, and the five-star ratings may be sincere.
+
+Out of scope are a shopkeeper who quotes a false price on the runner's behalf,
+shared accounts, coercion, a compromised administrator and spoofed device locations.
+
+\begin{figure}[!t]
+\centering
+\input{figures/fig_threat.tex}
+\caption{The attacker's loop. Each stage is answered by a control in
+Table~\ref{tab:threat}.}
+\label{fig:threat}
+\end{figure}
+
+\begin{table}[!t]
+\caption{Attack Stages and the Controls That Answer Them}
+\label{tab:threat}
+\centering
+\footnotesize
+\begin{tabular}{@{}c>{\raggedright}p{0.36\columnwidth}>{\raggedright\arraybackslash}p{0.47\columnwidth}@{}}
+\toprule
+Stage & Attacker move & Control (Section) \\
+\midrule
+1 & inflate the price of a loose item & reference with band; withhold excess
+(\ref{sec:design-claims}, \ref{sec:design-reference}) \\
+2 & keep every claim just under the limit & distribution rule; no vote on the
+reference (\ref{sec:design-claims}) \\
+3 & absorb flags; rank falls & strike ladder; capped rank penalty
+(\ref{sec:design-claims}, \ref{sec:design-dispatch}) \\
+4 & farm ratings from friends & one vote per rater; concentration discount
+(\ref{sec:design-reputation}) \\
+5 & circulate money to fund stage 4 & cycles among friends; policy test
+(\ref{sec:design-rings}, \ref{sec:design-policy}) \\
+6 & make farmed errands look real & language channel, advisory only
+(\ref{sec:design-llm}) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%======================================================================
+\section{Design}\label{sec:design}
+%======================================================================
+
+\subsection{Overview}
+Fig.~\ref{fig:arch} shows the architecture. PostgreSQL is the only source of truth.
+Every state change writes a domain event to an outbox table in the same transaction,
+a relay publishes it to Kafka, and four consumer groups handle notifications,
+analytics, settlement and the projection of friendships and payments into Neo4j. The
+graph is a derived read model: nothing on a request path writes to it, it can be
+rebuilt from the event log, and every read from it sits behind a circuit breaker. A
+scheduler escalates offers, refreshes graph metrics and runs the fraud sweeps.
+Table~\ref{tab:params} collects the parameters introduced in the rest of this section.
+
+\begin{figure*}[!t]
+\centering
+\input{figures/fig_architecture.tex}
+\caption{Architecture in two lanes. The upper lane is the request path, the lower
+lane the event path and background jobs. Solid arrows are synchronous calls; dashed
+arrows are events or read-model traffic. Losing Neo4j degrades matching to distance
+order and never blocks a request.}
+\label{fig:arch}
+\end{figure*}
+
+\subsection{Assessing a Price Claim}\label{sec:design-claims}
+A claim must first be tied to the right reference, because a claim that matches no
+reference is never checked at all. On an itemised order the claim is bound to one of
+the order's own lines. Its name is matched against the names of those lines, exactly
+after normalisation and otherwise by fuzzy matching. A line the requester picked from
+the administrator's price list is then judged against that line's reference, whatever
+the runner calls it. A name that matches no line is refused, and so is a quantity
+above the quantity ordered. Before this rule, a runner could rename a priced item
+(``zzq special'') until it matched nothing and be paid unchecked; Section~\ref{sec:eval-price}
+measures the difference. On an errand with no itemised lines the claimed name is
+mapped to a campus-wide key instead. Deterministic rules handle case, punctuation,
+plurals and common abbreviations (``chkn puf'' becomes ``chicken puff''), and fuzzy
+matching with a similarity threshold of 0.86 handles typos against the keys a campus
+already prices. A language model may \emph{suggest} aliases for names that recur
+unmatched, but nothing is judged against an alias until an administrator approves
+it.
+
+For item $k$ with reference price $r_k$, the allowance is
+\begin{equation}
+\tau_k = \min\bigl(\max(0.40\,r_k,\ \Rs 5),\ \Rs 20\bigr), \label{eq:tolerance}
+\end{equation}
+where the percentage, floor and cap are per-item settings. A flat allowance would
+be 80\% of a Rs.~25 puff and 4\% of a Rs.~500 grocery run; scaling it protects the
+cheap items that make up most of the traffic. A claimed unit price $c$ at shop $s$,
+judged against $r^*_{k,s}$ (Section~\ref{sec:design-reference}), is
+\emph{FLAGGED} if $c-r^*_{k,s}>\tau_k$, \emph{ELEVATED} if $0<c-r^*_{k,s}\le\tau_k$
+and \emph{OK} otherwise. For a line of quantity $q$, a flagged claim is reimbursed at
+$q\,r^*_{k,s}$ and the excess stays in escrow for review; the other two are paid
+$q\,c$ in full. An item with no reference (the cold-start
+case, Section~\ref{sec:design-reference}) is paid as claimed, up to the escrow hold,
+and becomes evidence for one.
+
+One high claim is not fraud; prices do rise. Sanctions therefore key on a pattern,
+and only price-claim flags count toward it; ring and rating-farming flags never feed
+the ladder, because they are relational inferences that a person has to weigh. With
+3, 5 and 8 flagged errands within 30 days the system applies, automatically, a
+warning, a 0.5-star reputation penalty and a seven-day pause on running. These three
+steps are temporary and reversible. The fourth, account suspension, needs 12 flags
+that an administrator has \emph{upheld}; open flags alone stop at the pause. Flags
+are counted per errand, so one receipt with four inflated lines is one incident.
+Every sanction notifies the student with the reason and a route to an administrator.
+That is the appeal path. When an administrator dismisses a flag, the withheld money
+is paid to the runner, the claim is restored as evidence, and a running pause that
+the remaining flags no longer justify is lifted. The strike stays on record, marked
+as lifted.
+
+A runner can also sit just under the limit on every claim. A claim is \emph{near the
+line} if $c-r^*_{k,s}\ge0.6\,\tau_k$. A runner with at least four near-line claims in 30
+days, forming at least 60\% of their judged claims, receives a
+\code{PERSISTENT\_NEAR\_THRESHOLD} flag. Requiring a share as well as a count keeps
+a busy honest runner, whose elevated claims are diluted by ordinary ones, out of it.
+No money is withheld for this flag, because no single claim broke a rule.
+
+\subsection{Estimating References From Adversarial Claims}\label{sec:design-reference}
+The administrator sets, for each loose-priced item, a reference and a band
+$[L_k,U_k]$. An hourly job re-estimates the reference from the last 30 days of
+claims. Flagged claims are excluded, and so are all claims by runners under an open
+or upheld near-line flag. Their claims are individually legal, which is why they
+would otherwise drag the line upward. Claims are grouped by runner and each
+runner contributes one vote, the median of their own claims $m_i$. With
+$M=\operatorname{med}_i m_i$ and $\mathrm{MAD}=\operatorname{med}_i|m_i-M|$, votes with
+$|m_i-M|>3\times1.4826\times\mathrm{MAD}$ are dropped and the estimate is the median of
+the rest \cite{rousseeuw1993alternatives,leys2013detecting}. At least three runners
+and five claims are needed; with fewer, or when every vote is rejected, $r_k$ is
+left as it was. The estimate $\hat r_k$ replaces $r_k$ only if it lies inside
+$[L_k,U_k]$; outside the band it becomes a proposal for an administrator, and within
+5\% of either edge it is applied and also proposed. The band is never moved by the
+data it bounds.
+
+\emph{Cold start.} A new item has no reference until an administrator lists it with
+a price and band, and until then its claims are paid as claimed, up to the hold. The
+hold is the only bound in this state: a claim that pushes the payout above the hold
+freezes it for review (Section~\ref{sec:design-escrow}). Unmatched names are queued
+for alias review so that a recurring item is noticed. A listed item starts at the
+administrator's price, $\hat r_k$ takes over once three runners have reported it, and
+shop pooling begins only once three distinct runners have reported from that shop.
+
+Without the vote limit, one runner who claims Rs.~40 two hundred times would set the
+reference. Without the band and the exclusions, a performative loop forms
+\cite{perdomo2020performative}: inflated claims raise the reference, a higher reference
+widens the allowance in~\eqref{eq:tolerance}, and the next inflated claim looks
+normal.
+
+An item also has different prices in different shops \cite{lin2018domain}. A single
+campus reference sits between them and is wrong both ways: the honest runner at the
+dearer counter is always elevated, and an inflater at the cheaper one blends in. For
+shop $s$ with $n_s\ge3$ distinct reporting runners and median of per-runner medians
+$M_s$, the reference used for judging is pulled toward the shop:
+\begin{equation}
+r^*_{k,s} = w_s M_s + (1-w_s)\,r_k,\qquad w_s = \frac{n_s}{n_s+6}, \label{eq:store}
+\end{equation}
+capped at $2.5\,r_k$ as a sanity bound \cite{efron1975data}. The
+allowance still scales with the campus reference $r_k$, so a shop cannot widen its own
+allowance by being dear. This step deliberately does not exclude flagged claims:
+excluding them would deadlock a genuinely dearer shop, whose honest claims are all
+flagged against the campus reference. Independence, counted in distinct runners,
+is what protects it instead.
+
+\subsection{Trust From the Friendship Graph}\label{sec:design-trust}
+Trust from requester $q$ to candidate runner $v$ at friendship distance $h\le4$ is
+\begin{equation}
+T(q,v) = \delta^{\,h-1}\,\bigl(1-\pi\bigr)\,\mu,\qquad \delta = 0.45, \label{eq:trust}
+\end{equation}
+where $\mu\in[0.4,1]$ grows linearly to 1 over the first 30 days of the newest
+friendship on the path, so that a network recruited yesterday counts for less than
+an established one. Old friendships are not discounted.
+
+The penalty $\pi$ measures how sealed off the neighbourhood carrying the trust is.
+For a student $x$ with $|N(x)|\ge2$ we count edges among $x$'s friends, $I(x)$, and
+edges from $x$'s friends to anyone outside $N(x)\cup\{x\}$, $B(x)$, and define
+\emph{closure}
+\begin{equation}
+c(x) = \frac{I(x)}{I(x)+B(x)}. \label{eq:closure}
+\end{equation}
+When $|N(x)|<2$ or $I(x)+B(x)=0$, as for a student whose friends have no other ties
+at all, $c(x)=0$: there is no neighbourhood to call sealed. Two choices matter. First, $x$ itself is excluded; counting $x$'s own spokes as
+internal edges makes an open star look closed. Second, unlike the clustering
+coefficient $2I(x)/(k(k-1))$ with $k=|N(x)|$ \cite{watts1998collective}, closure
+counts the ties that leave the neighbourhood. Three friends who know each other but
+each have twenty friendships elsewhere form a maximally clustered but open
+neighbourhood (Fig.~\ref{fig:shapes}(c)).
+
+The structural penalty rises linearly from 0 at $c=0.55$ to a cap of 0.70 at $c=1$.
+For a path through intermediary $x$, it is raised toward 0.95 in proportion to money
+evidence $g(\kappa_x)$ (Section~\ref{sec:design-rings}):
+\begin{equation}
+\pi_{\text{via}} = s(c_x) + \bigl(0.95 - s(c_x)\bigr)\,g(\kappa_x), \label{eq:penalty}
+\end{equation}
+where $s(\cdot)$ is the structural part. A direct friend has no intermediary to judge,
+and structure alone never discounts a direct friend: a close friend group is the
+strongest honest signal the platform has. A direct friend is discounted only by
+$\pi_{\text{dir}} = \min(0.95,\ 0.95\,c_v\,g(\kappa_v))$, that is, only when money
+corroborates the shape. No penalty reaches 1, so nobody disappears from matching on a
+suspicion.
+
+\begin{figure}[!t]
+\centering
+\input{figures/fig_shapes.tex}
+\caption{(a) and (b) are isomorphic friendship triangles; only the payments differ.
+(c) A neighbourhood the clustering coefficient scores as fully cohesive but that is
+open to the rest of campus.}
+\label{fig:shapes}
+\end{figure}
+
+\subsection{From Capacity to Evidence: Money Cycles Among Friends}\label{sec:design-rings}
+Structure cannot separate three roommates who take turns fetching dinner from three
+students farming ratings off each other: the two subgraphs are isomorphic
+(Fig.~\ref{fig:shapes}(a), (b)). What differs is whether value circulates.
+
+The \emph{circulation} $\kappa_u$ of a student is the share of the value they moved
+on the platform in the last 180 days, in either direction, that moved between them
+and their own friends. It is set to 0 below Rs.~300 or four payments, so a newcomer
+whose first two errands were for a friend is not read as wholly internal. The
+corroboration term in~\eqref{eq:penalty} is $g(\kappa)=\min\bigl(1,(\kappa-0.6)/0.4\bigr)$
+for $\kappa>0.6$ and 0 otherwise. Circulation only discounts trust; it accuses nobody.
+
+An accusation needs a closed money cycle. For every ordered pair of mutual friends
+$(a,b)$ we total the value $V_{ab}$ and count the distinct errands $n_{ab}$ on edges
+$a\to b$ in the window. A leg qualifies if
+\begin{equation}
+n_{ab}\ge2 \quad\text{and}\quad \bigl(V_{ab}\ge\Rs150 \ \text{or}\ n_{ab}\ge5\bigr).
+\end{equation}
+The frequency branch closes a loophole: fees may be zero, and a ring that cycles
+zero-rupee errands still buys completed errands and ratings. Qualifying legs form a
+directed graph, and every strongly connected component with at least three members,
+found by an iterative form of Tarjan's algorithm \cite{tarjan1972depth}, is a ring
+of any size. Every such component is reported; an earlier version returned only the
+50 of highest value, which on a busy campus would have hidden the rest until the
+larger ones aged out. Filtering legs before the search matters: if a minimum were
+taken over a whole component afterwards, a ring could hide behind one deliberate
+Rs.~1 payment.
+Every member of a ring is flagged, because a cycle is symmetric and names no
+ringleader. No money is withheld, because the cycle identifies a group, not a
+dishonest errand.
+
+Why is a cycle suspicious at all, when the platform injects no money and a pure
+cycle is zero-sum? Because the motive is cost avoidance. Farming ratings needs
+completed errands, each paid for by a confederate. When $A$ pays $B$, $B$ pays $C$
+and $C$ pays $A$, each has paid out about what they received, and the group has
+produced three completed errands and three ratings at almost no net cost. The money
+taken from strangers comes later, through the rank those ratings buy. An honest
+friend group's money leaks out to the rest of campus, and for them an internal errand
+remains a real expense.
+
+\subsection{Separating the Router's Influence From the Group's Choice}\label{sec:design-policy}
+Because dispatch offers errands to friends first, an honest close group produces
+money cycles too. Before a ring flag is raised, we ask how much of the group's
+in-group activity the routing itself predicts (Fig.~\ref{fig:policy}).
+
+\emph{The acceptance model.} For each logged round $j$ with candidate set $K_j$
+($|K_j|\ge2$), the chance that candidate $k$ is the one who accepts is a conditional
+logit \cite{mcfadden1974conditional}:
+\begin{equation}
+p_{jk} = \frac{\exp(\beta^{\top}f_{jk})}{\sum_{l\in K_j}\exp(\beta^{\top}f_{jl})},
+\label{eq:logit}
+\end{equation}
+where $f_{jk}$ holds four logged features: distance in kilometres, whether $k$ is a
+direct friend of the requester, whether $k$ is a friend of a friend, and $k$'s
+reputation above the neutral 3.5. The weights $\beta$ are fitted by maximum
+likelihood (Newton's method with a small ridge term, $10^{-2}$) on every round in
+the window whose acceptor was among its candidates, \emph{excluding rounds posted by
+a member of any candidate ring}, so a group never helps calibrate the model that
+judges it. With fewer than 200 such rounds the model is not trusted, and the test
+falls back to the router's own logged scores $e_{jk}$, using
+$p_{jk}\propto\exp(-e_{jk}/\theta)$ with $\theta=300$~m. That fallback was the
+original design, and Section~\ref{sec:eval-policy} shows why it failed.
+
+\emph{The test.} For the rounds posted by members of the group $S$, let
+$\rho_j=\sum_{k\in K_j\cap S}p_{jk}$ be the predicted chance that a member took round
+$j$, and let $O$ count the rounds a member actually took. Treating rounds as
+independent trials with different probabilities, the count is Poisson-binomial
+\cite{wang1993number}, with expectation $E=\sum_j\rho_j$ and variance
+$V=\sum_j\rho_j(1-\rho_j)$, and
+\begin{equation}
+z = \frac{O-E}{\sqrt{V}}. \label{eq:z}
+\end{equation}
+If $V$ is numerically zero, every round was a foregone conclusion: $z=0$ when $O$
+matches $E$, and otherwise $z$ is recorded as $\pm99$, which is never explained. With
+at least 25 usable rounds in 180 days and $z<3$, the routing explains the group's
+behaviour and the ring flag is suppressed. Otherwise, or with too little history,
+the flag stands and goes to a reviewer. The test can only clear; a high $z$ never
+raises a severity or creates a flag.
+
+\emph{What the test can and cannot identify.} The model describes how students
+\emph{outside} suspected groups respond to being offered an errand by a friend at a
+given distance. A ring is separable from honest friends only to the extent that it
+takes its own errands more often than such friends do. An honest group that
+deliberately routes favours to one another breaks that assumption in exactly the way
+a ring does, so no test built on these logs can tell the two apart; only the content
+of the errands, or a person, can. We return to this limit in
+Section~\ref{sec:discussion}.
+
+A test like this is only informative if some rounds are not shaped by the social
+boost. In 5\% of rounds the first offer is \emph{exploratory}: it goes to the five
+nearest runners with no trust term and no friendship filter, and its scores are
+logged without trust. This costs those requesters a less socially matched runner. It
+is paid to keep a control group in the data \cite{li2010contextual,bottou2013counterfactual}.
+
+\begin{figure}[!t]
+\centering
+\input{figures/fig_policy.tex}
+\caption{Policy-conditioned evidence, read left to right. An acceptance model fitted
+on rounds posted outside every candidate ring predicts how often the flagged group
+$S$ should have taken its own errands; only the unexplained excess is evidence.}
+\label{fig:policy}
+\end{figure}
+
+\subsection{Reputation That Counts People, Not Ratings}\label{sec:design-reputation}
+Errandly keeps two numbers per runner. The plain average is what a student sees on a
+profile. Ranking uses a provenance-weighted score. For runner $v$, let the
+\emph{concentration} $\phi$ be the share of $v$'s ratings given by $v$'s friends.
+Each distinct rater $i$ casts one vote $\bar r_i$, the mean of their ratings, with
+weight
+\begin{equation}
+w_i = \begin{cases}1-\min\bigl(0.75,\ 1.5\,(\phi-0.5)\bigr), & i\in N(v),\ \phi>0.5,\\
+1, & \text{otherwise.}\end{cases}
+\end{equation}
+The score $\bar s=\sum_i w_i\bar r_i/\sum_i w_i$ is shrunk toward a neutral 3.5 by the
+effective sample size $W=\sum_i w_i$:
+\begin{equation}
+m = \frac{W}{W+8}\,\bar s + \frac{8}{W+8}\times3.5 .
+\end{equation}
+The discount attaches to concentration, never to friendship: twenty strangers and
+five friends leave $v$ untouched. A reputation carried by $v$'s own circle becomes
+low-confidence rather than low, and climbing back requires strangers. Counting people
+instead of ratings removes the patience exploit; under per-rating weights, 100 farmed
+ratings from friends outscored 20 honest ones from strangers.
+
+Three detectors raise a \code{RATING\_FARMING} flag for review once a runner has at
+least four in-cluster ratings and a concentration of at least 0.70: friends rating
+$v$ at least 0.8 stars higher than at least three strangers do; at least two
+high in-cluster ratings within 14 days of a penalty; or at least 15 in-cluster
+ratings with at most one from outside and at least 2.5 ratings per friend, the
+pattern of a runner who builds standing inside a circle before meeting a victim.
+
+\subsection{Dispatch: Staging Offers in Time}\label{sec:design-dispatch}
+Candidates come from a Redis geospatial index. Each is scored in metres of
+\emph{effective distance}, so the four terms can be compared directly:
+\begin{equation}
+e = d - 1500\,T - 800\,(m-3.5) + P, \label{eq:effective}
+\end{equation}
+where $d$ is distance to the drop point, $T$ is trust from~\eqref{eq:trust}, $m$ the
+weighted reputation and $P$ an integrity penalty for open, unreviewed flags: 300, 700
+or 1200~m by severity, decaying linearly over 30 days and capped at 2000~m. The cap is
+deliberate. Without it, open flags would add up until the penalty exceeded any
+plausible distance, turning a demotion into a ban that no human decided. An errand is
+also never offered to a runner who shares an open ring flag with that requester.
+
+Sorting is not enough. Every candidate in a round is notified within milliseconds,
+so ordering a simultaneous broadcast leaves a race that the nearest stranger often
+wins. Errandly stages offers in time instead (Fig.~\ref{fig:dispatch}). The first
+round goes to the runners among the five nearest within 3~km who are within two
+friendship hops. The scheduler, sweeping every 30~s, widens the offer after 45~s to
+four hops among the ten nearest and after 90~s to anyone among the ten nearest within
+8~km. If nobody within two hops is near when the errand is posted, the first round
+goes straight to the five nearest, because an errand nobody sees is worse than one a
+stranger takes, and the 90~s widening to 8~km still applies to it. (In the first
+version it did not, and such errands expired more often; Section~\ref{sec:eval-dispatch}.) When the graph cannot answer, every function returns \code{None}
+rather than an empty set, and \code{None} filters out nobody.
+
+\begin{figure}[!t]
+\centering
+\input{figures/fig_dispatch.tex}
+\caption{Staged dispatch. Social preference comes from when each circle is told,
+not from the order of a single broadcast.}
+\label{fig:dispatch}
+\end{figure}
+
+\subsection{Escrow With Targeted Headroom}\label{sec:design-escrow}
+A runner who fronts cash at the counter relies on the hold existing, so it is placed
+before any offer:
+\begin{equation}
+H = X + C + 0.16\,X_{\text{loose}} + F,
+\end{equation}
+where $X$ is the priced item total, $C$ the cash to collect, $X_{\text{loose}}$ the
+subtotal of loose-priced items at their references and $F$ the fee. Only the
+loose-priced part gets headroom, because a menu price or a printed MRP is already
+known. At settlement the runner is paid the fee and the eligible reimbursement; any
+surplus returns to the requester at once. If what the runner is owed exceeds the
+remaining hold, the payout is frozen for an administrator, because paying in full
+would charge the requester more than they agreed to lock, and paying the capped
+amount would make the runner absorb a gap that may be a genuine price rise.
+Balances are never stored; a balance is a sum over an append-only ledger, and a
+uniqueness constraint on (errand, user, entry type) makes a redelivered settlement
+event a no-op.
+
+\subsection{The Language Channel}\label{sec:design-llm}
+Structure and money answer \emph{who} and \emph{how much}; neither answers
+\emph{what for}. When a ring flag is raised, a locally hosted model reads the errand
+texts of the group and returns a schema-constrained assessment for the reviewer. The
+channel is advisory: it never raises a severity, never withholds money and never
+creates a flag. Its useful direction is exculpatory, where being wrong costs least.
+All text is fenced and labelled as untrusted, and the output schema leaves a crafted
+note nothing to do but move a number a human can see \cite{greshake2023not}. A second
+channel that reads rating comments is switched off, for the reason given in
+Section~\ref{sec:eval-system}.
+
+\input{sections/table_params.tex}
+
+%======================================================================
+\section{Implementation}\label{sec:impl}
+%======================================================================
+
+The backend is about 12,900 lines of Python 3.12 using FastAPI and SQLAlchemy 2.0
+(asynchronous), with PostgreSQL 16 and PostGIS for errands, ledger and fraud data,
+Redis 7 for the runner geospatial index, accept locks and publish--subscribe, Kafka
+3.8 in KRaft mode as the event backbone, Neo4j 5.26 Community Edition for the
+friendship and payment graph, and MongoDB 7 for chat. Twenty-four migrations define
+the schema and the API exposes 70 HTTP routes plus WebSocket channels for live
+tracking and offers. The student client is built with React Native 0.86 and Expo 57,
+and the web client with React 18, TypeScript and Leaflet. The language channel runs
+Qwen2.5~7B through Ollama on campus hardware, so no student text leaves the
+institution.
+
+Money moves in exactly one place: the settlement consumer, on the completion event.
+Two independent gates make Kafka's at-least-once delivery harmless: a
+processed-events table at the consumer and the ledger's uniqueness constraint. This
+follows the transactional outbox pattern
+\cite{richardson2018microservices,kleppmann2017designing}. Graph reads use circuit
+breakers \cite{nygard2018release}; a graph outage degrades matching to distance order.
+Graph metrics are computed in plain Cypher; we avoided the Graph Data Science plugin,
+whose download at container start would make an offline start fail.
+
+We treat explainability as a design rule. Every flag stores the evidence
+that raised it: the reference and allowance a claim was held to, the shop and how
+many runners have priced it, a ring's members, laps, value and policy statistic.
+Every offer round stores the four terms of~\eqref{eq:effective} for every candidate.
+These decisions withhold money and suspend students, and an accusation that cannot be
+explained cannot be contested \cite{goodman2017european}. This is also why learned
+models are confined to the advisory channel.
+
+\emph{Changes made after the first evaluation.} The first round of experiments
+exposed six faults, and each was fixed in the production code, with a regression
+test, before the results reported here were produced. (i) A claim could be renamed
+until it matched no reference and was then paid unchecked; claims are now bound to
+the order's own lines, and quantities are capped at the quantity ordered. (ii) The
+policy test reused the router's scores as its model of acceptance and cleared
+coordinated rings; it now fits an acceptance model to logged acceptances. (iii) When
+the predicted probabilities left no variance, the test reported $z=0$ and cleared the
+group even when the group had taken rounds it had no predicted chance of taking.
+(iv) Errands whose first offer went out unrestricted were never widened. (v) The ring
+search returned at most 50 rings. (vi) Unreviewed ring flags counted toward the
+automatic strike ladder, and its last step, account suspension, needed no human.
+Section~\ref{sec:eval} reports the original behaviour beside the fixed one where the
+difference is measurable.
+
+The backend has 273 automated tests (6,014 lines). In an isolated container against
+its own database, a separate Redis database and a separate Neo4j instance, all 273
+passed in 111~s.
+
+%======================================================================
+\section{Evaluation}\label{sec:eval}
+%======================================================================
+
+\subsection{Method}\label{sec:eval-method}
+There is no pilot data yet, so we evaluate in simulation, and we take care over what
+is simulated. The experiment scripts import the production modules unchanged. Only
+storage is replaced: database sessions are swapped for small fakes that return
+prepared rows, and graph queries run against a separate, disposable Neo4j instance
+loaded with the simulated campus. The decision logic, constants and Cypher queries are
+the deployed ones. Every number below is regenerated by one script per experiment in
+the repository, and every result file records the commit it was produced from, the
+seeds and the machine.
+
+\emph{Seeds and intervals.} The collusion, price-claim, dispatch and escrow
+experiments use 30 seeds for their main results and 10 seeds per point for parameter
+sweeps. We report means with the half-width of a two-sided 95\% confidence interval
+of the mean, from the Student $t$ distribution across seeds. A seed fixes the
+friendship graph, the planted groups, the homes, who is online, every runner's
+willingness and delay, and the exploration coin, so two policies run on the same
+seed see the same semester.
+
+\emph{Hardware.} All experiments ran in Docker containers on one laptop with an
+Intel Core i7-12650H (10 cores, 16 threads) and 7.6~GiB of memory available to
+Docker, with Python 3.12 and Neo4j 5.26 Community Edition. The timing experiment
+(Section~\ref{sec:eval-system}) ran alone on the machine; the others ran in
+parallel, each against its own Neo4j instance.
+
+The campus has 1,200 students in 24 hostel blocks of 50. Friendships follow a
+stochastic block model \cite{holland1983stochastic}, with probability 0.10 within a
+block and 0.0015 across blocks, giving a mean degree of 7.2; residence-dominated
+community structure of this kind has been observed in real campus networks
+\cite{traud2012social}. We plant 28 honest close-knit groups (sizes 3 to 8, 120
+students) and five collusion rings (sizes 3, 4, 5, 6 and 8, 26 students), each as a
+clique inside one block, so honest groups and rings are structurally identical by
+construction. Over a 180-day semester each student posts errands at 0.12 per day;
+fees are drawn from Rs.~20--50, and 30\% of errands carry Rs.~50--400 of cash to
+collect. Each errand sees a random 12\% of students online. Dispatch uses the
+production ranking, tiers, scheduler cadence and exploration coin. An offered runner
+accepts with probability $0.5\,e^{-d/2000\,\mathrm{m}}$, multiplied by a friend
+affinity of 1.5 for direct friends, after a log-normal delay with median 20~s. These
+behavioural parameters are assumptions, which is why we vary them. Ring members each
+post 12 extra low-fee errands that a ring partner takes from the feed within
+3--15~s.
+
+To check that the simulator dispatched as production would, closure and circulation
+computed inside the simulator were compared with the production Cypher on the final
+graph of every trial; the largest difference in any trial was 0.
+
+Table~\ref{tab:summary} collects the main results; the subsections that follow give
+the detail behind each row.
+
+\input{sections/table_summary.tex}
+
+\subsection{Closure Versus Clustering}\label{sec:eval-closure}
+\input{sections/eval_closure.tex}
+
+\subsection{Detecting Rings Among Honest Friend Groups}\label{sec:eval-rings}
+\input{sections/eval_rings.tex}
+
+\subsection{Separating Routing From Choice}\label{sec:eval-policy}
+\input{sections/eval_policy.tex}
+
+\subsection{Reference Prices Under Attack}\label{sec:eval-price}
+\input{sections/eval_price.tex}
+
+\subsection{Reputation Farming}\label{sec:eval-farming}
+\input{sections/eval_farming.tex}
+
+\subsection{Dispatch and Escrow}\label{sec:eval-dispatch}
+\input{sections/eval_dispatch.tex}
+
+\subsection{System Measurements}\label{sec:eval-system}
+\input{sections/eval_system.tex}
+
+%======================================================================
+\section{Discussion and Limitations}\label{sec:discussion}
+%======================================================================
+\input{sections/discussion.tex}
+
+%======================================================================
+\section{Conclusion}\label{sec:conclusion}
+%======================================================================
+\input{sections/conclusion.tex}
+
+\section*{Author Contributions}
+C.~M.~Mattam designed and built the backend services, the event pipeline, the
+mobile client and the social trust graph. U.~Gogoi designed and built the escrow and
+payment flow and the price-claim fraud controls, and ran the evaluation.
+S.~Sajlal built the web and administrator client, tested the applications, and
+contributed the literature review and the editing of the manuscript. R.~S supervised
+the work and reviewed the manuscript. All authors approved the final version.
+
+\section*{Data and Code Availability}
+The source code, the experiment scripts and the result files with their
+seeds are in the project repository at the commit named in each result file. The
+README in \code{backend/evals/paper} gives the command that regenerates every table
+and figure. No data about real students were collected.
+
+\section*{Acknowledgment}
+The authors thank the School of Computer Science and Engineering, Vellore Institute
+of Technology, for supporting this work. The authors used an AI writing and coding
+assistant (Claude, Anthropic) to help draft and edit the text of this manuscript and
+to write the evaluation scripts; the authors reviewed and verified all content,
+code and results and take full responsibility for them.
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+% Biographies are required by IEEE Access at submission. Each author should
+% rewrite their own; IEEE Access also asks for a photo with the final files
+% (replace IEEEbiographynophoto with IEEEbiography and a photo then).
+\begin{IEEEbiographynophoto}{Chris Martin Mattam}
+is working toward the B.Tech. degree in computer science and engineering at Vellore
+Institute of Technology (VIT), Vellore, India.
+\end{IEEEbiographynophoto}
+
+\begin{IEEEbiographynophoto}{Ujjwal Gogoi}
+is working toward the B.Tech. degree in computer science and engineering at Vellore
+Institute of Technology (VIT), Vellore, India.
+\end{IEEEbiographynophoto}
+
+\begin{IEEEbiographynophoto}{Sanskriti Sajlal}
+is working toward the B.Tech. degree in computer science and engineering at Vellore
+Institute of Technology (VIT), Vellore, India.
+\end{IEEEbiographynophoto}
+
+\begin{IEEEbiographynophoto}{Ranjithkumar S}
+is an Assistant Professor with the School of Computer Science and Engineering, Vellore
+Institute of Technology (VIT), Vellore, India.
+\end{IEEEbiographynophoto}
+
+\vfill
+
+\end{document}

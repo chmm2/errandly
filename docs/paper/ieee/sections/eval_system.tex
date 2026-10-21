@@ -1,0 +1,60 @@
+% Experiment 8: backend/evals/paper/exp8_scale.py   (run alone; five repetitions)
+% Language channels: backend/evals/run_eval.py --repeats 5
+\emph{Cost.} Table~\ref{tab:scale} times the evidence pipeline on synthetic campuses
+of 1,200 to 10,000 students with about 20 payments each, against one Neo4j 5.26
+instance. Each graph job was run five times on the loaded graph and we report the
+median with the range; each trust lookup is one call of the production
+\code{social\_scores} for five candidates, timed over 50 calls after 10 discarded
+warm-up calls. The experiment ran alone on the machine described in
+Section~\ref{sec:eval-method}. At 10,000 students the three graph jobs together took
+11.9~s, against a scheduler that runs them every ten minutes, and the trust lookup on
+the dispatch path took 3.0~ms at the median and 4.2~ms at the 95th percentile. The
+ring search now returns every ring, 117 of them on the largest synthetic campus,
+whose random payments close many cycles; this is what the earlier cap of 50 hid. The
+production Tarjan routine processed a million nodes and three million edges in
+9.4~s, and fitting the acceptance model took 2.5~s on 10,000 logged rounds and 25~s
+on 100,000, about a semester's rounds for a campus of 5,000 students.
+
+\begin{table*}[!t]
+\caption{Cost of the Evidence Pipeline. Median (Range) of Five Repetitions}
+\label{tab:scale}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{@{}rrrcccc@{}}
+\toprule
+& & & \multicolumn{3}{c}{Graph jobs (s)} & Trust lookup \\
+\cmidrule(lr){4-6}
+Students & Friendships & Payments & Closure & Circulation & Rings & p50 / p95 (ms) \\
+\midrule
+1,200 & 4,050 & 23,944 & 0.11 (0.06--0.14) & 0.81 (0.63--0.93) & 0.51 (0.50--0.54) & 5.7 / 14.8 \\
+2,500 & 8,408 & 49,895 & 0.14 (0.12--1.16) & 1.65 (1.57--2.90) & 1.25 (1.05--1.41) & 10.9 / 16.5 \\
+5,000 & 16,862 & 99,787 & 0.32 (0.26--0.40) & 3.19 (3.04--3.91) & 2.41 (2.20--2.63) & 4.0 / 6.3 \\
+10,000 & 33,755 & 199,525 & 0.54 (0.49--0.88) & 6.53 (6.13--7.27) & 4.91 (4.59--4.95) & 3.0 / 4.2 \\
+\midrule
+\multicolumn{7}{@{}l}{Tarjan routine alone, 3 out-edges per node: $10^4$ nodes 0.03~s;
+$10^5$ nodes 0.66~s; $10^6$ nodes 9.4~s} \\
+\multicolumn{7}{@{}l}{Acceptance-model fit: $10^3$ rounds 0.24~s; $10^4$ rounds 2.5~s;
+$10^5$ rounds 25~s} \\
+\bottomrule
+\multicolumn{7}{@{}p{0.8\textwidth}@{}}{\scriptsize Hardware: Intel Core i7-12650H, 16 threads,
+7.6~GiB available to Docker; Python 3.12; Neo4j 5.26 Community. Trust lookups: 50
+timed calls after 10 warm-up calls, five candidates each.}
+\end{tabular}
+\end{table*}
+
+\emph{Language channels.} The advisory channels play a small part in this design,
+and we tested them only for that part. On eleven hand-written cases with five runs
+each, the errand-text channel scored genuine groups 41.7 points higher than farmed
+ones on a 0--100 scale and cleared every honest control, but it also cleared one of
+three farmed groups whose errands had been written to look varied. The
+rating-comment channel showed no separation ($-1.2$ points) and failed to clear an
+honest runner whose friends rate without comments, so it is switched off. Neither
+channel followed instructions injected into the text. The cases were written by the
+authors, and the harness refuses to report an accuracy figure until twenty
+blind-labelled pilot cases exist, so these numbers show only that the errand-text
+channel works end to end, not that it is accurate.
+
+\emph{Tests.} The full suite of 273 automated tests, including at least one
+regression test for each of the six faults in Section~\ref{sec:impl}, passed in
+111~s.

@@ -1,0 +1,134 @@
+{
+  "experiment": "exp1_closure",
+  "generated_at": "2026-10-20T14:28:13.240816+00:00",
+  "git_commit": "00d8928",
+  "python": "3.12.14",
+  "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+  "results": {
+    "nodes": 425,
+    "edges": 1383,
+    "max_abs_diff_cypher_vs_python_closure": 0.0,
+    "rows": [
+      {
+        "shape": "sealed clique",
+        "k": 3,
+        "degree": 2,
+        "clustering": 1.0,
+        "closure": 1.0,
+        "closure_incl_ego": 1.0,
+        "penalty_from_closure": 0.7,
+        "penalty_if_clustering_used": 0.7
+      },
+      {
+        "shape": "sealed clique",
+        "k": 4,
+        "degree": 3,
+        "clustering": 1.0,
+        "closure": 1.0,
+        "closure_incl_ego": 1.0,
+        "penalty_from_closure": 0.7,
+        "penalty_if_clustering_used": 0.7
+      },
+      {
+        "shape": "sealed clique",
+        "k": 6,
+        "degree": 5,
+        "clustering": 1.0,
+        "closure": 1.0,
+        "closure_incl_ego": 1.0,
+        "penalty_from_closure": 0.7,
+        "penalty_if_clustering_used": 0.7
+      },
+      {
+        "shape": "sealed clique",
+        "k": 10,
+        "degree": 9,
+        "clustering": 1.0,
+        "closure": 1.0,
+        "closure_incl_ego": 1.0,
+        "penalty_from_closure": 0.7,
+        "penalty_if_clustering_used": 0.7
+      },
+      {
+        "shape": "clique, one leaf friend each",
+        "k": 4,
+        "degree": 4,
+        "clustering": 0.5,
+        "closure": 0.5,
+        "closure_incl_ego": 0.7,
+        "penalty_from_closure": 0.0,
+        "penalty_if_clustering_used": 0.0
+      },
+      {
+        "shape": "clique, one leaf friend each",
+        "k": 10,
+        "degree": 10,
+        "clustering": 0.8,
+        "closure": 0.8,
+        "closure_incl_ego": 0.836,
+        "penalty_from_closure": 0.389,
+        "penalty_if_clustering_used": 0.389
+      },
+      {
+        "shape": "clique, two sociable friends each",
+        "k": 4,
+        "degree": 5,
+        "clustering": 0.3,
+        "closure": 0.158,
+        "closure_incl_ego": 0.333,
+        "penalty_from_closure": 0.0,
+        "penalty_if_clustering_used": 0.0
+      },
+      {
+        "shape": "clique, two sociable friends each",
+        "k": 10,
+        "degree": 11,
+        "clustering": 0.655,
+        "closure": 0.562,
+        "closure_incl_ego": 0.627,
+        "penalty_from_closure": 0.019,
+        "penalty_if_clustering_used": 0.163
+      },
+      {
+        "shape": "friends form a triangle, each with 20 outside ties",
+        "k": 4,
+        "degree": 3,
+        "clustering": 1.0,
+        "closure": 0.048,
+        "closure_incl_ego": 0.091,
+        "penalty_from_closure": 0.0,
+        "penalty_if_clustering_used": 0.7
+      },
+      {
+        "shape": "hub, 8 mutually unacquainted friends",
+        "k": 9,
+        "degree": 8,
+        "clustering": 0.0,
+        "closure": 0.0,
+        "closure_incl_ego": 0.2,
+        "penalty_from_closure": 0.0,
+        "penalty_if_clustering_used": 0.0
+      },
+      {
+        "shape": "hub, 8 unacquainted friends with one tie each",
+        "k": 9,
+        "degree": 8,
+        "clustering": 0.0,
+        "closure": 0.0,
+        "closure_incl_ego": 0.5,
+        "penalty_from_closure": 0.0,
+        "penalty_if_clustering_used": 0.0
+      },
+      {
+        "shape": "sealed sparse group (10 people, 4 ties each)",
+        "k": 10,
+        "degree": 4,
+        "clustering": 0.5,
+        "closure": 0.333,
+        "closure_incl_ego": 0.538,
+        "penalty_from_closure": 0.0,
+        "penalty_if_clustering_used": 0.0
+      }
+    ]
+  }
+}

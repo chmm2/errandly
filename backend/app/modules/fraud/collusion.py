@@ -358,8 +358,12 @@ async def find_rings() -> list[Ring]:
             )
         )
 
+    # Every ring, largest first. This used to stop at 50, which on a busy
+    # campus meant lower-value rings never surfaced while bigger ones stayed
+    # open: the sweep de-duplicates by signature, so returning them all costs
+    # one indexed lookup per member and hides nothing.
     rings.sort(key=lambda r: r.total_value, reverse=True)
-    return rings[:50]
+    return rings
 
 
 async def circulation_for(user_ids: list[uuid.UUID]) -> dict[uuid.UUID, float]:

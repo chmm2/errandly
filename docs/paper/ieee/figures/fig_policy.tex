@@ -1,0 +1,23 @@
+% Policy-conditioned evidence, left to right. The acceptance model is fitted on
+% rounds posted by people outside every candidate ring, then used to predict how
+% often the flagged group S should have taken its own errands.
+\begin{tikzpicture}[
+  font=\scriptsize,
+  box/.style={draw, thick, rectangle, align=center, inner sep=2pt, text width=16.5mm,
+              minimum height=15mm, fill=white},
+  flow/.style={-{Stealth[length=1.8mm]}, thick},
+  node distance=3.6mm]
+  \node[box] (log) {Offer log:\\candidates, features,\\who accepted};
+  \node[box, right=of log] (fit) {Fit acceptance\\model on rounds\\outside every\\candidate ring};
+  \node[box, right=of fit] (exp) {Expected takes\\$E$, variance $V$,\\rounds posted\\by $S$};
+  \node[box, text width=20mm, right=of exp] (dec)
+       {\mbox{$z=(O{-}E)/\sqrt{V}$}\\[2pt]$z<3$: suppress\\$z\ge3$: send to\\a reviewer};
+  \node[box, minimum height=10mm, below=5mm of log] (disp) {Dispatcher\\logs every round};
+  \node[box, minimum height=10mm, below=5mm of exp] (ring) {Ring search:\\cycle among\\friends $S$};
+  \draw[flow] (log) -- (fit);
+  \draw[flow] (fit) -- (exp);
+  \draw[flow] (exp) -- (dec);
+  \draw[flow] (disp) -- (log);
+  \draw[flow] (ring) -- node[right] {$S$} (exp);
+  \draw[flow] (ring.east) -| node[pos=0.3, above] {$O$} (dec.south);
+\end{tikzpicture}

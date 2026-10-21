@@ -1,0 +1,68 @@
+\subsection{What Relational Evidence Cannot Separate}
+A group of friends that deliberately routes favours to each other and a ring that
+farms ratings produce the same structure, the same money cycles and the same
+deliberate routing. Nothing in the friendship graph, the payment graph or the offer
+log distinguishes them; only intent does. This is an identifiability limit, not a
+tuning problem. The policy test asks whether a group took its own errands more often
+than friends elsewhere on campus do. Honest favour-trading answers yes for the same
+reason a ring does, and a careful ring that farms only as often as ordinary friends
+help each other answers no. Fig.~\ref{fig:sweeps} shows both ends: honest groups are
+flagged once favours become frequent, and the deployed test loses coordinated rings
+as they farm less. Only the content of the errands or a person can separate the two
+cases, and our language channel is not yet reliable enough to lean on
+(Section~\ref{sec:eval-system}). We therefore keep a person between every ring flag
+and any sanction: ring and farming flags never feed the automatic ladder, and the
+automated parts of the system may demote and pause but never exclude.
+
+\subsection{Why the First Policy Test Failed}
+The first version of the test used the router's own logged scores as its model of
+who would accept an errand. Within a tier every candidate is notified at once, so the
+order of the list has little effect on who answers first, and the scores overstated
+how much the router decides. A coordinated ring exploited exactly that. When the
+partner is always the router's first choice, a test that believes the router expects
+the partner to take the errand nearly every time and finds nothing surprising. Three
+results in Section~\ref{sec:eval-policy} point to the same cause. Exploration helped
+only slowly, setting the trust weight in the expectation to zero restored recall, and
+an acceptance model fitted to what runners actually did restored most of it at the
+deployed exploration rate, without that cost. The general lesson is that a detector
+conditioned on a matcher should condition on the matcher's measured effect, not on
+its design weights.
+
+\subsection{Limitations}
+Every result here is from simulation. The friendship graph is a block model, not a
+real campus, and runner behaviour (willingness, response delay, friend affinity) is
+assumed. We varied the parameters that matter most, and the confidence intervals
+describe variation across seeds of that model, not uncertainty about whether the
+model is right. A pilot may find behaviour we did not imagine. The thresholds in
+Table~\ref{tab:params} are reasoned defaults, not values fitted to data; the offer log
+exists partly so that a pilot can fit them. The acceptance model has four features,
+and a ring that varies distance and timing to look like an ordinary friend will be
+harder to separate than the coordinated rings simulated here. A ring whose members
+never declare friendship is invisible to every friendship-based mechanism, at the
+price of forgoing the trust boost; its cycles would appear only in the any-pair cycle
+search, which flags too many honest students to act on. The breadth attack defeats the
+reputation weighting at the cost of eighty real accounts. At a shop with few honest
+reporters, two or three colluders can move its reference, although the near-line rule
+still sees them. A runner can still claim a priced item's money under the name of an
+unpriced line on the same order, bounded only by the escrow hold. Line-walkers keep
+being paid the allowance until an administrator reviews the flag, so review capacity
+is part of the defence. Finally, the language-channel evaluation uses eleven
+hand-written cases.
+
+\subsection{Ethics and Deployment}
+These mechanisms withhold money and can pause or suspend students, so we built them
+around three rules. Automated components may warn, demote and pause, but only a person
+may exclude: account suspension needs flags an administrator has upheld. Every flag
+carries the evidence that raised it, every sanction tells the student why, and a
+dismissed flag releases the money and lifts the pause it caused. And the advisory
+model runs on campus hardware, so that students' errand notes and reviews do not
+leave the institution. A pilot will collect data about identifiable students and will
+need institutional ethics approval and informed consent before it begins.
+
+\subsection{Beyond Campus Errands}
+Nothing in the design is specific to food. It applies wherever expenses are reported
+rather than documented, such as shared purchasing in hostels or offices and informal
+neighbourhood delivery, and more generally to any platform that uses social ties both
+to route work and to look for collusion. Once the router shapes who meets whom, the
+fraud detector must account for the router, or it ends up auditing the router's
+choices instead of people's.

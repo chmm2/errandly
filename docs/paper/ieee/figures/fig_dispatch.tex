@@ -1,0 +1,22 @@
+% Staged dispatch. Offers widen in time rather than being sorted inside one
+% simultaneous broadcast. Earlier offers stay open until someone accepts or
+% the errand expires.
+\begin{tikzpicture}[
+  font=\scriptsize,
+  bar/.style={draw, thick, minimum height=4.2mm, anchor=west, align=left, inner sep=2pt, fill=white},
+  x=0.62mm]
+  \draw[densely dashed] (45,0) -- (45,17.5mm);
+  \draw[densely dashed] (90,0) -- (90,17.5mm);
+  \draw[thick, -{Stealth[length=2mm]}] (0,0) -- (128,0) node[right] {$t$ (s)};
+  \foreach \t in {0, 45, 60, 90, 120} {
+    \draw (\t,0) -- (\t,-1.2mm) node[below] {\t};
+  }
+  \node[bar, minimum width=124*0.62mm] at (0,14mm)
+       {Tier 1: friends and friends-of-friends among the 5 nearest (3 km)};
+  \node[bar, minimum width=(124-60)*0.62mm] at (60,8.5mm) {Tier 2: $\le 4$ hops, 10 nearest};
+  \node[bar, minimum width=(124-90)*0.62mm] at (90,3mm) {Tier 3: anyone, 8 km};
+  \node[align=left, anchor=north west, text width=76mm] at (0,-6mm)
+       {Tiers fire on the first 30\,s scheduler sweep after 45\,s and after 90\,s (shown here at
+        60\,s and 90\,s). In 5\% of rounds the first offer is socially blind: all 5 nearest
+        runners at once, with no trust term.};
+\end{tikzpicture}

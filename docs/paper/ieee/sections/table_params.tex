@@ -1,0 +1,31 @@
+\begin{table}[!t]
+\caption{Main Parameters of the Deployed System}
+\label{tab:params}
+\centering
+\footnotesize
+\begin{tabular}{@{}>{\raggedright}p{0.52\columnwidth}>{\raggedright\arraybackslash}p{0.38\columnwidth}@{}}
+\toprule
+Parameter & Value \\
+\midrule
+Allowance on a loose item & 40\% of reference, Rs.~5 to Rs.~20 \\
+Near-line rule & $\ge0.6\,\tau$; $\ge4$ claims and $\ge60\%$ \\
+Strike ladder (flagged errands, 30 days) & 3 / 5 / 8 open; 12 upheld \\
+Reference estimate & $\ge3$ runners, $\ge5$ claims; cut at $3\times1.4826$ MAD \\
+Shop pooling & prior 6; $\ge3$ runners \\
+Trust hop decay $\delta$; maximum hops & 0.45; 4 \\
+Friendship maturity & 30 days; floor 0.40 \\
+Closure knee; structural / corroborated cap & 0.55; 0.70 / 0.95 \\
+Circulation knee; evidence floor & 0.60; Rs.~300 and 4 payments \\
+Money window & 180 days \\
+Ring leg & $\ge2$ errands and ($\ge$Rs.~150 or $\ge5$ errands) \\
+Policy test & $\ge25$ rounds; $z<3$ clears \\
+Acceptance model & $\ge200$ rounds; ridge $10^{-2}$; else $\theta=300$~m \\
+Exploration rate & 5\% of first offers \\
+Trust / reputation weight in~\eqref{eq:effective} & 1500~m / 800~m per star \\
+Open-flag penalty & 300 / 700 / 1200~m; cap 2000~m \\
+Rating concentration knee; maximum discount & 0.50; 0.75 \\
+Rating confidence prior & 8 ratings at 3.5 \\
+Escrow headroom & 16\% of loose-priced subtotal \\
+\bottomrule
+\end{tabular}
+\end{table}

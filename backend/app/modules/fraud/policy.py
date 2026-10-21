@@ -69,6 +69,9 @@ WINDOW_DAYS = 180
 # 3.0 is roughly a one-in-a-thousand coincidence.
 Z_UNEXPLAINED = 3.0
 
+# Stand-in for an infinite z when the predicted probabilities leave no variance.
+Z_DEGENERATE = 99.0
+
 
 @dataclass(frozen=True)
 class PolicyExcess:
@@ -105,6 +108,134 @@ class PolicyExcess:
         }
 
 
+# --- a fitted model of who actually accepts ----------------------------------
+#
+# The scores in the offer log are the ROUTER's preference, and the router does
+# not decide who accepts: every runner in a tier is told at the same moment and
+# the first to tap wins. Reusing those scores as the behavioural model
+# overstated the router's influence badly enough that a ring whose partner made
+# sure to be the router's first pick read as fully explained (recall 0.02 in
+# simulation). So the model is now FITTED to what runners have actually done:
+# a conditional logit over a few logged features, estimated by maximum
+# likelihood on rounds posted by people outside the groups under suspicion.
+
+# Rounds with an acceptor among the logged candidates needed before the fitted
+# model is trusted. Below this the router's own scores are used, as before.
+MIN_CALIBRATION_ROUNDS = 200
+RIDGE = 1e-2
+_NEWTON_STEPS = 30
+
+
+def _features(candidate: dict) -> tuple[float, float, float, float]:
+    hops = candidate.get("hops")
+    return (
+        float(candidate.get("distance_m") or 0.0) / 1000.0,
+        1.0 if hops == 1 else 0.0,
+        1.0 if hops == 2 else 0.0,
+        float(candidate.get("reputation") or 3.5) - 3.5,
+    )
+
+
+@dataclass(frozen=True)
+class AcceptanceModel:
+    """Fitted conditional-logit weights: distance (km), direct friend,
+    friend-of-friend, reputation above neutral."""
+
+    coef: tuple[float, float, float, float]
+    rounds: int
+
+    def probabilities(self, candidates: list[dict]) -> list[float]:
+        if not candidates:
+            return []
+        utils = [sum(b * x for b, x in zip(self.coef, _features(c))) for c in candidates]
+        top = max(utils)
+        weights = [math.exp(u - top) for u in utils]
+        total = sum(weights)
+        return [w / total for w in weights]
+
+
+def _solve(a: list[list[float]], b: list[float]) -> list[float]:
+    """Gaussian elimination with partial pivoting, for a 4x4 system."""
+    n = len(b)
+    m = [row[:] + [b[i]] for i, row in enumerate(a)]
+    for col in range(n):
+        piv = max(range(col, n), key=lambda r: abs(m[r][col]))
+        m[col], m[piv] = m[piv], m[col]
+        if abs(m[col][col]) < 1e-12:
+            return [0.0] * n
+        for r in range(col + 1, n):
+            f = m[r][col] / m[col][col]
+            for c in range(col, n + 1):
+                m[r][c] -= f * m[col][c]
+    x = [0.0] * n
+    for r in range(n - 1, -1, -1):
+        x[r] = (m[r][n] - sum(m[r][c] * x[c] for c in range(r + 1, n))) / m[r][r]
+    return x
+
+
+def fit_acceptance_model(rows) -> AcceptanceModel | None:
+    """Maximum-likelihood conditional logit over logged rounds, or None.
+
+    Only rounds whose acceptor is among the logged candidates carry
+    information about choice among them; the rest are skipped.
+    """
+    data = []
+    for row in rows:
+        if row.accepted_runner_id is None:
+            continue
+        cands = row.candidates or []
+        if len(cands) < 2:
+            continue
+        ids = [c.get("runner_id") for c in cands]
+        taker = str(row.accepted_runner_id)
+        if taker not in ids:
+            continue
+        data.append(([_features(c) for c in cands], ids.index(taker)))
+    if len(data) < MIN_CALIBRATION_ROUNDS:
+        return None
+
+    k = 4
+    beta = [0.0] * k
+    for _ in range(_NEWTON_STEPS):
+        grad = [-RIDGE * b for b in beta]
+        hess = [[-RIDGE if i == j else 0.0 for j in range(k)] for i in range(k)]
+        for xs, y in data:
+            utils = [sum(b * x for b, x in zip(beta, f)) for f in xs]
+            top = max(utils)
+            ws = [math.exp(u - top) for u in utils]
+            tot = sum(ws)
+            ps = [w / tot for w in ws]
+            mean = [sum(p * f[a] for p, f in zip(ps, xs)) for a in range(k)]
+            for a in range(k):
+                grad[a] += xs[y][a] - mean[a]
+                for c in range(k):
+                    second = sum(p * f[a] * f[c] for p, f in zip(ps, xs))
+                    hess[a][c] -= second - mean[a] * mean[c]
+        step = _solve(hess, grad)
+        beta = [b - s for b, s in zip(beta, step)]
+        if max(abs(s) for s in step) < 1e-7:
+            break
+    return AcceptanceModel(coef=tuple(beta), rounds=len(data))
+
+
+async def fit_from_log(
+    db: AsyncSession, exclude: set[uuid.UUID] | None = None
+) -> AcceptanceModel | None:
+    """Fit on the window's rounds, leaving out rounds posted by `exclude`
+    (the members of every candidate ring), so a group never calibrates the
+    model that judges it."""
+    since = datetime.now(UTC) - timedelta(days=WINDOW_DAYS)
+    stmt = select(OfferLog).where(OfferLog.created_at >= since)
+    if exclude:
+        stmt = stmt.where(OfferLog.requester_id.not_in(list(exclude)))
+    try:
+        rows = list(await db.scalars(stmt))
+    except Exception:
+        logger.warning("acceptance model: offer log unavailable", exc_info=True)
+        return None
+    return fit_acceptance_model(rows)
+
+
 def _acceptance_probabilities(candidates: list[dict]) -> list[float]:
     """Turn the logged scores into the policy's own preference over candidates.
 
@@ -126,7 +257,7 @@ def _acceptance_probabilities(candidates: list[dict]) -> list[float]:
 
 
 async def excess_for_group(
-    db: AsyncSession, members: list[uuid.UUID]
+    db: AsyncSession, members: list[uuid.UUID], model: AcceptanceModel | None = None
 ) -> PolicyExcess | None:
     """How much of this group's in-group activity the policy cannot explain.
 
@@ -164,7 +295,10 @@ async def excess_for_group(
             # outcome carries no information about preference.
             continue
 
-        probs = _acceptance_probabilities(candidates)
+        probs = (
+            model.probabilities(candidates) if model is not None
+            else _acceptance_probabilities(candidates)
+        )
         p_in = sum(
             p for c, p in zip(candidates, probs)
             if c.get("runner_id") in member_ids
@@ -187,7 +321,16 @@ async def excess_for_group(
         )
         return None
 
-    z = (observed - expected) / math.sqrt(variance) if variance > 1e-9 else 0.0
+    if variance > 1e-9:
+        z = (observed - expected) / math.sqrt(variance)
+    elif abs(observed - expected) < 0.5:
+        # Every round was a foregone conclusion and the outcome matched it.
+        z = 0.0
+    else:
+        # Every round was a foregone conclusion and the group beat it anyway:
+        # as unexplained as it gets. Reported as a large finite value so the
+        # flag's details stay valid JSON.
+        z = math.copysign(Z_DEGENERATE, observed - expected)
     return PolicyExcess(
         rounds=counted,
         observed=observed,

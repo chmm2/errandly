@@ -1,0 +1,182 @@
+ Container project_1-backend-run-19c99a40f63d Creating 
+ Container project_1-backend-run-19c99a40f63d Created 
+2026-10-20 19:43:38,328 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:43:39,890 worker INFO graph: refreshed payment circulation
+routine seed 1: rings_found=5 find_rings P/R=0.96/1.00 +policy P/R=0.96/1.00 +fitted P/R=0.96/1.00 fraudar F1=0.54 lpa F1=0.00 benign_in_group=0.0653 diff=0.0e+00/0.0e+00 t={'simulate': 36.5, 'load': 4.7, 'detect': 2.18, 'fit': 2.84}
+2026-10-20 19:44:25,601 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:44:27,476 worker INFO graph: refreshed payment circulation
+routine seed 2: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.15 lpa F1=0.00 benign_in_group=0.0662 diff=0.0e+00/0.0e+00 t={'simulate': 36.6, 'load': 4.5, 'detect': 2.54, 'fit': 3.1}
+2026-10-20 19:45:14,201 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:45:16,107 worker INFO graph: refreshed payment circulation
+routine seed 3: rings_found=4 find_rings P/R=1.00/0.81 +policy P/R=1.00/0.81 +fitted P/R=1.00/0.81 fraudar F1=0.50 lpa F1=0.00 benign_in_group=0.0695 diff=0.0e+00/0.0e+00 t={'simulate': 37.1, 'load': 4.8, 'detect': 3.09, 'fit': 3.76}
+2026-10-20 19:46:08,091 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:46:11,680 worker INFO graph: refreshed payment circulation
+routine seed 4: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.65 lpa F1=0.28 benign_in_group=0.0648 diff=0.0e+00/0.0e+00 t={'simulate': 35.9, 'load': 9.7, 'detect': 5.3, 'fit': 9.06}
+2026-10-20 19:47:44,946 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:47:47,876 worker INFO graph: refreshed payment circulation
+routine seed 5: rings_found=5 find_rings P/R=1.00/0.85 +policy P/R=1.00/0.85 +fitted P/R=1.00/0.85 fraudar F1=0.15 lpa F1=0.00 benign_in_group=0.0716 diff=0.0e+00/0.0e+00 t={'simulate': 68.5, 'load': 10.8, 'detect': 4.4, 'fit': 6.1}
+2026-10-20 19:48:59,926 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:49:01,571 worker INFO graph: refreshed payment circulation
+routine seed 6: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.38 lpa F1=0.00 benign_in_group=0.0692 diff=0.0e+00/0.0e+00 t={'simulate': 55.7, 'load': 6.6, 'detect': 2.56, 'fit': 4.01}
+2026-10-20 19:49:58,615 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:50:00,172 worker INFO graph: refreshed payment circulation
+routine seed 7: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.62 lpa F1=0.16 benign_in_group=0.0719 diff=0.0e+00/0.0e+00 t={'simulate': 46.3, 'load': 4.4, 'detect': 2.25, 'fit': 3.32}
+2026-10-20 19:50:54,115 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:50:55,481 worker INFO graph: refreshed payment circulation
+routine seed 8: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.31 lpa F1=0.00 benign_in_group=0.0635 diff=0.0e+00/0.0e+00 t={'simulate': 43.6, 'load': 5.1, 'detect': 1.97, 'fit': 3.85}
+2026-10-20 19:51:48,448 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:51:50,007 worker INFO graph: refreshed payment circulation
+routine seed 9: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.50 lpa F1=0.00 benign_in_group=0.0631 diff=0.0e+00/0.0e+00 t={'simulate': 43.1, 'load': 4.2, 'detect': 2.19, 'fit': 2.94}
+2026-10-20 19:52:42,697 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:52:44,000 worker INFO graph: refreshed payment circulation
+routine seed 10: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.08 lpa F1=0.00 benign_in_group=0.0667 diff=0.0e+00/0.0e+00 t={'simulate': 43.0, 'load': 5.0, 'detect': 1.99, 'fit': 3.29}
+2026-10-20 19:53:30,370 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:53:31,918 worker INFO graph: refreshed payment circulation
+routine seed 11: rings_found=6 find_rings P/R=0.90/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.50 lpa F1=0.00 benign_in_group=0.0664 diff=0.0e+00/0.0e+00 t={'simulate': 36.5, 'load': 4.7, 'detect': 2.2, 'fit': 3.06}
+2026-10-20 19:54:15,484 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:54:17,047 worker INFO graph: refreshed payment circulation
+routine seed 12: rings_found=4 find_rings P/R=1.00/0.88 +policy P/R=1.00/0.88 +fitted P/R=1.00/0.88 fraudar F1=0.27 lpa F1=0.00 benign_in_group=0.0701 diff=0.0e+00/0.0e+00 t={'simulate': 34.8, 'load': 4.0, 'detect': 2.19, 'fit': 3.29}
+2026-10-20 19:55:01,848 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:55:03,096 worker INFO graph: refreshed payment circulation
+routine seed 13: rings_found=5 find_rings P/R=0.93/1.00 +policy P/R=0.93/1.00 +fitted P/R=0.93/1.00 fraudar F1=0.15 lpa F1=0.00 benign_in_group=0.0791 diff=0.0e+00/0.0e+00 t={'simulate': 35.6, 'load': 4.1, 'detect': 1.81, 'fit': 2.83}
+2026-10-20 19:55:46,751 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:55:48,400 worker INFO graph: refreshed payment circulation
+routine seed 14: rings_found=5 find_rings P/R=0.96/0.85 +policy P/R=0.96/0.85 +fitted P/R=0.96/0.85 fraudar F1=0.15 lpa F1=0.00 benign_in_group=0.0615 diff=0.0e+00/0.0e+00 t={'simulate': 35.1, 'load': 4.0, 'detect': 2.44, 'fit': 2.92}
+2026-10-20 19:56:33,238 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:56:34,915 worker INFO graph: refreshed payment circulation
+routine seed 15: rings_found=5 find_rings P/R=0.96/1.00 +policy P/R=0.96/1.00 +fitted P/R=0.96/1.00 fraudar F1=0.69 lpa F1=0.00 benign_in_group=0.0728 diff=0.0e+00/0.0e+00 t={'simulate': 35.8, 'load': 4.2, 'detect': 2.46, 'fit': 3.85}
+2026-10-20 19:57:22,789 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:57:24,514 worker INFO graph: refreshed payment circulation
+routine seed 16: rings_found=5 find_rings P/R=0.96/1.00 +policy P/R=0.96/1.00 +fitted P/R=0.96/1.00 fraudar F1=0.38 lpa F1=0.00 benign_in_group=0.0694 diff=0.0e+00/0.0e+00 t={'simulate': 37.2, 'load': 4.9, 'detect': 2.39, 'fit': 3.35}
+2026-10-20 19:58:14,243 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:58:16,168 worker INFO graph: refreshed payment circulation
+routine seed 17: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.38 lpa F1=0.13 benign_in_group=0.0725 diff=0.0e+00/0.0e+00 t={'simulate': 40.0, 'load': 4.3, 'detect': 2.86, 'fit': 3.43}
+2026-10-20 19:59:14,480 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:59:17,108 worker INFO graph: refreshed payment circulation
+routine seed 18: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.54 lpa F1=0.13 benign_in_group=0.0708 diff=0.0e+00/0.0e+00 t={'simulate': 45.6, 'load': 7.0, 'detect': 3.86, 'fit': 4.94}
+2026-10-20 20:00:22,540 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:00:24,024 worker INFO graph: refreshed payment circulation
+routine seed 19: rings_found=4 find_rings P/R=1.00/0.81 +policy P/R=1.00/0.81 +fitted P/R=1.00/0.81 fraudar F1=0.08 lpa F1=0.00 benign_in_group=0.0644 diff=0.0e+00/0.0e+00 t={'simulate': 52.9, 'load': 4.5, 'detect': 2.12, 'fit': 3.43}
+2026-10-20 20:01:12,036 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:01:13,809 worker INFO graph: refreshed payment circulation
+routine seed 20: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.15 lpa F1=0.00 benign_in_group=0.0673 diff=0.0e+00/0.0e+00 t={'simulate': 38.4, 'load': 4.4, 'detect': 2.45, 'fit': 3.54}
+2026-10-20 20:02:01,476 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:02:02,737 worker INFO graph: refreshed payment circulation
+routine seed 21: rings_found=5 find_rings P/R=1.00/0.92 +policy P/R=1.00/0.92 +fitted P/R=1.00/0.92 fraudar F1=0.08 lpa F1=0.10 benign_in_group=0.0666 diff=0.0e+00/0.0e+00 t={'simulate': 38.3, 'load': 4.0, 'detect': 1.84, 'fit': 3.12}
+2026-10-20 20:02:49,374 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:02:50,967 worker INFO graph: refreshed payment circulation
+routine seed 22: rings_found=5 find_rings P/R=1.00/0.96 +policy P/R=1.00/0.96 +fitted P/R=1.00/0.96 fraudar F1=0.15 lpa F1=0.00 benign_in_group=0.0659 diff=0.0e+00/0.0e+00 t={'simulate': 37.2, 'load': 4.6, 'detect': 2.53, 'fit': 2.82}
+2026-10-20 20:03:37,108 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:03:38,598 worker INFO graph: refreshed payment circulation
+routine seed 23: rings_found=6 find_rings P/R=0.87/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.46 lpa F1=0.00 benign_in_group=0.0683 diff=0.0e+00/0.0e+00 t={'simulate': 37.4, 'load': 3.8, 'detect': 2.15, 'fit': 3.68}
+2026-10-20 20:04:26,121 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:04:27,802 worker INFO graph: refreshed payment circulation
+routine seed 24: rings_found=6 find_rings P/R=0.90/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.73 lpa F1=0.21 benign_in_group=0.0737 diff=0.0e+00/0.0e+00 t={'simulate': 37.9, 'load': 4.1, 'detect': 2.58, 'fit': 4.33}
+2026-10-20 20:05:16,867 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:05:18,459 worker INFO graph: refreshed payment circulation
+routine seed 25: rings_found=4 find_rings P/R=1.00/0.69 +policy P/R=1.00/0.69 +fitted P/R=1.00/0.69 fraudar F1=0.15 lpa F1=0.00 benign_in_group=0.0712 diff=0.0e+00/0.0e+00 t={'simulate': 38.3, 'load': 4.1, 'detect': 2.23, 'fit': 3.08}
+2026-10-20 20:06:04,492 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:06:05,818 worker INFO graph: refreshed payment circulation
+routine seed 26: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.58 lpa F1=0.10 benign_in_group=0.0735 diff=0.0e+00/0.0e+00 t={'simulate': 36.8, 'load': 4.4, 'detect': 1.89, 'fit': 2.98}
+2026-10-20 20:06:50,873 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:06:52,415 worker INFO graph: refreshed payment circulation
+routine seed 27: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.08 lpa F1=0.00 benign_in_group=0.0756 diff=0.0e+00/0.0e+00 t={'simulate': 36.4, 'load': 3.9, 'detect': 2.15, 'fit': 3.14}
+2026-10-20 20:07:38,736 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:07:40,121 worker INFO graph: refreshed payment circulation
+routine seed 28: rings_found=4 find_rings P/R=1.00/0.77 +policy P/R=1.00/0.77 +fitted P/R=1.00/0.77 fraudar F1=0.42 lpa F1=0.00 benign_in_group=0.0745 diff=0.0e+00/0.0e+00 t={'simulate': 36.8, 'load': 4.2, 'detect': 1.98, 'fit': 2.86}
+2026-10-20 20:08:31,893 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:08:33,322 worker INFO graph: refreshed payment circulation
+routine seed 29: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.42 lpa F1=0.00 benign_in_group=0.0767 diff=0.0e+00/0.0e+00 t={'simulate': 42.9, 'load': 4.4, 'detect': 2.13, 'fit': 3.84}
+2026-10-20 20:09:24,455 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:09:26,547 worker INFO graph: refreshed payment circulation
+routine seed 30: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.62 lpa F1=0.00 benign_in_group=0.0728 diff=0.0e+00/0.0e+00 t={'simulate': 39.9, 'load': 5.4, 'detect': 3.01, 'fit': 3.76}
+2026-10-20 20:10:35,878 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:10:37,763 worker INFO graph: refreshed payment circulation
+busy seed 1: rings_found=7 find_rings P/R=0.81/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.23 lpa F1=0.00 benign_in_group=0.0951 diff=0.0e+00/0.0e+00 t={'simulate': 59.4, 'load': 3.9, 'detect': 2.7, 'fit': 3.49}
+2026-10-20 20:11:42,927 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:11:44,320 worker INFO graph: refreshed payment circulation
+busy seed 2: rings_found=6 find_rings P/R=0.86/0.96 +policy P/R=0.86/0.96 +fitted P/R=0.86/0.96 fraudar F1=0.15 lpa F1=0.00 benign_in_group=0.1003 diff=0.0e+00/0.0e+00 t={'simulate': 55.5, 'load': 4.0, 'detect': 2.12, 'fit': 3.28}
+2026-10-20 20:12:50,897 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:12:52,625 worker INFO graph: refreshed payment circulation
+busy seed 3: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.54 lpa F1=0.00 benign_in_group=0.0942 diff=0.0e+00/0.0e+00 t={'simulate': 57.0, 'load': 4.3, 'detect': 2.75, 'fit': 3.53}
+2026-10-20 20:13:58,908 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:14:00,585 worker INFO graph: refreshed payment circulation
+busy seed 4: rings_found=6 find_rings P/R=0.84/1.00 +policy P/R=0.93/1.00 +fitted P/R=0.93/1.00 fraudar F1=0.12 lpa F1=0.00 benign_in_group=0.1009 diff=0.0e+00/0.0e+00 t={'simulate': 56.3, 'load': 4.1, 'detect': 2.42, 'fit': 2.97}
+2026-10-20 20:15:07,177 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:15:08,801 worker INFO graph: refreshed payment circulation
+busy seed 5: rings_found=7 find_rings P/R=0.81/0.96 +policy P/R=1.00/0.96 +fitted P/R=1.00/0.96 fraudar F1=0.31 lpa F1=0.00 benign_in_group=0.0968 diff=0.0e+00/0.0e+00 t={'simulate': 57.8, 'load': 3.8, 'detect': 2.49, 'fit': 3.48}
+2026-10-20 20:16:12,623 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:16:14,023 worker INFO graph: refreshed payment circulation
+busy seed 6: rings_found=6 find_rings P/R=0.90/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.19 lpa F1=0.00 benign_in_group=0.1101 diff=0.0e+00/0.0e+00 t={'simulate': 53.7, 'load': 4.3, 'detect': 2.14, 'fit': 3.5}
+2026-10-20 20:17:19,188 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:17:20,924 worker INFO graph: refreshed payment circulation
+busy seed 7: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.08 lpa F1=0.00 benign_in_group=0.0934 diff=0.0e+00/0.0e+00 t={'simulate': 55.7, 'load': 4.1, 'detect': 2.44, 'fit': 3.07}
+2026-10-20 20:18:27,503 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:18:29,324 worker INFO graph: refreshed payment circulation
+busy seed 8: rings_found=5 find_rings P/R=0.88/0.85 +policy P/R=1.00/0.85 +fitted P/R=1.00/0.85 fraudar F1=0.38 lpa F1=0.00 benign_in_group=0.0983 diff=0.0e+00/0.0e+00 t={'simulate': 57.0, 'load': 4.5, 'detect': 2.67, 'fit': 2.99}
+2026-10-20 20:19:34,312 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:19:36,006 worker INFO graph: refreshed payment circulation
+busy seed 9: rings_found=7 find_rings P/R=0.76/1.00 +policy P/R=0.96/1.00 +fitted P/R=0.96/1.00 fraudar F1=0.15 lpa F1=0.18 benign_in_group=0.099 diff=0.0e+00/0.0e+00 t={'simulate': 55.9, 'load': 3.9, 'detect': 2.54, 'fit': 3.39}
+2026-10-20 20:20:44,672 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:20:46,324 worker INFO graph: refreshed payment circulation
+busy seed 10: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.23 lpa F1=0.14 benign_in_group=0.1023 diff=0.0e+00/0.0e+00 t={'simulate': 58.6, 'load': 4.6, 'detect': 2.42, 'fit': 3.11}
+2026-10-20 20:21:49,185 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:21:50,621 worker INFO graph: refreshed payment circulation
+busy seed 11: rings_found=4 find_rings P/R=0.95/0.69 +policy P/R=0.95/0.69 +fitted P/R=0.95/0.69 fraudar F1=0.27 lpa F1=0.00 benign_in_group=0.1031 diff=0.0e+00/0.0e+00 t={'simulate': 53.7, 'load': 4.0, 'detect': 2.18, 'fit': 2.87}
+2026-10-20 20:22:53,120 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:22:54,368 worker INFO graph: refreshed payment circulation
+busy seed 12: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.23 lpa F1=0.00 benign_in_group=0.094 diff=0.0e+00/0.0e+00 t={'simulate': 53.9, 'load': 3.8, 'detect': 2.15, 'fit': 3.31}
+2026-10-20 20:23:58,764 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:24:00,108 worker INFO graph: refreshed payment circulation
+busy seed 13: rings_found=5 find_rings P/R=0.96/1.00 +policy P/R=0.96/1.00 +fitted P/R=0.96/1.00 fraudar F1=0.15 lpa F1=0.00 benign_in_group=0.1038 diff=0.0e+00/0.0e+00 t={'simulate': 54.6, 'load': 4.1, 'detect': 2.17, 'fit': 3.3}
+2026-10-20 20:25:04,661 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:25:06,052 worker INFO graph: refreshed payment circulation
+busy seed 14: rings_found=6 find_rings P/R=0.87/1.00 +policy P/R=0.96/1.00 +fitted P/R=0.96/1.00 fraudar F1=0.19 lpa F1=0.00 benign_in_group=0.0982 diff=0.0e+00/0.0e+00 t={'simulate': 55.5, 'load': 3.8, 'detect': 2.06, 'fit': 3.11}
+2026-10-20 20:26:10,272 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:26:11,830 worker INFO graph: refreshed payment circulation
+busy seed 15: rings_found=4 find_rings P/R=0.96/1.00 +policy P/R=0.96/1.00 +fitted P/R=0.96/1.00 fraudar F1=0.54 lpa F1=0.00 benign_in_group=0.093 diff=0.0e+00/0.0e+00 t={'simulate': 54.6, 'load': 4.6, 'detect': 2.38, 'fit': 3.49}
+2026-10-20 20:27:14,014 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:27:15,507 worker INFO graph: refreshed payment circulation
+busy seed 16: rings_found=6 find_rings P/R=0.87/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.35 lpa F1=0.00 benign_in_group=0.0912 diff=0.0e+00/0.0e+00 t={'simulate': 53.0, 'load': 3.8, 'detect': 2.22, 'fit': 3.22}
+2026-10-20 20:28:18,943 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:28:20,857 worker INFO graph: refreshed payment circulation
+busy seed 17: rings_found=4 find_rings P/R=1.00/0.69 +policy P/R=1.00/0.69 +fitted P/R=1.00/0.69 fraudar F1=0.42 lpa F1=0.00 benign_in_group=0.1019 diff=0.0e+00/0.0e+00 t={'simulate': 54.0, 'load': 4.2, 'detect': 3.94, 'fit': 4.38}
+2026-10-20 20:29:31,325 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:29:32,640 worker INFO graph: refreshed payment circulation
+busy seed 18: rings_found=7 find_rings P/R=0.81/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.50 lpa F1=0.00 benign_in_group=0.0996 diff=0.0e+00/0.0e+00 t={'simulate': 57.7, 'load': 4.4, 'detect': 1.96, 'fit': 3.21}
+2026-10-20 20:30:45,746 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:30:47,389 worker INFO graph: refreshed payment circulation
+busy seed 19: rings_found=6 find_rings P/R=0.90/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.00 lpa F1=0.00 benign_in_group=0.0976 diff=0.0e+00/0.0e+00 t={'simulate': 63.8, 'load': 4.4, 'detect': 2.4, 'fit': 3.8}
+2026-10-20 20:31:50,066 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:31:51,540 worker INFO graph: refreshed payment circulation
+busy seed 20: rings_found=6 find_rings P/R=0.81/1.00 +policy P/R=0.90/1.00 +fitted P/R=0.90/1.00 fraudar F1=0.08 lpa F1=0.00 benign_in_group=0.1068 diff=0.0e+00/0.0e+00 t={'simulate': 52.5, 'load': 4.5, 'detect': 2.36, 'fit': 2.91}
+2026-10-20 20:32:50,318 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:32:51,648 worker INFO graph: refreshed payment circulation
+busy seed 21: rings_found=6 find_rings P/R=0.90/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.08 lpa F1=0.00 benign_in_group=0.0932 diff=0.0e+00/0.0e+00 t={'simulate': 49.3, 'load': 4.4, 'detect': 2.0, 'fit': 2.73}
+2026-10-20 20:33:50,451 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:33:51,919 worker INFO graph: refreshed payment circulation
+busy seed 22: rings_found=6 find_rings P/R=0.86/0.92 +policy P/R=0.96/0.92 +fitted P/R=0.96/0.92 fraudar F1=0.00 lpa F1=0.00 benign_in_group=0.093 diff=0.0e+00/0.0e+00 t={'simulate': 50.6, 'load': 3.9, 'detect': 2.19, 'fit': 3.0}
+2026-10-20 20:34:50,253 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:34:51,488 worker INFO graph: refreshed payment circulation
+busy seed 23: rings_found=7 find_rings P/R=0.76/1.00 +policy P/R=0.96/1.00 +fitted P/R=0.96/1.00 fraudar F1=0.46 lpa F1=0.00 benign_in_group=0.0983 diff=0.0e+00/0.0e+00 t={'simulate': 50.0, 'load': 3.7, 'detect': 1.9, 'fit': 2.45}
+2026-10-20 20:35:44,660 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:35:45,706 worker INFO graph: refreshed payment circulation
+busy seed 24: rings_found=5 find_rings P/R=1.00/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.73 lpa F1=0.21 benign_in_group=0.1032 diff=0.0e+00/0.0e+00 t={'simulate': 45.8, 'load': 3.1, 'detect': 1.66, 'fit': 2.89}
+2026-10-20 20:36:39,646 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:36:40,825 worker INFO graph: refreshed payment circulation
+busy seed 25: rings_found=6 find_rings P/R=0.90/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.31 lpa F1=0.00 benign_in_group=0.1013 diff=0.0e+00/0.0e+00 t={'simulate': 46.0, 'load': 3.6, 'detect': 1.85, 'fit': 2.63}
+2026-10-20 20:37:38,082 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:37:39,492 worker INFO graph: refreshed payment circulation
+busy seed 26: rings_found=6 find_rings P/R=0.87/1.00 +policy P/R=0.96/1.00 +fitted P/R=0.96/1.00 fraudar F1=0.46 lpa F1=0.10 benign_in_group=0.0902 diff=0.0e+00/0.0e+00 t={'simulate': 48.9, 'load': 4.0, 'detect': 2.31, 'fit': 2.88}
+2026-10-20 20:38:53,982 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:38:55,665 worker INFO graph: refreshed payment circulation
+busy seed 27: rings_found=6 find_rings P/R=0.74/1.00 +policy P/R=0.96/1.00 +fitted P/R=0.96/1.00 fraudar F1=0.00 lpa F1=0.00 benign_in_group=0.0992 diff=0.0e+00/0.0e+00 t={'simulate': 64.8, 'load': 4.6, 'detect': 2.62, 'fit': 3.77}
+2026-10-20 20:40:09,247 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:40:10,467 worker INFO graph: refreshed payment circulation
+busy seed 28: rings_found=6 find_rings P/R=0.86/0.92 +policy P/R=0.96/0.92 +fitted P/R=0.96/0.92 fraudar F1=0.31 lpa F1=0.00 benign_in_group=0.0926 diff=0.0e+00/0.0e+00 t={'simulate': 63.8, 'load': 3.8, 'detect': 1.92, 'fit': 3.33}
+2026-10-20 20:41:15,497 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:41:16,988 worker INFO graph: refreshed payment circulation
+busy seed 29: rings_found=6 find_rings P/R=0.90/1.00 +policy P/R=1.00/1.00 +fitted P/R=1.00/1.00 fraudar F1=0.81 lpa F1=0.00 benign_in_group=0.0934 diff=0.0e+00/0.0e+00 t={'simulate': 55.2, 'load': 4.5, 'detect': 2.12, 'fit': 3.83}
+2026-10-20 20:42:33,836 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:42:35,570 worker INFO graph: refreshed payment circulation
+busy seed 30: rings_found=5 find_rings P/R=0.86/0.69 +policy P/R=1.00/0.69 +fitted P/R=1.00/0.69 fraudar F1=0.19 lpa F1=0.00 benign_in_group=0.1021 diff=0.0e+00/0.0e+00 t={'simulate': 65.7, 'load': 5.3, 'detect': 2.63, 'fit': 3.81}

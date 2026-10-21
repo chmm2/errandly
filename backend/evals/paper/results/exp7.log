@@ -1,0 +1,10 @@
+ Container project_1-backend-run-eeefe950a249 Creating 
+ Container project_1-backend-run-eeefe950a249 Created 
+assumed none {'freeze_rate': 0.5591, 'mean_hold': 263.3049, 'mean_unneeded_lock': 0.0, 'p95_unneeded_lock': 0.0}
+assumed non_mrp_16 {'freeze_rate': 0.0899, 'mean_hold': 281.2729, 'mean_unneeded_lock': 12.6919, 'p95_unneeded_lock': 32.1}
+assumed whole_16 {'freeze_rate': 0.0257, 'mean_hold': 300.144, 'mean_unneeded_lock': 31.2237, 'p95_unneeded_lock': 67.648}
+assumed non_mrp_30 {'freeze_rate': 0.0152, 'mean_hold': 296.9949, 'mean_unneeded_lock': 27.9705, 'p95_unneeded_lock': 63.6}
+heavy none {'freeze_rate': 0.7227, 'mean_hold': 263.3049, 'mean_unneeded_lock': 0.0, 'p95_unneeded_lock': 0.0}
+heavy non_mrp_16 {'freeze_rate': 0.1826, 'mean_hold': 281.2729, 'mean_unneeded_lock': 9.7927, 'p95_unneeded_lock': 28.1067}
+heavy whole_16 {'freeze_rate': 0.0554, 'mean_hold': 300.144, 'mean_unneeded_lock': 27.8747, 'p95_unneeded_lock': 63.8893}
+heavy non_mrp_30 {'freeze_rate': 0.0321, 'mean_hold': 296.9949, 'mean_unneeded_lock': 24.4498, 'p95_unneeded_lock': 58.2167}

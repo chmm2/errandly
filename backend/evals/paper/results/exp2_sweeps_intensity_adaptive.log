@@ -1,0 +1,212 @@
+ Container project_1-backend-run-bc9aad18f934 Creating 
+ Container project_1-backend-run-bc9aad18f934 Created 
+2026-10-20 19:48:27,949 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:48:34,019 worker INFO graph: refreshed payment circulation
+2026-10-20 19:49:38,825 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:49:41,035 worker INFO graph: refreshed payment circulation
+2026-10-20 19:50:34,519 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:50:36,263 worker INFO graph: refreshed payment circulation
+2026-10-20 19:51:29,811 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:51:31,342 worker INFO graph: refreshed payment circulation
+2026-10-20 19:52:22,995 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:52:25,002 worker INFO graph: refreshed payment circulation
+2026-10-20 19:53:12,958 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:53:14,459 worker INFO graph: refreshed payment circulation
+2026-10-20 19:54:00,001 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:54:01,359 worker INFO graph: refreshed payment circulation
+2026-10-20 19:54:45,518 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:54:46,854 worker INFO graph: refreshed payment circulation
+2026-10-20 19:55:31,504 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:55:32,720 worker INFO graph: refreshed payment circulation
+2026-10-20 19:56:16,403 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:56:17,966 worker INFO graph: refreshed payment circulation
+routine {'farm_per_member': 2}: find_rings P/R=0.05/0.0077 +policy P/R=0.0/0.0 +fitted P/R=0.0/0.0 fp 0.8->0.0->0.0
+2026-10-20 19:57:03,618 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:57:05,052 worker INFO graph: refreshed payment circulation
+2026-10-20 19:57:55,203 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:57:56,536 worker INFO graph: refreshed payment circulation
+2026-10-20 19:58:45,258 worker INFO graph: refreshed degree/clustering
+2026-10-20 19:58:46,637 worker INFO graph: refreshed payment circulation
+2026-10-20 19:59:57,638 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:00:00,109 worker INFO graph: refreshed payment circulation
+2026-10-20 20:00:50,237 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:00:51,568 worker INFO graph: refreshed payment circulation
+2026-10-20 20:01:39,905 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:01:41,281 worker INFO graph: refreshed payment circulation
+2026-10-20 20:02:28,395 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:02:29,799 worker INFO graph: refreshed payment circulation
+2026-10-20 20:03:15,092 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:03:16,667 worker INFO graph: refreshed payment circulation
+2026-10-20 20:04:02,167 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:04:03,669 worker INFO graph: refreshed payment circulation
+2026-10-20 20:04:52,639 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:04:53,954 worker INFO graph: refreshed payment circulation
+routine {'farm_per_member': 4}: find_rings P/R=0.2/0.0231 +policy P/R=0.1/0.0115 +fitted P/R=0.1/0.0115 fp 0.0->0.0->0.0
+2026-10-20 20:05:40,263 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:05:41,496 worker INFO graph: refreshed payment circulation
+2026-10-20 20:06:26,576 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:06:28,284 worker INFO graph: refreshed payment circulation
+2026-10-20 20:07:12,819 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:07:14,136 worker INFO graph: refreshed payment circulation
+2026-10-20 20:08:00,991 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:08:02,470 worker INFO graph: refreshed payment circulation
+2026-10-20 20:08:55,218 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:08:56,505 worker INFO graph: refreshed payment circulation
+2026-10-20 20:09:49,811 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:09:51,140 worker INFO graph: refreshed payment circulation
+2026-10-20 20:10:40,038 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:10:41,661 worker INFO graph: refreshed payment circulation
+2026-10-20 20:11:27,906 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:11:29,501 worker INFO graph: refreshed payment circulation
+2026-10-20 20:12:17,149 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:12:18,704 worker INFO graph: refreshed payment circulation
+2026-10-20 20:13:06,557 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:13:07,966 worker INFO graph: refreshed payment circulation
+routine {'farm_per_member': 8}: find_rings P/R=0.878/0.4654 +policy P/R=0.878/0.4654 +fitted P/R=0.878/0.4654 fp 0.5->0.5->0.5
+2026-10-20 20:13:55,142 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:13:56,473 worker INFO graph: refreshed payment circulation
+2026-10-20 20:14:43,689 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:14:45,118 worker INFO graph: refreshed payment circulation
+2026-10-20 20:15:31,822 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:15:33,104 worker INFO graph: refreshed payment circulation
+2026-10-20 20:16:19,072 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:16:20,677 worker INFO graph: refreshed payment circulation
+2026-10-20 20:17:07,078 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:17:08,570 worker INFO graph: refreshed payment circulation
+2026-10-20 20:17:54,899 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:17:56,419 worker INFO graph: refreshed payment circulation
+2026-10-20 20:18:43,927 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:18:45,272 worker INFO graph: refreshed payment circulation
+2026-10-20 20:19:32,713 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:19:33,955 worker INFO graph: refreshed payment circulation
+2026-10-20 20:20:25,181 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:20:26,399 worker INFO graph: refreshed payment circulation
+2026-10-20 20:21:12,454 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:21:13,938 worker INFO graph: refreshed payment circulation
+routine {'farm_per_member': 12}: find_rings P/R=0.9963/0.9654 +policy P/R=0.9963/0.9654 +fitted P/R=0.9963/0.9654 fp 0.1->0.1->0.1
+2026-10-20 20:21:59,161 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:22:00,469 worker INFO graph: refreshed payment circulation
+2026-10-20 20:22:46,486 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:22:47,967 worker INFO graph: refreshed payment circulation
+2026-10-20 20:23:34,681 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:23:36,083 worker INFO graph: refreshed payment circulation
+2026-10-20 20:24:21,854 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:24:23,510 worker INFO graph: refreshed payment circulation
+2026-10-20 20:25:10,362 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:25:11,746 worker INFO graph: refreshed payment circulation
+2026-10-20 20:25:58,802 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:26:00,114 worker INFO graph: refreshed payment circulation
+2026-10-20 20:26:45,581 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:26:46,827 worker INFO graph: refreshed payment circulation
+2026-10-20 20:27:33,428 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:27:35,093 worker INFO graph: refreshed payment circulation
+2026-10-20 20:28:21,650 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:28:24,569 worker INFO graph: refreshed payment circulation
+2026-10-20 20:29:14,034 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:29:15,389 worker INFO graph: refreshed payment circulation
+routine {'farm_per_member': 24}: find_rings P/R=0.9652/1.0 +policy P/R=0.9889/1.0 +fitted P/R=0.9889/1.0 fp 1.0->0.3->0.3
+2026-10-20 20:30:01,811 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:30:03,706 worker INFO graph: refreshed payment circulation
+2026-10-20 20:30:58,361 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:30:59,747 worker INFO graph: refreshed payment circulation
+2026-10-20 20:31:44,319 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:31:45,724 worker INFO graph: refreshed payment circulation
+2026-10-20 20:32:28,779 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:32:29,846 worker INFO graph: refreshed payment circulation
+2026-10-20 20:33:12,216 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:33:13,530 worker INFO graph: refreshed payment circulation
+2026-10-20 20:33:55,107 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:33:56,201 worker INFO graph: refreshed payment circulation
+2026-10-20 20:34:37,094 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:34:38,167 worker INFO graph: refreshed payment circulation
+2026-10-20 20:35:18,056 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:35:19,587 worker INFO graph: refreshed payment circulation
+2026-10-20 20:35:56,661 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:35:57,773 worker INFO graph: refreshed payment circulation
+2026-10-20 20:36:37,096 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:36:38,255 worker INFO graph: refreshed payment circulation
+coordinated {'farm_per_member': 2}: find_rings P/R=0.05/0.0077 +policy P/R=0.0/0.0 +fitted P/R=0.0/0.0 fp 0.5->0.0->0.0
+2026-10-20 20:37:16,362 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:37:17,524 worker INFO graph: refreshed payment circulation
+2026-10-20 20:38:03,847 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:38:05,486 worker INFO graph: refreshed payment circulation
+2026-10-20 20:39:01,844 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:39:03,467 worker INFO graph: refreshed payment circulation
+2026-10-20 20:39:55,039 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:39:56,287 worker INFO graph: refreshed payment circulation
+2026-10-20 20:40:44,967 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:40:46,081 worker INFO graph: refreshed payment circulation
+2026-10-20 20:41:33,371 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:41:35,466 worker INFO graph: refreshed payment circulation
+2026-10-20 20:42:32,287 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:42:33,803 worker INFO graph: refreshed payment circulation
+2026-10-20 20:43:29,861 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:43:31,469 worker INFO graph: refreshed payment circulation
+2026-10-20 20:44:13,418 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:44:14,875 worker INFO graph: refreshed payment circulation
+2026-10-20 20:44:58,399 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:44:59,963 worker INFO graph: refreshed payment circulation
+coordinated {'farm_per_member': 4}: find_rings P/R=0.1/0.0115 +policy P/R=0.0/0.0 +fitted P/R=0.0/0.0 fp 0.0->0.0->0.0
+2026-10-20 20:45:41,130 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:45:42,435 worker INFO graph: refreshed payment circulation
+2026-10-20 20:46:24,405 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:46:25,757 worker INFO graph: refreshed payment circulation
+2026-10-20 20:47:07,892 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:47:09,177 worker INFO graph: refreshed payment circulation
+2026-10-20 20:47:54,987 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:47:56,697 worker INFO graph: refreshed payment circulation
+2026-10-20 20:48:48,306 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:48:49,970 worker INFO graph: refreshed payment circulation
+2026-10-20 20:49:38,128 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:49:39,834 worker INFO graph: refreshed payment circulation
+2026-10-20 20:50:25,843 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:50:27,187 worker INFO graph: refreshed payment circulation
+2026-10-20 20:51:12,537 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:51:13,950 worker INFO graph: refreshed payment circulation
+2026-10-20 20:52:00,382 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:52:01,636 worker INFO graph: refreshed payment circulation
+2026-10-20 20:52:46,683 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:52:47,959 worker INFO graph: refreshed payment circulation
+coordinated {'farm_per_member': 8}: find_rings P/R=0.9607/0.7846 +policy P/R=0.0/0.0 +fitted P/R=0.7815/0.4231 fp 1.0->0.0->0.3
+2026-10-20 20:53:32,566 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:53:33,780 worker INFO graph: refreshed payment circulation
+2026-10-20 20:54:18,140 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:54:20,076 worker INFO graph: refreshed payment circulation
+2026-10-20 20:55:04,433 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:55:05,720 worker INFO graph: refreshed payment circulation
+2026-10-20 20:55:49,238 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:55:50,860 worker INFO graph: refreshed payment circulation
+2026-10-20 20:56:36,163 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:56:37,420 worker INFO graph: refreshed payment circulation
+2026-10-20 20:57:23,762 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:57:25,267 worker INFO graph: refreshed payment circulation
+2026-10-20 20:58:08,015 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:58:09,365 worker INFO graph: refreshed payment circulation
+2026-10-20 20:58:51,005 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:58:52,118 worker INFO graph: refreshed payment circulation
+2026-10-20 20:59:35,186 worker INFO graph: refreshed degree/clustering
+2026-10-20 20:59:36,391 worker INFO graph: refreshed payment circulation
+2026-10-20 21:00:22,308 worker INFO graph: refreshed degree/clustering
+2026-10-20 21:00:23,813 worker INFO graph: refreshed payment circulation
+coordinated {'farm_per_member': 12}: find_rings P/R=0.9897/1.0 +policy P/R=0.2/0.0346 +fitted P/R=1.0/0.8577 fp 0.3->0.0->0.0
+2026-10-20 21:01:08,831 worker INFO graph: refreshed degree/clustering
+2026-10-20 21:01:09,917 worker INFO graph: refreshed payment circulation
+2026-10-20 21:01:53,166 worker INFO graph: refreshed degree/clustering
+2026-10-20 21:01:54,617 worker INFO graph: refreshed payment circulation
+2026-10-20 21:02:37,204 worker INFO graph: refreshed degree/clustering
+2026-10-20 21:02:38,737 worker INFO graph: refreshed payment circulation
+2026-10-20 21:03:21,444 worker INFO graph: refreshed degree/clustering
+2026-10-20 21:03:22,750 worker INFO graph: refreshed payment circulation
+2026-10-20 21:04:07,184 worker INFO graph: refreshed degree/clustering
+2026-10-20 21:04:08,326 worker INFO graph: refreshed payment circulation
+2026-10-20 21:04:50,831 worker INFO graph: refreshed degree/clustering
+2026-10-20 21:04:52,184 worker INFO graph: refreshed payment circulation
+2026-10-20 21:05:35,108 worker INFO graph: refreshed degree/clustering
+2026-10-20 21:05:36,159 worker INFO graph: refreshed payment circulation
+2026-10-20 21:06:20,870 worker INFO graph: refreshed degree/clustering
+2026-10-20 21:06:22,168 worker INFO graph: refreshed payment circulation
+2026-10-20 21:07:03,752 worker INFO graph: refreshed degree/clustering
+2026-10-20 21:07:04,847 worker INFO graph: refreshed payment circulation
+2026-10-20 21:07:43,197 worker INFO graph: refreshed degree/clustering
+2026-10-20 21:07:44,428 worker INFO graph: refreshed payment circulation
+coordinated {'farm_per_member': 24}: find_rings P/R=0.9889/1.0 +policy P/R=0.5/0.1423 +fitted P/R=0.9889/1.0 fp 0.3->0.0->0.3
