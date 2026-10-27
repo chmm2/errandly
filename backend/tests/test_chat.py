@@ -54,7 +54,10 @@ async def test_chat_between_parties(client, make_user):
     assert len(runner_view) == 2
 
     # A stranger can neither read nor write
-    assert (await client.get(f"/errands/{eid}/chat", headers=stranger)).status_code == 403
+    # 404 rather than 403: once an errand is accepted it stops being an
+    # offer to the campus, and confirming to a stranger that it exists is
+    # itself something they should not learn.
+    assert (await client.get(f"/errands/{eid}/chat", headers=stranger)).status_code == 404
     assert (
         await client.post(f"/errands/{eid}/chat", json={"body": "sneaky"}, headers=stranger)
-    ).status_code == 403
+    ).status_code == 404

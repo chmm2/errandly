@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1066744100460",
+    "project_id": "errandly-4f7cc",
+    "storage_bucket": "errandly-4f7cc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1066744100460:android:ec4a137125521e5bd68a49",
+        "android_client_info": {
+          "package_name": "in.errandly.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCoV_h2rY6Bpaaxs-7s_Q1yjASzIp12oqw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

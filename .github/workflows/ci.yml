@@ -52,12 +52,25 @@ jobs:
         options: >-
           --health-cmd "mongosh --quiet --eval \"db.adminCommand('ping')\""
           --health-interval 10s --health-timeout 5s --health-retries 10
+      # The collusion and integrity tests read and write the friendship and
+      # payment graph, so CI needs the same Neo4j the compose stack runs.
+      neo4j:
+        image: neo4j:5.26-community
+        ports:
+          - 7687:7687
+        env:
+          NEO4J_AUTH: neo4j/errandly-dev
+          NEO4J_server_memory_heap_max__size: 512M
+        options: >-
+          --health-cmd "cypher-shell -u neo4j -p errandly-dev 'RETURN 1'"
+          --health-interval 10s --health-timeout 10s --health-retries 15
 
     env:
       DATABASE_URL: postgresql+asyncpg://errandly:errandly@localhost:5432/errandly
       REDIS_URL: redis://localhost:6379/0
       KAFKA_BOOTSTRAP: localhost:9092
       MONGO_URL: mongodb://localhost:27017
+      NEO4J_URL: bolt://localhost:7687
       JWT_SECRET: ci-test-secret-not-for-production
 
     defaults:

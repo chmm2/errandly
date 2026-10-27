@@ -15,11 +15,18 @@ class OrderItemIn(BaseModel):
 
 
 class ListItemIn(BaseModel):
-    """A hand-typed shopping-list line (no menu, no price)."""
+    """A shopping-list line.
+
+    `reference_id` is set when the requester picked the item off the admin's
+    non-MRP price list rather than typing a name nobody has priced. The server
+    re-reads the price from that row - the client never sends an amount, so a
+    tampered request cannot inflate what gets held.
+    """
 
     name: str = Field(min_length=1, max_length=120)
     quantity: int = Field(default=1, ge=1, le=99)
     note: str | None = Field(default=None, max_length=200)
+    reference_id: uuid.UUID | None = None
 
 
 class ErrandCreate(BaseModel):
@@ -81,6 +88,38 @@ class RunnerSummary(BaseModel):
     phone: str | None = None
 
 
+class ConnectionOut(BaseModel):
+    """How the viewer is connected to the other party on an errand.
+
+    `degree` is friendship hops: 1 = your friend, 2 = friend of a friend, and
+    so on. None means no path within the traversal limit — a stranger.
+    `label` is the short badge form (1st/2nd/3rd/R), computed server-side so
+    every client renders the same thing.
+    """
+
+    degree: int | None = None
+    label: str = "R"
+    via: str | None = None  # display name of the friend who connects you
+    trust: float = 0.0
+
+
+class PickupIn(BaseModel):
+    """Marking an errand picked up. Nothing has to be declared here.
+
+    The runner prices the non-MRP lines individually instead, and that is a
+    better record than one lump sum: a total cannot be checked against
+    anything, while a per-item price can be judged against the reference for
+    that item at that store. MRP goods and stated cash need no declaration at
+    all - their price is already fixed and known.
+
+    `amount_spent` survives as an optional shortcut for an errand with no
+    itemised lines to price. When claims exist they win, because they are the
+    figure that was actually judged.
+    """
+
+    amount_spent: float | None = Field(default=None, ge=0, le=100000)
+
+
 class ErrandOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -98,7 +137,13 @@ class ErrandOut(BaseModel):
     reward: float
     fulfillment_type: str
     collect_amount: float
+    # None until the runner declares it at pickup.
+    amount_spent: float | None = None
     has_handoff_secret: bool = False
+    # True while the runner still owes a per-item price report. The clients
+    # gate the pickup button on this rather than deciding for themselves, so
+    # the button and the endpoint cannot disagree.
+    price_report_pending: bool = False
     distance_m: float | None = None
     # Runner's last known position — populated on the detail endpoint only,
     # for the requester/runner while the run is active (tracking page).
@@ -109,6 +154,7 @@ class ErrandOut(BaseModel):
     items: list["ErrandItemOut"] = []
     items_total: float = 0
     rated: bool = False
+    connection: ConnectionOut | None = None
     status: str
     version: int
     expires_at: datetime | None = None
@@ -136,6 +182,10 @@ class ErrandItemOut(BaseModel):
 
     id: uuid.UUID
     menu_item_id: uuid.UUID | None
+    # Set when the line was priced off the admin non-MRP list - which is also
+    # what made it eligible for escrow headroom, so the clients need it to
+    # explain the hold.
+    reference_id: uuid.UUID | None = None
     name_snapshot: str
     unit_price_snapshot: float | None
     quantity: int

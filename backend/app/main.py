@@ -9,10 +9,12 @@ from app.modules.analytics.router import router as analytics_router
 from app.modules.auth.router import router as auth_router
 from app.modules.chat.router import router as chat_router
 from app.modules.errands.router import router as errands_router
+from app.modules.fraud.router import router as fraud_router
 from app.modules.ledger.router import router as ledger_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.realtime.router import router as realtime_router
 from app.modules.runners.router import router as runners_router
+from app.modules.social.router import router as social_router
 from app.modules.vendors.router import router as vendors_router
 
 app = FastAPI(title="Errandly API", version="0.1.0")
@@ -20,6 +22,7 @@ app = FastAPI(title="Errandly API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
+    allow_origin_regex=settings.cors_origin_regex or None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -34,6 +37,8 @@ app.include_router(analytics_router)
 app.include_router(vendors_router)
 app.include_router(ledger_router)
 app.include_router(chat_router)
+app.include_router(fraud_router)
+app.include_router(social_router)
 
 
 @app.get("/health", tags=["system"])

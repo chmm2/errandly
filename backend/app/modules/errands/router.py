@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -19,6 +20,7 @@ from app.modules.errands.schemas import (
     ErrandOut,
     HandoffSecretOut,
     MyErrands,
+    PickupIn,
     RateRequest,
 )
 from app.modules.errands.service import ErrandError
@@ -111,12 +113,25 @@ async def accept(
 @router.post("/{errand_id}/pickup", response_model=ErrandOut)
 async def pickup(
     errand_id: uuid.UUID,
+    data: PickupIn = PickupIn(),
     user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
+    """Mark the errand picked up.
+
+    Prices are reported per item through /fraud/errands/{id}/claims rather
+    than as a total here, so this carries no amount for an ordinary shopping
+    run. A body may still name one for an errand that has no lines to price.
+    """
     try:
-        return await service.pickup_errand(db, redis, user, errand_id)
+        return await service.pickup_errand(
+            db,
+            redis,
+            user,
+            errand_id,
+            None if data.amount_spent is None else Decimal(str(data.amount_spent)),
+        )
     except ErrandError as e:
         _raise(e)
 

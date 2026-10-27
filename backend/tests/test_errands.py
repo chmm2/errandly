@@ -66,7 +66,7 @@ async def test_full_lifecycle_with_audit(client, make_user):
     assert accepted.json()["runner_id"] == str(runner_id)
     assert accepted.json()["version"] == 2
 
-    picked = await client.post(f"/errands/{eid}/pickup", headers=runner)
+    picked = await client.post(f"/errands/{eid}/pickup", json={"amount_spent": 0}, headers=runner)
     assert picked.status_code == 200
     assert picked.json()["status"] == "IN_PROGRESS"
 
@@ -124,7 +124,7 @@ async def test_permission_guards(client, make_user):
     await client.post(f"/errands/{eid}/accept", headers=runner)
 
     # Only the assigned runner advances the errand
-    resp = await client.post(f"/errands/{eid}/pickup", headers=stranger)
+    resp = await client.post(f"/errands/{eid}/pickup", json={"amount_spent": 0}, headers=stranger)
     assert resp.status_code == 403
 
     # A non-party can't cancel (the requester and assigned runner both can)
@@ -155,7 +155,11 @@ async def test_cancel_rules(client, make_user):
     # Cancel after pickup is NOT allowed — runner is already carrying it
     running_errand = await _create(client, requester)
     await client.post(f"/errands/{running_errand['id']}/accept", headers=runner)
-    await client.post(f"/errands/{running_errand['id']}/pickup", headers=runner)
+    await client.post(
+        f"/errands/{running_errand['id']}/pickup",
+        json={"amount_spent": 0},
+        headers=runner,
+    )
     resp = await client.post(f"/errands/{running_errand['id']}/cancel", headers=requester)
     assert resp.status_code == 409
 
@@ -296,5 +300,5 @@ async def test_runner_releases_errand_back_to_queue(client, make_user):
     assert (await client.post(f"/errands/{eid}/release", headers=runner)).status_code == 403
 
     # And you can't release after pickup
-    await client.post(f"/errands/{eid}/pickup", headers=other)
+    await client.post(f"/errands/{eid}/pickup", json={"amount_spent": 0}, headers=other)
     assert (await client.post(f"/errands/{eid}/release", headers=other)).status_code == 409

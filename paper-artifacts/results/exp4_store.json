@@ -1,0 +1,5242 @@
+{
+  "experiment": "exp4_store",
+  "generated_at": "2026-10-20T19:20:06.244465+00:00",
+  "git_commit": "00d8928+review-fixes",
+  "python": "3.12.14",
+  "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+  "hardware": {
+    "logical_cpus": 16,
+    "cpu": "12th Gen Intel(R) Core(TM) i7-12650H",
+    "mem_gib": 7.6
+  },
+  "results": {
+    "constants": {
+      "STORE_PRIOR": "6",
+      "STORE_MIN_RUNNERS": 3,
+      "STORE_MAX_DRIFT": "1.50",
+      "tolerance": "8.00"
+    },
+    "honest_dear_shop": [
+      {
+        "shop_price": 25,
+        "distinct_reporters": 0,
+        "store_reference": 20.0,
+        "pooled_verdict": "ELEVATED",
+        "store_verdict": "ELEVATED",
+        "withheld_pooled": 0.0,
+        "withheld_store": 0.0
+      },
+      {
+        "shop_price": 25,
+        "distinct_reporters": 1,
+        "store_reference": 20.0,
+        "pooled_verdict": "ELEVATED",
+        "store_verdict": "ELEVATED",
+        "withheld_pooled": 0.0,
+        "withheld_store": 0.0
+      },
+      {
+        "shop_price": 25,
+        "distinct_reporters": 2,
+        "store_reference": 20.0,
+        "pooled_verdict": "ELEVATED",
+        "store_verdict": "ELEVATED",
+        "withheld_pooled": 0.0,
+        "withheld_store": 0.0
+      },
+      {
+        "shop_price": 25,
+        "distinct_reporters": 3,
+        "store_reference": 21.67,
+        "pooled_verdict": "ELEVATED",
+        "store_verdict": "ELEVATED",
+        "withheld_pooled": 0.0,
+        "withheld_store": 0.0
+      },
+      {
+        "shop_price": 25,
+        "distinct_reporters": 4,
+        "store_reference": 22.0,
+        "pooled_verdict": "ELEVATED",
+        "store_verdict": "ELEVATED",
+        "withheld_pooled": 0.0,
+        "withheld_store": 0.0
+      },
+      {
+        "shop_price": 25,
+        "distinct_reporters": 6,
+        "store_reference": 22.5,
+        "pooled_verdict": "ELEVATED",
+        "store_verdict": "ELEVATED",
+        "withheld_pooled": 0.0,
+        "withheld_store": 0.0
+      },
+      {
+        "shop_price": 25,
+        "distinct_reporters": 10,
+        "store_reference": 23.12,
+        "pooled_verdict": "ELEVATED",
+        "store_verdict": "ELEVATED",
+        "withheld_pooled": 0.0,
+        "withheld_store": 0.0
+      },
+      {
+        "shop_price": 25,
+        "distinct_reporters": 20,
+        "store_reference": 23.85,
+        "pooled_verdict": "ELEVATED",
+        "store_verdict": "ELEVATED",
+        "withheld_pooled": 0.0,
+        "withheld_store": 0.0
+      },
+      {
+        "shop_price": 25,
+        "distinct_reporters": 40,
+        "store_reference": 24.35,
+        "pooled_verdict": "ELEVATED",
+        "store_verdict": "ELEVATED",
+        "withheld_pooled": 0.0,
+        "withheld_store": 0.0
+      },
+      {
+        "shop_price": 30,
+        "distinct_reporters": 0,
+        "store_reference": 20.0,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "FLAGGED",
+        "withheld_pooled": 10.0,
+        "withheld_store": 10.0
+      },
+      {
+        "shop_price": 30,
+        "distinct_reporters": 1,
+        "store_reference": 20.0,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "FLAGGED",
+        "withheld_pooled": 10.0,
+        "withheld_store": 10.0
+      },
+      {
+        "shop_price": 30,
+        "distinct_reporters": 2,
+        "store_reference": 20.0,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "FLAGGED",
+        "withheld_pooled": 10.0,
+        "withheld_store": 10.0
+      },
+      {
+        "shop_price": 30,
+        "distinct_reporters": 3,
+        "store_reference": 23.33,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "ELEVATED",
+        "withheld_pooled": 10.0,
+        "withheld_store": 0.0
+      },
+      {
+        "shop_price": 30,
+        "distinct_reporters": 4,
+        "store_reference": 24.0,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "ELEVATED",
+        "withheld_pooled": 10.0,
+        "withheld_store": 0.0
+      },
+      {
+        "shop_price": 30,
+        "distinct_reporters": 6,
+        "store_reference": 25.0,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "ELEVATED",
+        "withheld_pooled": 10.0,
+        "withheld_store": 0.0
+      },
+      {
+        "shop_price": 30,
+        "distinct_reporters": 10,
+        "store_reference": 26.25,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "ELEVATED",
+        "withheld_pooled": 10.0,
+        "withheld_store": 0.0
+      },
+      {
+        "shop_price": 30,
+        "distinct_reporters": 20,
+        "store_reference": 27.69,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "ELEVATED",
+        "withheld_pooled": 10.0,
+        "withheld_store": 0.0
+      },
+      {
+        "shop_price": 30,
+        "distinct_reporters": 40,
+        "store_reference": 28.7,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "ELEVATED",
+        "withheld_pooled": 10.0,
+        "withheld_store": 0.0
+      },
+      {
+        "shop_price": 40,
+        "distinct_reporters": 0,
+        "store_reference": 20.0,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "FLAGGED",
+        "withheld_pooled": 20.0,
+        "withheld_store": 20.0
+      },
+      {
+        "shop_price": 40,
+        "distinct_reporters": 1,
+        "store_reference": 20.0,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "FLAGGED",
+        "withheld_pooled": 20.0,
+        "withheld_store": 20.0
+      },
+      {
+        "shop_price": 40,
+        "distinct_reporters": 2,
+        "store_reference": 20.0,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "FLAGGED",
+        "withheld_pooled": 20.0,
+        "withheld_store": 20.0
+      },
+      {
+        "shop_price": 40,
+        "distinct_reporters": 3,
+        "store_reference": 26.67,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "FLAGGED",
+        "withheld_pooled": 20.0,
+        "withheld_store": 13.33
+      },
+      {
+        "shop_price": 40,
+        "distinct_reporters": 4,
+        "store_reference": 28.0,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "FLAGGED",
+        "withheld_pooled": 20.0,
+        "withheld_store": 12.0
+      },
+      {
+        "shop_price": 40,
+        "distinct_reporters": 6,
+        "store_reference": 30.0,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "FLAGGED",
+        "withheld_pooled": 20.0,
+        "withheld_store": 10.0
+      },
+      {
+        "shop_price": 40,
+        "distinct_reporters": 10,
+        "store_reference": 32.5,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "ELEVATED",
+        "withheld_pooled": 20.0,
+        "withheld_store": 0.0
+      },
+      {
+        "shop_price": 40,
+        "distinct_reporters": 20,
+        "store_reference": 35.38,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "ELEVATED",
+        "withheld_pooled": 20.0,
+        "withheld_store": 0.0
+      },
+      {
+        "shop_price": 40,
+        "distinct_reporters": 40,
+        "store_reference": 37.39,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "ELEVATED",
+        "withheld_pooled": 20.0,
+        "withheld_store": 0.0
+      },
+      {
+        "shop_price": 60,
+        "distinct_reporters": 0,
+        "store_reference": 20.0,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "FLAGGED",
+        "withheld_pooled": 40.0,
+        "withheld_store": 40.0
+      },
+      {
+        "shop_price": 60,
+        "distinct_reporters": 1,
+        "store_reference": 20.0,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "FLAGGED",
+        "withheld_pooled": 40.0,
+        "withheld_store": 40.0
+      },
+      {
+        "shop_price": 60,
+        "distinct_reporters": 2,
+        "store_reference": 20.0,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "FLAGGED",
+        "withheld_pooled": 40.0,
+        "withheld_store": 40.0
+      },
+      {
+        "shop_price": 60,
+        "distinct_reporters": 3,
+        "store_reference": 33.33,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "FLAGGED",
+        "withheld_pooled": 40.0,
+        "withheld_store": 26.67
+      },
+      {
+        "shop_price": 60,
+        "distinct_reporters": 4,
+        "store_reference": 36.0,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "FLAGGED",
+        "withheld_pooled": 40.0,
+        "withheld_store": 24.0
+      },
+      {
+        "shop_price": 60,
+        "distinct_reporters": 6,
+        "store_reference": 40.0,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "FLAGGED",
+        "withheld_pooled": 40.0,
+        "withheld_store": 20.0
+      },
+      {
+        "shop_price": 60,
+        "distinct_reporters": 10,
+        "store_reference": 45.0,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "FLAGGED",
+        "withheld_pooled": 40.0,
+        "withheld_store": 15.0
+      },
+      {
+        "shop_price": 60,
+        "distinct_reporters": 20,
+        "store_reference": 50.0,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "FLAGGED",
+        "withheld_pooled": 40.0,
+        "withheld_store": 10.0
+      },
+      {
+        "shop_price": 60,
+        "distinct_reporters": 40,
+        "store_reference": 50.0,
+        "pooled_verdict": "FLAGGED",
+        "store_verdict": "FLAGGED",
+        "withheld_pooled": 40.0,
+        "withheld_store": 10.0
+      }
+    ],
+    "collusion_on_cheap_shop": [
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 3,
+        "store_reference": 23.33,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 5,
+        "store_reference": 24.55,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 8,
+        "store_reference": 25.71,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 10,
+        "store_reference": 26.25,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 11,
+        "store_reference": 26.47,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 15,
+        "store_reference": 27.14,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 20,
+        "store_reference": 27.69,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 2,
+        "store_reference": 23.33,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 3,
+        "store_reference": 24.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 5,
+        "store_reference": 25.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 8,
+        "store_reference": 26.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 10,
+        "store_reference": 26.47,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 11,
+        "store_reference": 26.67,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 15,
+        "store_reference": 27.27,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 20,
+        "store_reference": 27.78,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 3,
+        "store_reference": 22.5,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 5,
+        "store_reference": 25.71,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 8,
+        "store_reference": 26.47,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 10,
+        "store_reference": 26.84,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 11,
+        "store_reference": 27.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 15,
+        "store_reference": 27.5,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 20,
+        "store_reference": 27.93,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 5,
+        "store_reference": 23.12,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 8,
+        "store_reference": 26.84,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 10,
+        "store_reference": 27.14,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 11,
+        "store_reference": 27.27,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 15,
+        "store_reference": 27.69,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 20,
+        "store_reference": 28.06,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 5,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 8,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 10,
+        "store_reference": 23.85,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 11,
+        "store_reference": 27.78,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 15,
+        "store_reference": 28.06,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 20,
+        "store_reference": 28.33,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 5,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 8,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 10,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 11,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 15,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 20,
+        "store_reference": 24.35,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 3,
+        "store_reference": 23.33,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 5,
+        "store_reference": 24.55,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 8,
+        "store_reference": 25.71,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 10,
+        "store_reference": 26.25,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 11,
+        "store_reference": 26.47,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 15,
+        "store_reference": 27.14,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 20,
+        "store_reference": 27.69,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 2,
+        "store_reference": 23.33,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 3,
+        "store_reference": 24.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 5,
+        "store_reference": 25.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 8,
+        "store_reference": 26.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 10,
+        "store_reference": 26.47,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 11,
+        "store_reference": 26.67,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 15,
+        "store_reference": 27.27,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 20,
+        "store_reference": 27.78,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 3,
+        "store_reference": 22.5,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 5,
+        "store_reference": 25.71,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 8,
+        "store_reference": 26.47,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 10,
+        "store_reference": 26.84,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 11,
+        "store_reference": 27.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 15,
+        "store_reference": 27.5,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 20,
+        "store_reference": 27.93,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 5,
+        "store_reference": 23.12,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 8,
+        "store_reference": 26.84,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 10,
+        "store_reference": 27.14,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 11,
+        "store_reference": 27.27,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 15,
+        "store_reference": 27.69,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 20,
+        "store_reference": 28.06,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 5,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 8,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 10,
+        "store_reference": 23.85,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 11,
+        "store_reference": 27.78,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 15,
+        "store_reference": 28.06,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 20,
+        "store_reference": 28.33,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 5,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 8,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 10,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 11,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 15,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 20,
+        "store_reference": 24.35,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 3,
+        "store_reference": 23.33,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 5,
+        "store_reference": 24.55,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 8,
+        "store_reference": 25.71,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 10,
+        "store_reference": 26.25,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 11,
+        "store_reference": 26.47,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 15,
+        "store_reference": 27.14,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 20,
+        "store_reference": 27.69,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 2,
+        "store_reference": 23.33,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 3,
+        "store_reference": 24.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 5,
+        "store_reference": 25.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 8,
+        "store_reference": 26.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 10,
+        "store_reference": 26.47,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 11,
+        "store_reference": 26.67,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 15,
+        "store_reference": 27.27,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 20,
+        "store_reference": 27.78,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 3,
+        "store_reference": 22.5,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 5,
+        "store_reference": 25.71,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 8,
+        "store_reference": 26.47,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 10,
+        "store_reference": 26.84,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 11,
+        "store_reference": 27.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 15,
+        "store_reference": 27.5,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 20,
+        "store_reference": 27.93,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 5,
+        "store_reference": 23.12,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 8,
+        "store_reference": 26.84,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 10,
+        "store_reference": 27.14,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 11,
+        "store_reference": 27.27,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 15,
+        "store_reference": 27.69,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 20,
+        "store_reference": 28.06,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 5,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 8,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 10,
+        "store_reference": 23.85,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 11,
+        "store_reference": 27.78,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 15,
+        "store_reference": 28.06,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 20,
+        "store_reference": 28.33,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 5,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 8,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 10,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 11,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 15,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 30,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 20,
+        "store_reference": 24.35,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 3,
+        "store_reference": 26.67,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 6.67,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 5,
+        "store_reference": 29.09,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 9.09,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 8,
+        "store_reference": 31.43,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 11.43,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 10,
+        "store_reference": 32.5,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 11,
+        "store_reference": 32.94,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 15,
+        "store_reference": 34.29,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 20,
+        "store_reference": 35.38,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 2,
+        "store_reference": 26.67,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 6.67,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 3,
+        "store_reference": 28.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 8.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 5,
+        "store_reference": 30.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 8,
+        "store_reference": 32.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 10,
+        "store_reference": 32.94,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 11,
+        "store_reference": 33.33,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 15,
+        "store_reference": 34.55,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 20,
+        "store_reference": 35.56,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 3,
+        "store_reference": 25.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 5.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 5,
+        "store_reference": 31.43,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 11.43,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 8,
+        "store_reference": 32.94,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 10,
+        "store_reference": 33.68,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 11,
+        "store_reference": 34.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 15,
+        "store_reference": 35.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 20,
+        "store_reference": 35.86,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 5,
+        "store_reference": 26.25,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 6.25,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 8,
+        "store_reference": 33.68,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 10,
+        "store_reference": 34.29,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 11,
+        "store_reference": 34.55,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 15,
+        "store_reference": 35.38,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 20,
+        "store_reference": 36.13,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 5,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 8,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 10,
+        "store_reference": 27.69,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 7.69,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 11,
+        "store_reference": 35.56,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 15,
+        "store_reference": 36.13,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 20,
+        "store_reference": 36.67,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 5,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 8,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 10,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 11,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 15,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 20,
+        "store_reference": 28.7,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 8.7,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 3,
+        "store_reference": 26.67,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 6.67,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 5,
+        "store_reference": 29.09,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 9.09,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 8,
+        "store_reference": 31.43,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 11.43,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 10,
+        "store_reference": 32.5,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 11,
+        "store_reference": 32.94,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 15,
+        "store_reference": 34.29,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 20,
+        "store_reference": 35.38,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 2,
+        "store_reference": 26.67,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 6.67,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 3,
+        "store_reference": 28.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 8.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 5,
+        "store_reference": 30.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 8,
+        "store_reference": 32.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 10,
+        "store_reference": 32.94,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 11,
+        "store_reference": 33.33,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 15,
+        "store_reference": 34.55,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 20,
+        "store_reference": 35.56,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 3,
+        "store_reference": 25.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 5.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 5,
+        "store_reference": 31.43,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 11.43,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 8,
+        "store_reference": 32.94,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 10,
+        "store_reference": 33.68,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 11,
+        "store_reference": 34.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 15,
+        "store_reference": 35.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 20,
+        "store_reference": 35.86,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 5,
+        "store_reference": 26.25,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 6.25,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 8,
+        "store_reference": 33.68,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 10,
+        "store_reference": 34.29,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 11,
+        "store_reference": 34.55,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 15,
+        "store_reference": 35.38,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 20,
+        "store_reference": 36.13,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 5,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 8,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 10,
+        "store_reference": 27.69,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 7.69,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 11,
+        "store_reference": 35.56,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 15,
+        "store_reference": 36.13,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 20,
+        "store_reference": 36.67,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 5,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 8,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 10,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 11,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 15,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 20,
+        "store_reference": 28.7,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 8.7,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 3,
+        "store_reference": 26.67,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 6.67,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 5,
+        "store_reference": 29.09,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 9.09,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 8,
+        "store_reference": 31.43,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 11.43,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 10,
+        "store_reference": 32.5,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 11,
+        "store_reference": 32.94,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 15,
+        "store_reference": 34.29,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 20,
+        "store_reference": 35.38,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 2,
+        "store_reference": 26.67,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 6.67,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 3,
+        "store_reference": 28.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 8.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 5,
+        "store_reference": 30.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 8,
+        "store_reference": 32.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 10,
+        "store_reference": 32.94,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 11,
+        "store_reference": 33.33,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 15,
+        "store_reference": 34.55,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 20,
+        "store_reference": 35.56,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 3,
+        "store_reference": 25.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 5.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 5,
+        "store_reference": 31.43,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 11.43,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 8,
+        "store_reference": 32.94,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 10,
+        "store_reference": 33.68,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 11,
+        "store_reference": 34.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 15,
+        "store_reference": 35.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 20,
+        "store_reference": 35.86,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 5,
+        "store_reference": 26.25,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 6.25,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 8,
+        "store_reference": 33.68,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 10,
+        "store_reference": 34.29,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 11,
+        "store_reference": 34.55,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 15,
+        "store_reference": 35.38,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 20,
+        "store_reference": 36.13,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 5,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 8,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 10,
+        "store_reference": 27.69,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 7.69,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 11,
+        "store_reference": 35.56,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 15,
+        "store_reference": 36.13,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 20,
+        "store_reference": 36.67,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 20.0,
+        "near_line": false
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 5,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 8,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 10,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 11,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 15,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 40,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 20,
+        "store_reference": 28.7,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 8.7,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 3,
+        "store_reference": 30.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 5,
+        "store_reference": 33.64,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 13.64,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 8,
+        "store_reference": 37.14,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 17.14,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 10,
+        "store_reference": 38.75,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 18.75,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 11,
+        "store_reference": 39.41,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 19.41,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 15,
+        "store_reference": 41.43,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 21.43,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 0,
+        "colluders": 20,
+        "store_reference": 43.08,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 2,
+        "store_reference": 30.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 3,
+        "store_reference": 32.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 12.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 5,
+        "store_reference": 35.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 15.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 8,
+        "store_reference": 38.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 18.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 10,
+        "store_reference": 39.41,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 19.41,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 11,
+        "store_reference": 40.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 15,
+        "store_reference": 41.82,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 21.82,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 1,
+        "colluders": 20,
+        "store_reference": 43.33,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 3,
+        "store_reference": 27.5,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 7.5,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 5,
+        "store_reference": 37.14,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 17.14,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 8,
+        "store_reference": 39.41,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 19.41,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 10,
+        "store_reference": 40.53,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 20.53,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 11,
+        "store_reference": 41.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 21.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 15,
+        "store_reference": 42.5,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 3,
+        "colluders": 20,
+        "store_reference": 43.79,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 5,
+        "store_reference": 29.38,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 9.38,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 8,
+        "store_reference": 40.53,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 20.53,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 10,
+        "store_reference": 41.43,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 21.43,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 11,
+        "store_reference": 41.82,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 21.82,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 15,
+        "store_reference": 43.08,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 5,
+        "colluders": 20,
+        "store_reference": 44.19,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 5,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 8,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 10,
+        "store_reference": 31.54,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 11.54,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 11,
+        "store_reference": 43.33,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 15,
+        "store_reference": 44.19,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 10,
+        "colluders": 20,
+        "store_reference": 45.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 5,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 8,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 10,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 11,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 15,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 1,
+        "honest_reporters": 20,
+        "colluders": 20,
+        "store_reference": 33.04,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 13.04,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 3,
+        "store_reference": 30.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 5,
+        "store_reference": 33.64,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 13.64,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 8,
+        "store_reference": 37.14,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 17.14,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 10,
+        "store_reference": 38.75,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 18.75,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 11,
+        "store_reference": 39.41,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 19.41,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 15,
+        "store_reference": 41.43,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 21.43,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 0,
+        "colluders": 20,
+        "store_reference": 43.08,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 2,
+        "store_reference": 30.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 3,
+        "store_reference": 32.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 12.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 5,
+        "store_reference": 35.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 15.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 8,
+        "store_reference": 38.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 18.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 10,
+        "store_reference": 39.41,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 19.41,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 11,
+        "store_reference": 40.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 15,
+        "store_reference": 41.82,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 21.82,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 1,
+        "colluders": 20,
+        "store_reference": 43.33,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 3,
+        "store_reference": 27.5,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 7.5,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 5,
+        "store_reference": 37.14,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 17.14,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 8,
+        "store_reference": 39.41,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 19.41,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 10,
+        "store_reference": 40.53,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 20.53,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 11,
+        "store_reference": 41.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 21.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 15,
+        "store_reference": 42.5,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 3,
+        "colluders": 20,
+        "store_reference": 43.79,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 5,
+        "store_reference": 29.38,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 9.38,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 8,
+        "store_reference": 40.53,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 20.53,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 10,
+        "store_reference": 41.43,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 21.43,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 11,
+        "store_reference": 41.82,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 21.82,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 15,
+        "store_reference": 43.08,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 5,
+        "colluders": 20,
+        "store_reference": 44.19,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 5,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 8,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 10,
+        "store_reference": 31.54,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 11.54,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 11,
+        "store_reference": 43.33,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 15,
+        "store_reference": 44.19,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 10,
+        "colluders": 20,
+        "store_reference": 45.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 5,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 8,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 10,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 11,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 15,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 10,
+        "honest_reporters": 20,
+        "colluders": 20,
+        "store_reference": 33.04,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 13.04,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 3,
+        "store_reference": 30.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 5,
+        "store_reference": 33.64,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 13.64,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 8,
+        "store_reference": 37.14,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 17.14,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 10,
+        "store_reference": 38.75,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 18.75,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 11,
+        "store_reference": 39.41,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 19.41,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 15,
+        "store_reference": 41.43,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 21.43,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 0,
+        "colluders": 20,
+        "store_reference": 43.08,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 2,
+        "store_reference": 30.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 10.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 3,
+        "store_reference": 32.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 12.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 5,
+        "store_reference": 35.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 15.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 8,
+        "store_reference": 38.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 18.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 10,
+        "store_reference": 39.41,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 19.41,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 11,
+        "store_reference": 40.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 20.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 15,
+        "store_reference": 41.82,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 21.82,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 1,
+        "colluders": 20,
+        "store_reference": 43.33,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 3,
+        "store_reference": 27.5,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 7.5,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 5,
+        "store_reference": 37.14,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 17.14,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 8,
+        "store_reference": 39.41,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 19.41,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 10,
+        "store_reference": 40.53,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 20.53,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 11,
+        "store_reference": 41.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 21.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 15,
+        "store_reference": 42.5,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 3,
+        "colluders": 20,
+        "store_reference": 43.79,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 5,
+        "store_reference": 29.38,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 9.38,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 8,
+        "store_reference": 40.53,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 20.53,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 10,
+        "store_reference": 41.43,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 21.43,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 11,
+        "store_reference": 41.82,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 21.82,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 15,
+        "store_reference": 43.08,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 5,
+        "colluders": 20,
+        "store_reference": 44.19,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 5,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 8,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 10,
+        "store_reference": 31.54,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 11.54,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 11,
+        "store_reference": 43.33,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 15,
+        "store_reference": 44.19,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 10,
+        "colluders": 20,
+        "store_reference": 45.0,
+        "colluder_verdict": "ELEVATED",
+        "overpaid_per_claim": 30.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 1,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 2,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 3,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 5,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 8,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 10,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 11,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 15,
+        "store_reference": 20.0,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 0.0,
+        "near_line": true
+      },
+      {
+        "inflated_price": 50,
+        "claims_per_colluder": 50,
+        "honest_reporters": 20,
+        "colluders": 20,
+        "store_reference": 33.04,
+        "colluder_verdict": "FLAGGED",
+        "overpaid_per_claim": 13.04,
+        "near_line": true
+      }
+    ],
+    "cold_start": [
+      {
+        "distinct_reporters": 0,
+        "store_reference": 20.0
+      },
+      {
+        "distinct_reporters": 1,
+        "store_reference": 20.0
+      },
+      {
+        "distinct_reporters": 2,
+        "store_reference": 20.0
+      },
+      {
+        "distinct_reporters": 3,
+        "store_reference": 23.33
+      },
+      {
+        "distinct_reporters": 4,
+        "store_reference": 24.0
+      },
+      {
+        "distinct_reporters": 5,
+        "store_reference": 24.55
+      },
+      {
+        "distinct_reporters": 6,
+        "store_reference": 25.0
+      },
+      {
+        "distinct_reporters": 7,
+        "store_reference": 25.38
+      }
+    ]
+  }
+}

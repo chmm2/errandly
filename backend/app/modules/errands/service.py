@@ -1,12 +1,17 @@
 import json
+import logging
+import random
 import uuid
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
+from typing import Any
 
 from geoalchemy2 import WKTElement
 from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.crypto import decrypt_str, encrypt_str
 from app.modules.auth.models import User
 from app.modules.errands.models import (
@@ -15,13 +20,21 @@ from app.modules.errands.models import (
     ErrandEvent,
     ErrandHandoffSecret,
     ErrandItem,
+    OfferLog,
     Rating,
 )
 from app.modules.errands.schemas import ErrandCreate
+from app.modules.fraud import integrity as fraud_integrity
+from app.modules.fraud import reputation as fraud_reputation
+from app.modules.fraud.models import ReferencePrice, RunnerPriceClaim
+from app.modules.ledger import service as ledger
 from app.modules.outbox import service as outbox
 from app.modules.runners import service as runners_service
 from app.modules.runners.models import RunnerProfile
+from app.modules.social import service as social_service
 from app.modules.vendors.models import MenuItem, Vendor
+
+logger = logging.getLogger(__name__)
 
 ACCEPT_LOCK_PREFIX = "errand:accept:"
 ACCEPT_LOCK_TTL_SECONDS = 10
@@ -31,6 +44,11 @@ STATUS_CHANNEL_PREFIX = "errand:status:"
 OFFER_CHANNEL_PREFIX = "runner:offers:"
 OFFER_RADIUS_M = 3000
 OFFER_FANOUT = 5
+
+# Social distance an errand is first offered within: friends and
+# friends-of-friends. Wide enough that a student with a handful of friends has
+# real coverage, narrow enough that "someone you know" still means something.
+SOCIAL_TIER_1_HOPS = 2
 
 # (from_status, to_status) — anything not listed is an illegal transition.
 ALLOWED_TRANSITIONS = {
@@ -46,6 +64,29 @@ ALLOWED_TRANSITIONS = {
 
 # How long after accepting a runner can hand an errand back to the queue.
 RELEASE_WINDOW_SECONDS = 300  # 5 minutes
+
+# After releasing an errand, that runner is locked out of re-accepting THAT
+# errand for a while. Stops one person cycling accept/release to keep an errand
+# out of everyone else's reach. Scoped per (errand, runner): other runners are
+# unaffected, and the errand itself goes straight back into the open feed.
+#
+# Redis rather than a column because the state is inherently temporary — the
+# TTL is the expiry mechanism, so there's nothing to sweep up later.
+RELEASE_COOLDOWN_PREFIX = "errand:released:"
+RELEASE_COOLDOWN_SECONDS = 300  # 5 minutes
+
+
+def _cooldown_key(errand_id: uuid.UUID, runner_id: uuid.UUID) -> str:
+    return f"{RELEASE_COOLDOWN_PREFIX}{errand_id}:{runner_id}"
+
+
+async def _cooldown_remaining(redis: Redis, errand_id: uuid.UUID, runner_id: uuid.UUID) -> int:
+    """Seconds left before this runner may retake this errand. 0 if free."""
+    try:
+        ttl = await redis.ttl(_cooldown_key(errand_id, runner_id))
+    except Exception:
+        return 0  # fail open: Redis being down shouldn't block accepting work
+    return ttl if ttl and ttl > 0 else 0
 
 
 class ErrandError(Exception):
@@ -84,6 +125,12 @@ def _emit_order_event(db: AsyncSession, errand: Errand, event_type: str) -> None
             "category": errand.category,
             "reward": float(errand.reward),
             "collect_amount": float(errand.collect_amount or 0),
+            # When the transition happened. Consumers that age evidence need
+            # this: without it every PAID edge the graph projection wrote
+            # carried a null date, so circulation and ring detection could only
+            # ever be all-time, and a pattern from a year ago weighed the same
+            # as one from yesterday.
+            "at": datetime.now(UTC).isoformat(),
         },
     )
 
@@ -124,11 +171,32 @@ async def publish_status(redis: Redis, errand: Errand) -> None:
     )
 
 
-async def _offer_to_nearby_runners(db: AsyncSession, redis: Redis, errand: Errand) -> int:
+async def _offer_to_nearby_runners(
+    db: AsyncSession,
+    redis: Redis,
+    errand: Errand,
+    exclude_runner: uuid.UUID | None = None,
+    max_hops: int | None = None,
+) -> int:
     """Push an offer to the nearest available runners (Redis GEO + pub/sub).
+
+    `max_hops` restricts the offer to runners within that social distance of
+    the requester. This is what makes social matching mean anything: every
+    candidate is published to in the same loop, milliseconds apart, so merely
+    *sorting* by trust would leave a free-for-all race that the nearest
+    stranger usually wins. Withholding the offer from strangers for a while is
+    the only thing that actually gives someone you know first refusal.
+
+    Returns 0 when nobody is within `max_hops` — the caller decides whether to
+    widen immediately (a student with no friends yet must not be stranded) or
+    let the scheduler escalate on a timer.
 
     Uses the drop point as the anchor — 'a runner already heading that way'.
     Best-effort: if Redis GEO is empty the errand still sits in the feed.
+
+    `exclude_runner` skips someone who just handed this errand back: they've
+    said they don't want it, so re-offering would be noise. It still appears in
+    their nearby list, so they can change their mind once the cooldown lapses.
     """
     nearby = await runners_service.nearest_available_runners(
         redis,
@@ -136,9 +204,62 @@ async def _offer_to_nearby_runners(db: AsyncSession, redis: Redis, errand: Erran
         lat=float(errand.drop_lat),
         lng=float(errand.drop_lng),
         radius_m=OFFER_RADIUS_M,
-        limit=OFFER_FANOUT,
+        limit=OFFER_FANOUT + (1 if exclude_runner else 0),
         exclude=errand.requester_id,
     )
+    if exclude_runner:
+        nearby = [(rid, dist) for rid, dist in nearby if rid != exclude_runner][:OFFER_FANOUT]
+
+    candidate_ids = [rid for rid, _ in nearby]
+
+    # Don't re-pair a requester with someone they share an open collusion ring
+    # with. Narrow on purpose: neither person is excluded from anything else,
+    # and both keep taking work from the rest of campus at a rank cost only.
+    # None means the lookup failed, and excludes nobody.
+    co_ringed = await fraud_integrity.co_ringed_with(db, errand.requester_id, candidate_ids)
+    if co_ringed:
+        nearby = [(rid, dist) for rid, dist in nearby if rid not in co_ringed]
+        if not nearby:
+            logger.info(
+                "errand %s: every nearby runner shares an open ring with the requester",
+                errand.id,
+            )
+            return 0
+        candidate_ids = [rid for rid, _ in nearby]
+
+    scores = await _safe_scores(errand.requester_id, candidate_ids)
+    reputations = await _reputations(db, candidate_ids)
+    penalties = await fraud_integrity.penalties(db, candidate_ids)
+
+    # A small fraction of rounds go out socially blind. See `should_explore`.
+    exploring = should_explore()
+    ranking_scores = None if exploring else scores
+    nearby = _rank_with_scores(nearby, ranking_scores, reputations, penalties)
+
+    # An exploring round ignores the hop ceiling too. Ranking without the boost
+    # while still refusing to offer past 2 hops would not be a control group at
+    # all — the strangers whose absence is the whole problem would still never
+    # be offered anything, and the sample would stay exactly as biased.
+    if max_hops is not None and scores is not None and not exploring:
+        nearby = [(r, d) for r, d in nearby if scores.get(r, {}).get("hops", 99) <= max_hops]
+        if not nearby:
+            return 0
+
+    # After filtering, so the log holds the set that was actually offered
+    # rather than the set that was considered. `scores` (not `ranking_scores`)
+    # is passed on purpose: the trust the graph reported is worth recording
+    # even on a round that declined to act on it.
+    await _record_offer_log(
+        db,
+        errand=errand,
+        ranked=nearby,
+        scores=scores,
+        reputations=reputations,
+        penalties=penalties,
+        max_hops=None if exploring else max_hops,
+        exploring=exploring,
+    )
+
     payload = {
         "type": "offer",
         "errand_id": str(errand.id),
@@ -148,12 +269,356 @@ async def _offer_to_nearby_runners(db: AsyncSession, redis: Redis, errand: Erran
     }
     for runner_id, distance_m in nearby:
         payload["distance_m"] = round(distance_m)
+        # The degree badge rides along with the offer. Friendship edges are
+        # undirected, so requester→runner hops are the same number the runner
+        # needs for "how do I know this person".
+        payload["connection"] = _connection_payload(scores, runner_id)
         await redis.publish(f"{OFFER_CHANNEL_PREFIX}{runner_id}", json.dumps(payload))
     return len(nearby)
 
 
+async def _safe_scores(requester_id: uuid.UUID, runner_ids: list[uuid.UUID]) -> dict | None:
+    """Social scores for a candidate set, or None when the graph is unavailable.
+
+    None and {} mean different things: {} is 'graph answered, nobody connected',
+    None is 'no answer'. Only the former may be used to filter people out.
+    """
+    if not runner_ids:
+        return {}
+    try:
+        return await social_service.social_scores(requester_id, runner_ids)
+    except Exception:
+        logger.warning("social scores unavailable", exc_info=True)
+        return None
+
+
+def _connection_payload(scores: dict | None, runner_id: uuid.UUID) -> dict:
+    s = (scores or {}).get(runner_id)
+    if not s:
+        return {"degree": None, "label": "R", "via": None, "trust": 0.0}
+    return {
+        "degree": s["hops"],
+        "label": social_service.degree_label(s["hops"]),
+        "via": s.get("via"),
+        "trust": s["trust"],
+    }
+
+
+# How far a full star of reputation can move a runner up the queue. Smaller
+# than SOCIAL_WEIGHT_M on purpose: reputation should decide between comparable
+# candidates, not let an excellent runner across campus beat a decent one at
+# the door. Measured from NEUTRAL_REPUTATION, so this both rewards and demotes.
+REPUTATION_WEIGHT_M = 800.0
+NEUTRAL_REPUTATION = 3.5
+
+
+def _rank_with_scores(
+    nearby: list[tuple[uuid.UUID, float]],
+    scores: dict | None,
+    reputations: dict[uuid.UUID, float] | None = None,
+    penalties: dict[uuid.UUID, float] | None = None,
+) -> list[tuple[uuid.UUID, float]]:
+    """Order candidates by distance, offset by trust, reputation and standing.
+
+    Four terms, deliberately in the same unit — metres of effective distance —
+    so their relative influence is legible rather than buried in a weighted sum
+    of incomparable scales:
+
+        effective = distance
+                  - trust      x SOCIAL_WEIGHT_M
+                  - (rep - 3.5) x REPUTATION_WEIGHT_M
+                  + open-flag penalty (see fraud/integrity.py)
+
+    The last term is the only one that adds: an unreviewed flag pushes a runner
+    down the queue and can never pull them up it. It is also the only one
+    bounded — capped so that accumulating suspicion can demote someone but
+    never quietly amount to a ban.
+
+    The reputation used is the PROVENANCE-WEIGHTED one, shrunk toward neutral
+    when little independent evidence backs it. That is what closes the loop the
+    price flags always implied but never had: a penalty lowers the score, the
+    score lowers the ranking, and the runner is genuinely offered less work.
+    Before this, a flagged runner lost a star and was offered exactly as much.
+    """
+    if len(nearby) < 2 or (not scores and not reputations and not penalties):
+        return nearby
+
+    def effective(item: tuple[uuid.UUID, float]) -> float:
+        return _terms_for(item[0], item[1], scores, reputations, penalties)["effective"]
+
+    return sorted(nearby, key=effective)
+
+
+def _terms_for(
+    runner_id: uuid.UUID,
+    distance_m: float,
+    scores: dict | None,
+    reputations: dict[uuid.UUID, float] | None,
+    penalties: dict[uuid.UUID, float] | None,
+    apply_trust: bool = True,
+) -> dict[str, Any]:
+    """The four terms behind one candidate's rank, and their sum.
+
+    Single source of truth: ranking sorts on `effective` and the offer log
+    stores the whole dict. Were the log to recompute the formula separately the
+    two would drift, and a counterfactual built on a stale copy of the ranking
+    rule is worse than no counterfactual at all.
+
+    `apply_trust` is False on an exploring round, where the social term is
+    deliberately not applied. `trust` is still recorded — what the graph thought
+    is worth keeping even when the round declined to act on it — but it is left
+    out of `effective`, which must always be the score that actually decided the
+    order. A log whose score disagrees with the ordering it claims to explain is
+    worse than no log.
+    """
+    social = (scores or {}).get(runner_id) or {}
+    trust = float(social.get("trust", 0.0))
+    rep = float((reputations or {}).get(runner_id, NEUTRAL_REPUTATION))
+    penalty = float((penalties or {}).get(runner_id, 0.0))
+    return {
+        "runner_id": str(runner_id),
+        "distance_m": round(float(distance_m), 1),
+        "trust": round(trust, 4),
+        "trust_applied": apply_trust,
+        "hops": social.get("hops"),
+        "reputation": round(rep, 3),
+        "penalty": round(penalty, 1),
+        "effective": round(
+            float(distance_m)
+            - (trust * SOCIAL_WEIGHT_M if apply_trust else 0.0)
+            - (rep - NEUTRAL_REPUTATION) * REPUTATION_WEIGHT_M
+            + penalty,
+            1,
+        ),
+    }
+
+
+def should_explore() -> bool:
+    """Whether this dispatch round ignores friendship entirely.
+
+    Errandly boosts friends up the offer queue and then reads "friends
+    transacting with each other" as evidence of a collusion ring — so the
+    router manufactures the signal the detector trusts. The stronger the boost
+    the worse it gets: at the live weight the policy already expects almost
+    every errand in a friend group to stay inside it, and once you expect
+    everything, nothing can be surprising. A real ring stops being
+    distinguishable from ordinary friendship, not because it hid but because
+    the router does its work for it.
+
+    So a slice of rounds is offered blind, keeping a control group in the data.
+    It is a real cost — those requesters get a worse-matched runner — paid to
+    keep collusion detectable at all.
+
+    Read from settings on every call rather than captured at import, so the
+    rate can be changed without a deploy and pinned to 0 in tests.
+    """
+    rate = settings.offer_explore_rate
+    if rate <= 0:
+        return False
+    return random.random() < min(rate, 1.0)
+
+
+async def _record_offer_log(
+    db: AsyncSession,
+    *,
+    errand: Errand,
+    ranked: list[tuple[uuid.UUID, float]],
+    scores: dict | None,
+    reputations: dict[uuid.UUID, float] | None,
+    penalties: dict[uuid.UUID, float] | None,
+    max_hops: int | None,
+    exploring: bool = False,
+) -> None:
+    """Store why this offer round went out in the order it did.
+
+    Best-effort by design. This is analytics: nothing reads it on a request
+    path, so a failure here must cost an errand nothing. It runs in a SAVEPOINT
+    so a bad write rolls back only itself and leaves the caller's transaction —
+    which is in the middle of dispatching an errand — untouched.
+    """
+    if not ranked:
+        return
+    try:
+        async with db.begin_nested():
+            round_no = (
+                await db.scalar(
+                    select(func.count())
+                    .select_from(OfferLog)
+                    .where(OfferLog.errand_id == errand.id)
+                )
+            ) or 0
+            db.add(
+                OfferLog(
+                    errand_id=errand.id,
+                    requester_id=errand.requester_id,
+                    campus_id=errand.campus_id,
+                    round_no=round_no + 1,
+                    max_hops=max_hops,
+                    exploring=exploring,
+                    candidates=[
+                        {
+                            **_terms_for(
+                                rid,
+                                dist,
+                                scores,
+                                reputations,
+                                penalties,
+                                apply_trust=not exploring,
+                            ),
+                            "rank": i,
+                        }
+                        for i, (rid, dist) in enumerate(ranked)
+                    ],
+                )
+            )
+    except Exception:
+        logger.warning("offer log not written for errand %s", errand.id, exc_info=True)
+
+
+async def mark_offer_accepted(
+    db: AsyncSession, errand_id: uuid.UUID, runner_id: uuid.UUID
+) -> None:
+    """Stamp the taker onto the most recent offer round for this errand.
+
+    Which round they accepted from matters: a runner who took an errand on the
+    third, widened round was chosen under a different candidate set from one who
+    took it immediately, and treating those as the same observation would bias
+    exactly the estimate this table exists to support.
+    """
+    try:
+        async with db.begin_nested():
+            row = await db.scalar(
+                select(OfferLog)
+                .where(OfferLog.errand_id == errand_id)
+                .order_by(OfferLog.created_at.desc())
+                .limit(1)
+            )
+            if row is not None and row.accepted_runner_id is None:
+                row.accepted_runner_id = runner_id
+                row.accepted_at = datetime.now(UTC)
+    except Exception:
+        logger.warning("offer acceptance not recorded for %s", errand_id, exc_info=True)
+
+
+async def _reputations(
+    db: AsyncSession, runner_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, float]:
+    """Provenance-weighted reputation per candidate, for ranking.
+
+    Read from Postgres rather than recomputed here: the weighting needs a
+    runner's whole rating history, which is far too much work for an offer
+    that has to go out in milliseconds. It is refreshed when a rating lands.
+    """
+    if not runner_ids:
+        return {}
+    rows = await db.execute(
+        select(User.id, User.effective_reputation).where(User.id.in_(runner_ids))
+    )
+    return {uid: float(rep) for uid, rep in rows}
+
+
+# How much social trust can outweigh distance. At 1500 a direct friend
+# (trust 1.0) beats a stranger who is up to 1.5km closer, while a 3-hop
+# acquaintance (trust ~0.2) only wins ties inside ~300m. Tuned so the graph
+# reorders realistic candidate sets without ever sending an errand across
+# campus to reach a friend.
+SOCIAL_WEIGHT_M = 1500.0
+
+
+async def _rank_by_social_trust(
+    requester_id: uuid.UUID, nearby: list[tuple[uuid.UUID, float]]
+) -> list[tuple[uuid.UUID, float]]:
+    """Reorder spatial candidates so socially-closer runners are offered first.
+
+    Candidate *generation* stays purely spatial — the graph never widens the
+    set, it only reorders it, so a well-connected student cannot pull errands
+    from across campus. Ranking is by effective distance:
+
+        effective = distance_m − trust × SOCIAL_WEIGHT_M
+
+    If the graph is unavailable `social_scores` returns {}, every candidate
+    scores 0, and this degrades to exactly the distance ordering Redis gave us.
+    That is the intended failure mode: matching gets worse, never broken.
+    """
+    if len(nearby) < 2:
+        return nearby
+    try:
+        scores = await social_service.social_scores(requester_id, [rid for rid, _ in nearby])
+    except Exception:
+        logger.warning("social ranking unavailable; using distance order", exc_info=True)
+        return nearby
+    if not scores:
+        return nearby
+
+    def effective(item: tuple[uuid.UUID, float]) -> float:
+        runner_id, distance_m = item
+        trust = scores.get(runner_id, {}).get("trust", 0.0)
+        return distance_m - trust * SOCIAL_WEIGHT_M
+
+    ranked = sorted(nearby, key=effective)
+    friends = sum(1 for rid, _ in ranked if scores.get(rid, {}).get("hops") == 1)
+    logger.info(
+        "social ranking: %d/%d candidates connected (%d direct friends)",
+        len(scores),
+        len(nearby),
+        friends,
+    )
+    return ranked
+
+
+async def _within_hops(
+    requester_id: uuid.UUID, nearby: list[tuple[uuid.UUID, float]], max_hops: int
+) -> list[tuple[uuid.UUID, float]]:
+    """Keep only candidates within `max_hops` friendship hops of the requester.
+
+    Returns the list unfiltered when the graph is unavailable. Failing open is
+    deliberate: a graph outage should make matching less socially targeted, not
+    stop errands from being offered at all.
+    """
+    try:
+        scores = await social_service.social_scores(requester_id, [rid for rid, _ in nearby])
+    except Exception:
+        logger.warning("hop filter unavailable; offering to all candidates", exc_info=True)
+        return nearby
+    if not scores:
+        return []
+    return [(rid, d) for rid, d in nearby if scores.get(rid, {}).get("hops", 99) <= max_hops]
+
+
+async def attach_connections(viewer: User, errands: list[Errand]) -> None:
+    """Set .connection on each errand: how the viewer relates to the OTHER party.
+
+    Which party that is depends on who is looking. A runner browsing the feed
+    wants to know how they connect to the requester; a requester looking at
+    their own errand wants the runner. Showing someone their connection to
+    themselves would be noise, so own-errand rows with no runner get nothing.
+
+    Never raises: a graph outage drops the badge, it does not break the feed.
+    """
+    if not errands:
+        return
+    others: dict[uuid.UUID, uuid.UUID] = {}
+    for e in errands:
+        other = e.runner_id if e.requester_id == viewer.id else e.requester_id
+        if other and other != viewer.id:
+            others[e.id] = other
+    if not others:
+        return
+    try:
+        found = await social_service.connections_for(viewer.id, list(others.values()))
+    except Exception:
+        logger.warning("connection badges unavailable", exc_info=True)
+        return
+    stranger = {"degree": None, "label": "R", "via": None, "trust": 0.0}
+    for e in errands:
+        other = others.get(e.id)
+        if other:
+            e.connection = found.get(other, stranger)
+
+
 async def _attach_secret_flags(db: AsyncSession, errands: list[Errand]) -> None:
-    """Set .has_handoff_secret on each errand (read by ErrandOut)."""
+    """Set the computed flags ErrandOut exposes: whether a handoff secret
+    exists, and whether prices are still owed before pickup."""
     ids = [e.id for e in errands]
     if not ids:
         return
@@ -161,8 +626,53 @@ async def _attach_secret_flags(db: AsyncSession, errands: list[Errand]) -> None:
         select(ErrandHandoffSecret.errand_id).where(ErrandHandoffSecret.errand_id.in_(ids))
     )
     with_secret = set(rows)
+    pending = await price_report_pending(db, errands)
     for e in errands:
         e.has_handoff_secret = e.id in with_secret
+        e.price_report_pending = e.id in pending
+
+
+async def price_report_pending(
+    db: AsyncSession, errands: list[Errand]
+) -> set[uuid.UUID]:
+    """Which of these errands still owe a price report from their runner.
+
+    One implementation, used by both the guard on pickup and the flag the
+    clients read. A rule enforced in one place and displayed from another
+    drifts, and the way it announces itself is a button that looks available
+    and then fails.
+
+    An order has something to report when it has hand-bought lines: no vendor
+    menu behind it, and at least one line still marked available. A fixed-menu
+    order is already priced and an out-of-stock line was never bought, so
+    neither is anything to ask about.
+    """
+    ids = [e.id for e in errands]
+    if not ids:
+        return set()
+
+    priceable = set(
+        await db.scalars(
+            select(ErrandItem.errand_id)
+            .join(Errand, Errand.id == ErrandItem.errand_id)
+            .where(
+                ErrandItem.errand_id.in_(ids),
+                ErrandItem.is_available.is_(True),
+                Errand.vendor_id.is_(None),
+            )
+        )
+    )
+    if not priceable:
+        return set()
+
+    reported = set(
+        await db.scalars(
+            select(RunnerPriceClaim.errand_id).where(
+                RunnerPriceClaim.errand_id.in_(list(priceable))
+            )
+        )
+    )
+    return priceable - reported
 
 
 async def _validate_order_items(
@@ -241,6 +751,20 @@ async def _attach_items(db: AsyncSession, errands: list[Errand]) -> None:
 
 
 async def create_errand(db: AsyncSession, redis: Redis, user: User, data: ErrandCreate) -> Errand:
+    # Carrying a run commits you to it. Both clients lock the Order/Run toggle,
+    # but a client-side lock is a courtesy, not a control — anyone with devtools
+    # or curl walks straight through it. The rule is enforced here, where every
+    # client gets it and none can bypass it.
+    #
+    # Deliberately one-directional: having placed an order never stops you
+    # taking a run. It is the accepted delivery that someone else is waiting
+    # on, so that is the only thing that locks.
+    if await runners_service.active_load(db, user.id) > 0:
+        raise ErrandError(
+            "Finish or release the run you're on before ordering.",
+            409,
+        )
+
     order_items = await _validate_order_items(db, user, data) if data.items else []
 
     errand = Errand(
@@ -268,17 +792,77 @@ async def create_errand(db: AsyncSession, redis: Redis, user: User, data: Errand
         db.add(item)
     # Hand-typed shopping-list lines: structured (so the runner can mark one
     # out of stock), but priceless — the runner pays the real shelf price.
+    #
+    # A line picked off the admin's non-MRP price list is repriced HERE, from
+    # that row, not from anything the client sent. The reference is the number
+    # the runner's claim will later be judged against, so letting a request
+    # body set it would let a requester pre-authorise their own overcharge.
+    wanted = {li.reference_id for li in data.list_items if li.reference_id}
+    references: dict[uuid.UUID, ReferencePrice] = {}
+    if wanted:
+        rows = await db.execute(
+            select(ReferencePrice).where(
+                ReferencePrice.id.in_(wanted),
+                # Campus-scoped: another campus's price list is not ours to
+                # quote, and an id from one must not resolve here.
+                ReferencePrice.campus_id == user.campus_id,
+            )
+        )
+        references = {r.id: r for r in rows.scalars()}
+
+    non_mrp_total = Decimal("0")
     for li in data.list_items:
+        ref = references.get(li.reference_id) if li.reference_id else None
+        if li.reference_id and ref is None:
+            raise ErrandError("That priced item is no longer on the list.", 422)
+
+        unit = Decimal(str(ref.reference_price)) if ref else None
+        if ref is not None:
+            non_mrp_total += unit * li.quantity
+
         db.add(
             ErrandItem(
                 errand_id=errand.id,
                 menu_item_id=None,
-                name_snapshot=li.name.strip()[:120],
-                unit_price_snapshot=None,
+                reference_id=ref.id if ref else None,
+                # The admin's display name when there is one, so the runner
+                # reads the same words the price was set against.
+                name_snapshot=(ref.display_name if ref else li.name.strip())[:120],
+                unit_price_snapshot=unit,
                 quantity=li.quantity,
                 note=(li.note.strip()[:200] if li.note and li.note.strip() else None),
             )
         )
+
+    # Escrow the requester's money BEFORE the errand is offered to anyone. A
+    # runner who fronts cash at the counter is relying on this hold existing —
+    # an unfunded order must never reach the feed.
+    #
+    # Catalogue lines carry a menu price; non-MRP list lines carry the admin
+    # reference. Hand-typed lines nobody has priced stay priceless, and
+    # collect_amount is what covers those.
+    items_total = sum(
+        Decimal(str(i.unit_price_snapshot)) * i.quantity for i in order_items
+    ) + non_mrp_total
+
+    # Headroom is charged on the non-MRP subtotal alone. A menu item and a
+    # sealed MRP packet both have a price that is already known, so padding
+    # them would lock money that no outcome could need; a loose-priced item is
+    # the only thing whose real cost is discovered at the counter.
+    try:
+        await ledger.place_hold(
+            db,
+            errand_id=errand.id,
+            requester_id=user.id,
+            items_total=items_total,
+            reward=Decimal(str(data.reward)),
+            collect_amount=Decimal(str(data.collect_amount)),
+            buffer_base=non_mrp_total,
+        )
+    except ledger.LedgerError as e:
+        await db.rollback()
+        raise ErrandError(e.message, e.status_code) from e
+
     if data.otp:
         db.add(ErrandHandoffSecret(errand_id=errand.id, otp_ciphertext=encrypt_str(data.otp)))
     _record(db, errand, user, "CREATED", {"category": data.category, "reward": data.reward})
@@ -286,9 +870,19 @@ async def create_errand(db: AsyncSession, redis: Redis, user: User, data: Errand
     await db.commit()
     await db.refresh(errand)
 
-    offered = await _offer_to_nearby_runners(db, redis, errand)
+    # Tier 1: friends and friends-of-friends only. The scheduler widens this on
+    # a timer (see SOCIAL_TIERS in workers/consumers.py) so nobody waits long.
+    offered = await _offer_to_nearby_runners(db, redis, errand, max_hops=SOCIAL_TIER_1_HOPS)
+    tier = 1
+    if not offered:
+        # Nobody you know is nearby — or you have no friends yet, which is every
+        # student on day one. Falling straight through to an open offer matters
+        # more than the social preference does: an errand nobody sees is worse
+        # than an errand a stranger takes.
+        offered = await _offer_to_nearby_runners(db, redis, errand)
+        tier = 0
     if offered:
-        _record(db, errand, None, "OFFERED", {"runners": offered})
+        _record(db, errand, None, "OFFERED", {"runners": offered, "social_tier": tier})
         await db.commit()
 
     errand.has_handoff_secret = data.otp is not None
@@ -337,6 +931,7 @@ async def list_feed(
         )
 
     await _attach_secret_flags(db, errands)
+    await attach_connections(user, errands)
     return errands, total or 0
 
 
@@ -358,16 +953,37 @@ async def list_mine(db: AsyncSession, user: User) -> tuple[list[Errand], list[Er
     await _attach_secret_flags(db, requested + running)
     await _attach_items(db, requested + running)
     await _attach_rated(db, requested + running)
+    await attach_connections(user, requested + running)
     return requested, running
 
 
 async def get_errand(db: AsyncSession, user: User, errand_id: uuid.UUID) -> Errand:
+    """One errand, if this user is allowed to see it.
+
+    Campus membership alone used to be the whole check, which meant any student
+    could fetch any errand on campus by id and read its requester, its assigned
+    runner, its progress, its items and its amounts — including runs they had
+    no part in and errands that finished months ago.
+
+    The rule is narrower: you see your own errands, and you see work that is
+    still open. An OPEN errand is an offer to the campus, so a runner deciding
+    whether to take it legitimately needs to read it. Once someone else has
+    accepted, it stops being an offer and becomes two people's business.
+
+    404 rather than 403, because confirming that an errand exists is itself
+    something a stranger should not learn.
+    """
     errand = await db.get(Errand, errand_id)
     if errand is None or errand.deleted_at is not None or errand.campus_id != user.campus_id:
+        raise ErrandError("Errand not found.", 404)
+
+    is_party = user.id in (errand.requester_id, errand.runner_id)
+    if not is_party and errand.status != "OPEN" and user.role != "ADMIN":
         raise ErrandError("Errand not found.", 404)
     await _attach_secret_flags(db, [errand])
     await _attach_items(db, [errand])
     await _attach_rated(db, [errand])
+    await attach_connections(user, [errand])
     return errand
 
 
@@ -470,6 +1086,15 @@ async def accept_errand(
         raise ErrandError("Someone else is accepting this errand. Try another one.", 409)
 
     try:
+        # Cooldown: you handed this one back recently, so it's someone else's
+        # turn for a few minutes.
+        cooling = await _cooldown_remaining(redis, errand_id, user.id)
+        if cooling:
+            mins = max(1, round(cooling / 60))
+            raise ErrandError(
+                f"You handed this errand back — you can take it again in {mins} min.", 409
+            )
+
         # Load cap: don't let one runner hoard errands they can't deliver.
         profile = await runners_service.get_or_create_profile(db, user)
         load = await runners_service.active_load(db, user.id)
@@ -491,6 +1116,9 @@ async def accept_errand(
         errand.accepted_at = datetime.now(UTC)
         _record(db, errand, user, "ACCEPTED")
         _emit_order_event(db, errand, "ACCEPTED")
+        # Close the loop on the offer round this runner took: without the
+        # outcome the candidate set is a question with no answer.
+        await mark_offer_accepted(db, errand.id, user.id)
         await db.commit()
         await db.refresh(errand)
         await publish_status(redis, errand)
@@ -507,12 +1135,16 @@ async def _runner_step(
     errand_id: uuid.UUID,
     to_status: str,
     event_type: str,
+    amount_spent: Decimal | None = None,
 ) -> Errand:
     errand = await db.scalar(select(Errand).where(Errand.id == errand_id).with_for_update())
     if errand is None or errand.deleted_at is not None or errand.campus_id != user.campus_id:
         raise ErrandError("Errand not found.", 404)
     if errand.runner_id != user.id:
         raise ErrandError("Only the assigned runner can do this.", 403)
+
+    if amount_spent is not None:
+        errand.amount_spent = amount_spent
 
     _transition(errand, to_status)
     if to_status == "DELIVERED":
@@ -527,9 +1159,47 @@ async def _runner_step(
 
 
 async def pickup_errand(
-    db: AsyncSession, redis: Redis, user: User, errand_id: uuid.UUID
+    db: AsyncSession,
+    redis: Redis,
+    user: User,
+    errand_id: uuid.UUID,
+    amount_spent: Decimal | None = None,
 ) -> Errand:
-    return await _runner_step(db, redis, user, errand_id, "IN_PROGRESS", "PICKED_UP")
+    """Mark picked up.
+
+    Ordinarily nothing is declared here. The runner prices the non-MRP lines
+    one by one instead, and a per-item price is a far better record than a
+    lump sum: it can be judged against the reference for that item at that
+    store, where a total can only be taken on trust. MRP goods need no
+    declaration at all.
+
+    An amount is still accepted for an errand with no lines to price, so
+    settlement has something better than the platform's own estimate.
+    """
+    errand = await db.get(Errand, errand_id)
+    if errand is not None and await price_report_pending(db, [errand]):
+        raise ErrandError(
+            "Report what you paid for each item before marking this picked up.",
+            409,
+        )
+
+    return await _runner_step(
+        db, redis, user, errand_id, "IN_PROGRESS", "PICKED_UP",
+        amount_spent=amount_spent,
+    )
+
+
+async def declared_spend(db: AsyncSession, errand_id: uuid.UUID) -> Decimal | None:
+    """What the runner said they paid, or None if they never said.
+
+    None is not zero. A runner who declared nothing has to be reimbursed from
+    the estimate instead, and collapsing the two would quietly pay ₹0 to
+    anyone whose errand predates the declaration step.
+    """
+    errand = await db.get(Errand, errand_id)
+    if errand is None or errand.amount_spent is None:
+        return None
+    return Decimal(str(errand.amount_spent))
 
 
 async def deliver_errand(
@@ -589,6 +1259,11 @@ async def rate_errand(
     total = float(runner.reputation_score) * runner.rating_count + stars
     runner.rating_count += 1
     runner.reputation_score = round(total / runner.rating_count, 2)
+    # The plain average above is what the runner sees. Ranking reads the
+    # provenance-weighted figure, refreshed here so the offer path never has to
+    # recompute a whole rating history.
+    await db.flush()
+    await fraud_reputation.recompute(db, runner.id)
     _record(db, errand, user, "RATED", {"stars": stars})
     await db.commit()
 
@@ -620,8 +1295,17 @@ async def release_errand(
     await db.refresh(errand)
     await publish_status(redis, errand)
 
-    # Straight back into matching for the next nearby runner.
-    offered = await _offer_to_nearby_runners(db, redis, errand)
+    # Lock this runner out of retaking it for a while, so accept/release can't
+    # be cycled to sit on an errand nobody else can reach.
+    try:
+        await redis.set(
+            _cooldown_key(errand.id, user.id), "1", ex=RELEASE_COOLDOWN_SECONDS
+        )
+    except Exception:
+        pass  # best-effort; the accept path fails open if Redis is unavailable
+
+    # Straight back into matching — but not to the runner who just dropped it.
+    offered = await _offer_to_nearby_runners(db, redis, errand, exclude_runner=user.id)
     if offered:
         _record(db, errand, None, "OFFERED", {"runners": offered})
         await db.commit()
@@ -665,6 +1349,7 @@ async def set_item_availability(
     await _attach_secret_flags(db, [errand])
     await _attach_items(db, [errand])
     await _attach_rated(db, [errand])
+    await attach_connections(user, [errand])
     return errand
 
 
@@ -686,6 +1371,10 @@ async def cancel_errand(
 
     _transition(errand, "CANCELLED")
     errand.cancelled_at = datetime.now(UTC)
+    # Escrow returns to the requester in the same transaction as the state
+    # change — a cancelled order that quietly keeps someone's money is the
+    # bug this ordering exists to make impossible.
+    await ledger.refund_hold(db, errand_id=errand.id, memo="Order cancelled")
     _record(db, errand, user, "CANCELLED", {"reason": reason} if reason else None)
     _emit_order_event(db, errand, "CANCELLED")
     # The ORDER_CANCELLED event notifies the runner; when the RUNNER is the one

@@ -1,0 +1,857 @@
+{
+  "experiment": "exp7_escrow",
+  "generated_at": "2026-10-20T19:37:25.270968+00:00",
+  "git_commit": "00d8928+review-fixes",
+  "python": "3.12.14",
+  "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+  "hardware": {
+    "logical_cpus": 16,
+    "cpu": "12th Gen Intel(R) Core(TM) i7-12650H",
+    "mem_gib": 7.6
+  },
+  "results": {
+    "orders_per_seed": 3000,
+    "seeds": 30,
+    "escrow_buffer_pct": 0.16,
+    "policies": [
+      {
+        "drift": "assumed",
+        "policy": "none",
+        "freeze_rate": {
+          "mean": 0.5591,
+          "sd": 0.0102,
+          "ci": 0.0038,
+          "n": 30
+        },
+        "mean_hold": {
+          "mean": 263.3049,
+          "sd": 2.828,
+          "ci": 1.0559,
+          "n": 30
+        },
+        "mean_unneeded_lock": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci": 0.0,
+          "n": 30
+        },
+        "p95_unneeded_lock": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci": 0.0,
+          "n": 30
+        }
+      },
+      {
+        "drift": "assumed",
+        "policy": "non_mrp_16",
+        "freeze_rate": {
+          "mean": 0.0899,
+          "sd": 0.0051,
+          "ci": 0.0019,
+          "n": 30
+        },
+        "mean_hold": {
+          "mean": 281.2729,
+          "sd": 2.9978,
+          "ci": 1.1193,
+          "n": 30
+        },
+        "mean_unneeded_lock": {
+          "mean": 12.6919,
+          "sd": 0.2429,
+          "ci": 0.0907,
+          "n": 30
+        },
+        "p95_unneeded_lock": {
+          "mean": 32.1,
+          "sd": 0.6597,
+          "ci": 0.2463,
+          "n": 30
+        }
+      },
+      {
+        "drift": "assumed",
+        "policy": "whole_16",
+        "freeze_rate": {
+          "mean": 0.0257,
+          "sd": 0.0035,
+          "ci": 0.0013,
+          "n": 30
+        },
+        "mean_hold": {
+          "mean": 300.144,
+          "sd": 3.2707,
+          "ci": 1.2211,
+          "n": 30
+        },
+        "mean_unneeded_lock": {
+          "mean": 31.2237,
+          "sd": 0.428,
+          "ci": 0.1598,
+          "n": 30
+        },
+        "p95_unneeded_lock": {
+          "mean": 67.648,
+          "sd": 0.8578,
+          "ci": 0.3203,
+          "n": 30
+        }
+      },
+      {
+        "drift": "assumed",
+        "policy": "non_mrp_30",
+        "freeze_rate": {
+          "mean": 0.0152,
+          "sd": 0.0019,
+          "ci": 0.0007,
+          "n": 30
+        },
+        "mean_hold": {
+          "mean": 296.9949,
+          "sd": 3.151,
+          "ci": 1.1765,
+          "n": 30
+        },
+        "mean_unneeded_lock": {
+          "mean": 27.9705,
+          "sd": 0.415,
+          "ci": 0.1549,
+          "n": 30
+        },
+        "p95_unneeded_lock": {
+          "mean": 63.6,
+          "sd": 1.086,
+          "ci": 0.4055,
+          "n": 30
+        }
+      },
+      {
+        "drift": "heavy",
+        "policy": "none",
+        "freeze_rate": {
+          "mean": 0.7227,
+          "sd": 0.0076,
+          "ci": 0.0028,
+          "n": 30
+        },
+        "mean_hold": {
+          "mean": 263.3049,
+          "sd": 2.828,
+          "ci": 1.0559,
+          "n": 30
+        },
+        "mean_unneeded_lock": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci": 0.0,
+          "n": 30
+        },
+        "p95_unneeded_lock": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci": 0.0,
+          "n": 30
+        }
+      },
+      {
+        "drift": "heavy",
+        "policy": "non_mrp_16",
+        "freeze_rate": {
+          "mean": 0.1826,
+          "sd": 0.0079,
+          "ci": 0.003,
+          "n": 30
+        },
+        "mean_hold": {
+          "mean": 281.2729,
+          "sd": 2.9978,
+          "ci": 1.1193,
+          "n": 30
+        },
+        "mean_unneeded_lock": {
+          "mean": 9.7927,
+          "sd": 0.1793,
+          "ci": 0.0669,
+          "n": 30
+        },
+        "p95_unneeded_lock": {
+          "mean": 28.1067,
+          "sd": 0.4835,
+          "ci": 0.1805,
+          "n": 30
+        }
+      },
+      {
+        "drift": "heavy",
+        "policy": "whole_16",
+        "freeze_rate": {
+          "mean": 0.0554,
+          "sd": 0.0044,
+          "ci": 0.0016,
+          "n": 30
+        },
+        "mean_hold": {
+          "mean": 300.144,
+          "sd": 3.2707,
+          "ci": 1.2211,
+          "n": 30
+        },
+        "mean_unneeded_lock": {
+          "mean": 27.8747,
+          "sd": 0.384,
+          "ci": 0.1434,
+          "n": 30
+        },
+        "p95_unneeded_lock": {
+          "mean": 63.8893,
+          "sd": 0.8957,
+          "ci": 0.3344,
+          "n": 30
+        }
+      },
+      {
+        "drift": "heavy",
+        "policy": "non_mrp_30",
+        "freeze_rate": {
+          "mean": 0.0321,
+          "sd": 0.0037,
+          "ci": 0.0014,
+          "n": 30
+        },
+        "mean_hold": {
+          "mean": 296.9949,
+          "sd": 3.151,
+          "ci": 1.1765,
+          "n": 30
+        },
+        "mean_unneeded_lock": {
+          "mean": 24.4498,
+          "sd": 0.3471,
+          "ci": 0.1296,
+          "n": 30
+        },
+        "p95_unneeded_lock": {
+          "mean": 58.2167,
+          "sd": 0.8477,
+          "ci": 0.3165,
+          "n": 30
+        }
+      }
+    ],
+    "frontier": [
+      {
+        "drift": "assumed",
+        "base": "non_mrp",
+        "pct": 0.0,
+        "freeze_rate": {
+          "mean": 0.5627,
+          "sd": 0.0083,
+          "ci": 0.006,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci": 0.0,
+          "n": 10
+        }
+      },
+      {
+        "drift": "assumed",
+        "base": "non_mrp",
+        "pct": 0.05,
+        "freeze_rate": {
+          "mean": 0.3611,
+          "sd": 0.0084,
+          "ci": 0.006,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 2.6858,
+          "sd": 0.0665,
+          "ci": 0.0476,
+          "n": 10
+        }
+      },
+      {
+        "drift": "assumed",
+        "base": "non_mrp",
+        "pct": 0.1,
+        "freeze_rate": {
+          "mean": 0.1708,
+          "sd": 0.0065,
+          "ci": 0.0046,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 6.769,
+          "sd": 0.1491,
+          "ci": 0.1067,
+          "n": 10
+        }
+      },
+      {
+        "drift": "assumed",
+        "base": "non_mrp",
+        "pct": 0.16,
+        "freeze_rate": {
+          "mean": 0.0893,
+          "sd": 0.0048,
+          "ci": 0.0034,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 12.7255,
+          "sd": 0.2317,
+          "ci": 0.1657,
+          "n": 10
+        }
+      },
+      {
+        "drift": "assumed",
+        "base": "non_mrp",
+        "pct": 0.2,
+        "freeze_rate": {
+          "mean": 0.0353,
+          "sd": 0.0031,
+          "ci": 0.0022,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 16.9782,
+          "sd": 0.2809,
+          "ci": 0.2009,
+          "n": 10
+        }
+      },
+      {
+        "drift": "assumed",
+        "base": "non_mrp",
+        "pct": 0.25,
+        "freeze_rate": {
+          "mean": 0.0215,
+          "sd": 0.0025,
+          "ci": 0.0018,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 22.4972,
+          "sd": 0.3383,
+          "ci": 0.242,
+          "n": 10
+        }
+      },
+      {
+        "drift": "assumed",
+        "base": "non_mrp",
+        "pct": 0.3,
+        "freeze_rate": {
+          "mean": 0.0149,
+          "sd": 0.0017,
+          "ci": 0.0012,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 28.0827,
+          "sd": 0.3942,
+          "ci": 0.2819,
+          "n": 10
+        }
+      },
+      {
+        "drift": "assumed",
+        "base": "non_mrp",
+        "pct": 0.4,
+        "freeze_rate": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci": 0.0,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 39.3301,
+          "sd": 0.5068,
+          "ci": 0.3625,
+          "n": 10
+        }
+      },
+      {
+        "drift": "assumed",
+        "base": "non_mrp",
+        "pct": 0.5,
+        "freeze_rate": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci": 0.0,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 50.6116,
+          "sd": 0.6227,
+          "ci": 0.4454,
+          "n": 10
+        }
+      },
+      {
+        "drift": "assumed",
+        "base": "whole",
+        "pct": 0.0,
+        "freeze_rate": {
+          "mean": 0.5627,
+          "sd": 0.0083,
+          "ci": 0.006,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci": 0.0,
+          "n": 10
+        }
+      },
+      {
+        "drift": "assumed",
+        "base": "whole",
+        "pct": 0.05,
+        "freeze_rate": {
+          "mean": 0.2018,
+          "sd": 0.0071,
+          "ci": 0.0051,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 7.4295,
+          "sd": 0.0835,
+          "ci": 0.0597,
+          "n": 10
+        }
+      },
+      {
+        "drift": "assumed",
+        "base": "whole",
+        "pct": 0.1,
+        "freeze_rate": {
+          "mean": 0.0704,
+          "sd": 0.006,
+          "ci": 0.0043,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 17.8619,
+          "sd": 0.1792,
+          "ci": 0.1282,
+          "n": 10
+        }
+      },
+      {
+        "drift": "assumed",
+        "base": "whole",
+        "pct": 0.16,
+        "freeze_rate": {
+          "mean": 0.0262,
+          "sd": 0.0039,
+          "ci": 0.0028,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 31.3712,
+          "sd": 0.282,
+          "ci": 0.2017,
+          "n": 10
+        }
+      },
+      {
+        "drift": "assumed",
+        "base": "whole",
+        "pct": 0.2,
+        "freeze_rate": {
+          "mean": 0.0096,
+          "sd": 0.002,
+          "ci": 0.0014,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 40.5442,
+          "sd": 0.3458,
+          "ci": 0.2474,
+          "n": 10
+        }
+      },
+      {
+        "drift": "assumed",
+        "base": "whole",
+        "pct": 0.25,
+        "freeze_rate": {
+          "mean": 0.0049,
+          "sd": 0.0012,
+          "ci": 0.0009,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 52.0818,
+          "sd": 0.423,
+          "ci": 0.3026,
+          "n": 10
+        }
+      },
+      {
+        "drift": "assumed",
+        "base": "whole",
+        "pct": 0.3,
+        "freeze_rate": {
+          "mean": 0.0029,
+          "sd": 0.0006,
+          "ci": 0.0005,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 63.6402,
+          "sd": 0.5034,
+          "ci": 0.3601,
+          "n": 10
+        }
+      },
+      {
+        "drift": "assumed",
+        "base": "whole",
+        "pct": 0.4,
+        "freeze_rate": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci": 0.0,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 86.7764,
+          "sd": 0.6702,
+          "ci": 0.4794,
+          "n": 10
+        }
+      },
+      {
+        "drift": "assumed",
+        "base": "whole",
+        "pct": 0.5,
+        "freeze_rate": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci": 0.0,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 109.9195,
+          "sd": 0.8406,
+          "ci": 0.6013,
+          "n": 10
+        }
+      },
+      {
+        "drift": "heavy",
+        "base": "non_mrp",
+        "pct": 0.0,
+        "freeze_rate": {
+          "mean": 0.7216,
+          "sd": 0.0047,
+          "ci": 0.0034,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci": 0.0,
+          "n": 10
+        }
+      },
+      {
+        "drift": "heavy",
+        "base": "non_mrp",
+        "pct": 0.05,
+        "freeze_rate": {
+          "mean": 0.5421,
+          "sd": 0.0077,
+          "ci": 0.0055,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 1.6755,
+          "sd": 0.0446,
+          "ci": 0.0319,
+          "n": 10
+        }
+      },
+      {
+        "drift": "heavy",
+        "base": "non_mrp",
+        "pct": 0.1,
+        "freeze_rate": {
+          "mean": 0.3153,
+          "sd": 0.0065,
+          "ci": 0.0047,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 4.7364,
+          "sd": 0.1033,
+          "ci": 0.0739,
+          "n": 10
+        }
+      },
+      {
+        "drift": "heavy",
+        "base": "non_mrp",
+        "pct": 0.16,
+        "freeze_rate": {
+          "mean": 0.1836,
+          "sd": 0.0076,
+          "ci": 0.0054,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 9.8349,
+          "sd": 0.1722,
+          "ci": 0.1232,
+          "n": 10
+        }
+      },
+      {
+        "drift": "heavy",
+        "base": "non_mrp",
+        "pct": 0.2,
+        "freeze_rate": {
+          "mean": 0.0832,
+          "sd": 0.0048,
+          "ci": 0.0035,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 13.7504,
+          "sd": 0.2326,
+          "ci": 0.1664,
+          "n": 10
+        }
+      },
+      {
+        "drift": "heavy",
+        "base": "non_mrp",
+        "pct": 0.25,
+        "freeze_rate": {
+          "mean": 0.0525,
+          "sd": 0.0041,
+          "ci": 0.0029,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 19.0613,
+          "sd": 0.3,
+          "ci": 0.2146,
+          "n": 10
+        }
+      },
+      {
+        "drift": "heavy",
+        "base": "non_mrp",
+        "pct": 0.3,
+        "freeze_rate": {
+          "mean": 0.0319,
+          "sd": 0.0037,
+          "ci": 0.0027,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 24.5466,
+          "sd": 0.3617,
+          "ci": 0.2587,
+          "n": 10
+        }
+      },
+      {
+        "drift": "heavy",
+        "base": "non_mrp",
+        "pct": 0.4,
+        "freeze_rate": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci": 0.0,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 35.7491,
+          "sd": 0.4795,
+          "ci": 0.343,
+          "n": 10
+        }
+      },
+      {
+        "drift": "heavy",
+        "base": "non_mrp",
+        "pct": 0.5,
+        "freeze_rate": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci": 0.0,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 47.0306,
+          "sd": 0.5965,
+          "ci": 0.4267,
+          "n": 10
+        }
+      },
+      {
+        "drift": "heavy",
+        "base": "whole",
+        "pct": 0.0,
+        "freeze_rate": {
+          "mean": 0.7216,
+          "sd": 0.0047,
+          "ci": 0.0034,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci": 0.0,
+          "n": 10
+        }
+      },
+      {
+        "drift": "heavy",
+        "base": "whole",
+        "pct": 0.05,
+        "freeze_rate": {
+          "mean": 0.3321,
+          "sd": 0.0052,
+          "ci": 0.0037,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 5.5641,
+          "sd": 0.0884,
+          "ci": 0.0632,
+          "n": 10
+        }
+      },
+      {
+        "drift": "heavy",
+        "base": "whole",
+        "pct": 0.1,
+        "freeze_rate": {
+          "mean": 0.1386,
+          "sd": 0.0049,
+          "ci": 0.0035,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 14.9927,
+          "sd": 0.1719,
+          "ci": 0.123,
+          "n": 10
+        }
+      },
+      {
+        "drift": "heavy",
+        "base": "whole",
+        "pct": 0.16,
+        "freeze_rate": {
+          "mean": 0.0565,
+          "sd": 0.0047,
+          "ci": 0.0034,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 28.016,
+          "sd": 0.2701,
+          "ci": 0.1932,
+          "n": 10
+        }
+      },
+      {
+        "drift": "heavy",
+        "base": "whole",
+        "pct": 0.2,
+        "freeze_rate": {
+          "mean": 0.0235,
+          "sd": 0.0026,
+          "ci": 0.0019,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 37.0641,
+          "sd": 0.3384,
+          "ci": 0.2421,
+          "n": 10
+        }
+      },
+      {
+        "drift": "heavy",
+        "base": "whole",
+        "pct": 0.25,
+        "freeze_rate": {
+          "mean": 0.0132,
+          "sd": 0.0019,
+          "ci": 0.0013,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 48.5371,
+          "sd": 0.4223,
+          "ci": 0.302,
+          "n": 10
+        }
+      },
+      {
+        "drift": "heavy",
+        "base": "whole",
+        "pct": 0.3,
+        "freeze_rate": {
+          "mean": 0.0068,
+          "sd": 0.0015,
+          "ci": 0.001,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 60.0689,
+          "sd": 0.5067,
+          "ci": 0.3624,
+          "n": 10
+        }
+      },
+      {
+        "drift": "heavy",
+        "base": "whole",
+        "pct": 0.4,
+        "freeze_rate": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci": 0.0,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 83.1955,
+          "sd": 0.6774,
+          "ci": 0.4846,
+          "n": 10
+        }
+      },
+      {
+        "drift": "heavy",
+        "base": "whole",
+        "pct": 0.5,
+        "freeze_rate": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci": 0.0,
+          "n": 10
+        },
+        "mean_unneeded_lock": {
+          "mean": 106.3385,
+          "sd": 0.8488,
+          "ci": 0.6072,
+          "n": 10
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+% Errand lifecycle, with where money is held and where evidence is produced.
+\begin{tikzpicture}[
+  font=\footnotesize,
+  st/.style={draw, thick, rounded corners=2pt, minimum width=19mm, minimum height=6mm, align=center},
+  note/.style={align=left, font=\scriptsize, text width=52mm, anchor=west},
+  flow/.style={-{Stealth[length=2mm]}, thick},
+  link/.style={densely dotted},
+  node distance=5.5mm]
+  \node[st] (open) {OPEN};
+  \node[st, below=of open] (acc) {ACCEPTED};
+  \node[st, below=of acc] (prog) {IN\_PROGRESS};
+  \node[st, below=of prog] (del) {DELIVERED};
+  \node[st, below=of del] (done) {COMPLETED};
+  \foreach \a/\b in {open/acc, acc/prog, prog/del, del/done} \draw[flow] (\a) -- (\b);
+
+  \node[note, right=5mm of open] (n1) {Escrow hold placed before any offer: spend
+    estimate + 16\% of the non-MRP subtotal + fee. Staged offers begin.};
+  \node[note, right=5mm of acc] (n2) {Redis lock, then row lock: exactly one runner wins.
+    Offer round and taker written to the offer log.};
+  \node[note, right=5mm of prog] (n3) {At the counter the runner reports each loose-priced
+    item. Each line is judged: OK, ELEVATED or FLAGGED.};
+  \node[note, right=5mm of del] (n4) {Requester confirms the handoff.};
+  \node[note, right=5mm of done] (n5) {Settlement: fee + eligible reimbursement. A
+    withheld excess stays in escrow for review. PAID edge and rating recorded.};
+  \foreach \s/\n in {open/n1, acc/n2, prog/n3, del/n4, done/n5} \draw[link] (\s.east) -- (\n.west);
+\end{tikzpicture}

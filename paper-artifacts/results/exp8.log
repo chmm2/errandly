@@ -1,0 +1,13 @@
+ Container project_1-backend-run-942aeabbb420 Creating 
+ Container project_1-backend-run-942aeabbb420 Created 
+{'nodes': 1000, 'edges': 2995, 'components_ge2': 1, 'seconds': {'median': 0.003, 'min': 0.002, 'max': 0.003, 'repeats': 5}}
+{'nodes': 10000, 'edges': 29993, 'components_ge2': 1, 'seconds': {'median': 0.027, 'min': 0.025, 'max': 0.066, 'repeats': 5}}
+{'nodes': 100000, 'edges': 299997, 'components_ge2': 1, 'seconds': {'median': 0.661, 'min': 0.637, 'max': 0.758, 'repeats': 5}}
+{'nodes': 1000000, 'edges': 2999995, 'components_ge2': 1, 'seconds': {'median': 9.358, 'min': 9.318, 'max': 11.121, 'repeats': 5}}
+{'rounds': 1000, 'seconds': {'median': 0.235, 'min': 0.227, 'max': 0.243, 'repeats': 5}}
+{'rounds': 10000, 'seconds': {'median': 2.498, 'min': 2.38, 'max': 3.414, 'repeats': 5}}
+{'rounds': 100000, 'seconds': {'median': 25.403, 'min': 24.726, 'max': 27.187, 'repeats': 5}}
+{'students': 1200, 'friend_edges': 4050, 'payments': 23944, 'load_s': 2.3, 'refresh_metrics_s': {'median': 0.11, 'min': 0.06, 'max': 0.14, 'repeats': 5}, 'refresh_circulation_s': {'median': 0.81, 'min': 0.63, 'max': 0.93, 'repeats': 5}, 'find_rings_s': {'median': 0.51, 'min': 0.5, 'max': 0.54, 'repeats': 5}, 'total_jobs_s_median': 1.42, 'rings': 9, 'social_scores_ms_p50': 5.7, 'social_scores_ms_p95': 14.8, 'social_scores_calls': 50}
+{'students': 2500, 'friend_edges': 8408, 'payments': 49895, 'load_s': 4.9, 'refresh_metrics_s': {'median': 0.14, 'min': 0.12, 'max': 1.16, 'repeats': 5}, 'refresh_circulation_s': {'median': 1.65, 'min': 1.57, 'max': 2.9, 'repeats': 5}, 'find_rings_s': {'median': 1.25, 'min': 1.05, 'max': 1.41, 'repeats': 5}, 'total_jobs_s_median': 2.98, 'rings': 33, 'social_scores_ms_p50': 10.9, 'social_scores_ms_p95': 16.5, 'social_scores_calls': 50}
+{'students': 5000, 'friend_edges': 16862, 'payments': 99787, 'load_s': 10.3, 'refresh_metrics_s': {'median': 0.32, 'min': 0.26, 'max': 0.4, 'repeats': 5}, 'refresh_circulation_s': {'median': 3.19, 'min': 3.04, 'max': 3.91, 'repeats': 5}, 'find_rings_s': {'median': 2.41, 'min': 2.2, 'max': 2.63, 'repeats': 5}, 'total_jobs_s_median': 5.94, 'rings': 73, 'social_scores_ms_p50': 4.0, 'social_scores_ms_p95': 6.3, 'social_scores_calls': 50}
+{'students': 10000, 'friend_edges': 33755, 'payments': 199525, 'load_s': 15.8, 'refresh_metrics_s': {'median': 0.54, 'min': 0.49, 'max': 0.88, 'repeats': 5}, 'refresh_circulation_s': {'median': 6.53, 'min': 6.13, 'max': 7.27, 'repeats': 5}, 'find_rings_s': {'median': 4.91, 'min': 4.59, 'max': 4.95, 'repeats': 5}, 'total_jobs_s_median': 11.93, 'rings': 117, 'social_scores_ms_p50': 3.0, 'social_scores_ms_p95': 4.2, 'social_scores_calls': 50}

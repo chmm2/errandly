@@ -9,11 +9,16 @@ Redis) and the **frontend** (Vite dev server). Use two separate terminal windows
 docker compose up -d --build
 docker compose exec backend alembic upgrade head
 docker compose exec backend python -m app.seed        # creates a campus + test user
+docker compose exec backend python -m app.demo_cases  # optional: realistic fraud cases for the admin console
 cd frontend
 npm install
 ```
 
 Test login after seeding: `test.student@vitstudent.ac.in` / `password123`
+
+Admin console: log in as `admin@vitstudent.ac.in` and open http://localhost:5173/admin/fraud.
+The demo cases add a collusion ring, a rating-farming case and a runner who always prices
+just under the limit, all found by the real detectors.
 
 ## Every time — Terminal 1 (backend)
 
@@ -57,6 +62,18 @@ Opens on **http://localhost:5173** — that's the URL to open in your browser, n
 If unsure, running the migration + rebuild command is always safe — it never deletes data.
 
 ## Useful extras
+
+### Tests
+
+The suite runs against its **own** database, `errandly_test`, created and
+migrated automatically on first run. It never touches the app database, so it
+is safe to run while somebody is demoing. To start from a clean schema:
+
+```
+docker compose exec db dropdb -U errandly errandly_test
+```
+
+The next `pytest` recreates and migrates it.
 
 ```
 docker compose exec backend pytest -q          # run backend tests

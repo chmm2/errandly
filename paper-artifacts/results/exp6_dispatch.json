@@ -1,0 +1,331 @@
+{
+  "experiment": "exp6_dispatch",
+  "generated_at": "2026-10-20T20:31:57.784814+00:00",
+  "git_commit": "00d8928+review-fixes",
+  "python": "3.12.14",
+  "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+  "hardware": {
+    "logical_cpus": 16,
+    "cpu": "12th Gen Intel(R) Core(TM) i7-12650H",
+    "mem_gib": 7.6
+  },
+  "results": {
+    "seeds": 30,
+    "policies": {
+      "broadcast": {
+        "errands": {
+          "mean": 25976.4,
+          "sd": 146.3396,
+          "ci": 54.638,
+          "n": 30
+        },
+        "expired_rate": {
+          "mean": 0.0022,
+          "sd": 0.0003,
+          "ci": 0.0001,
+          "n": 30
+        },
+        "within_2_hops": {
+          "mean": 0.1784,
+          "sd": 0.0036,
+          "ci": 0.0014,
+          "n": 30
+        },
+        "direct_friend": {
+          "mean": 0.051,
+          "sd": 0.0016,
+          "ci": 0.0006,
+          "n": 30
+        },
+        "benign_in_group": {
+          "mean": 0.0352,
+          "sd": 0.0034,
+          "ci": 0.0013,
+          "n": 30
+        },
+        "wait_median_s": {
+          "mean": 12.3358,
+          "sd": 0.0623,
+          "ci": 0.0233,
+          "n": 30
+        },
+        "wait_p90_s": {
+          "mean": 36.7045,
+          "sd": 0.403,
+          "ci": 0.1505,
+          "n": 30
+        },
+        "tier0_errands": {
+          "mean": 25976.4,
+          "sd": 146.3396,
+          "ci": 54.638,
+          "n": 30
+        },
+        "tier0_expired_rate": {
+          "mean": 0.0022,
+          "sd": 0.0003,
+          "ci": 0.0001,
+          "n": 30
+        }
+      },
+      "staged": {
+        "errands": {
+          "mean": 25976.4,
+          "sd": 146.3396,
+          "ci": 54.638,
+          "n": 30
+        },
+        "expired_rate": {
+          "mean": 0.0022,
+          "sd": 0.0003,
+          "ci": 0.0001,
+          "n": 30
+        },
+        "within_2_hops": {
+          "mean": 0.3579,
+          "sd": 0.006,
+          "ci": 0.0022,
+          "n": 30
+        },
+        "direct_friend": {
+          "mean": 0.1025,
+          "sd": 0.0022,
+          "ci": 0.0008,
+          "n": 30
+        },
+        "benign_in_group": {
+          "mean": 0.0695,
+          "sd": 0.0043,
+          "ci": 0.0016,
+          "n": 30
+        },
+        "wait_median_s": {
+          "mean": 19.04,
+          "sd": 0.1628,
+          "ci": 0.0608,
+          "n": 30
+        },
+        "wait_p90_s": {
+          "mean": 78.947,
+          "sd": 0.3741,
+          "ci": 0.1397,
+          "n": 30
+        },
+        "tier0_errands": {
+          "mean": 10440.1667,
+          "sd": 192.8639,
+          "ci": 72.0085,
+          "n": 30
+        },
+        "tier0_expired_rate": {
+          "mean": 0.0023,
+          "sd": 0.0005,
+          "ci": 0.0002,
+          "n": 30
+        }
+      },
+      "staged_original": {
+        "errands": {
+          "mean": 25976.4,
+          "sd": 146.3396,
+          "ci": 54.638,
+          "n": 30
+        },
+        "expired_rate": {
+          "mean": 0.0188,
+          "sd": 0.0008,
+          "ci": 0.0003,
+          "n": 30
+        },
+        "within_2_hops": {
+          "mean": 0.3617,
+          "sd": 0.006,
+          "ci": 0.0022,
+          "n": 30
+        },
+        "direct_friend": {
+          "mean": 0.1036,
+          "sd": 0.0022,
+          "ci": 0.0008,
+          "n": 30
+        },
+        "benign_in_group": {
+          "mean": 0.07,
+          "sd": 0.0044,
+          "ci": 0.0017,
+          "n": 30
+        },
+        "wait_median_s": {
+          "mean": 18.5993,
+          "sd": 0.1598,
+          "ci": 0.0597,
+          "n": 30
+        },
+        "wait_p90_s": {
+          "mean": 76.7651,
+          "sd": 0.3352,
+          "ci": 0.1251,
+          "n": 30
+        },
+        "tier0_errands": {
+          "mean": 10440.1667,
+          "sd": 192.8639,
+          "ci": 72.0085,
+          "n": 30
+        },
+        "tier0_expired_rate": {
+          "mean": 0.0438,
+          "sd": 0.0017,
+          "ci": 0.0006,
+          "n": 30
+        }
+      },
+      "sequential": {
+        "errands": {
+          "mean": 25976.4,
+          "sd": 146.3396,
+          "ci": 54.638,
+          "n": 30
+        },
+        "expired_rate": {
+          "mean": 0.0022,
+          "sd": 0.0003,
+          "ci": 0.0001,
+          "n": 30
+        },
+        "within_2_hops": {
+          "mean": 0.504,
+          "sd": 0.007,
+          "ci": 0.0026,
+          "n": 30
+        },
+        "direct_friend": {
+          "mean": 0.1798,
+          "sd": 0.0033,
+          "ci": 0.0012,
+          "n": 30
+        },
+        "benign_in_group": {
+          "mean": 0.1211,
+          "sd": 0.0077,
+          "ci": 0.0029,
+          "n": 30
+        },
+        "wait_median_s": {
+          "mean": 41.9357,
+          "sd": 0.2109,
+          "ci": 0.0787,
+          "n": 30
+        },
+        "wait_p90_s": {
+          "mean": 122.1523,
+          "sd": 1.0963,
+          "ci": 0.4093,
+          "n": 30
+        },
+        "tier0_errands": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci": 0.0,
+          "n": 30
+        },
+        "tier0_expired_rate": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci": 0.0,
+          "n": 30
+        }
+      }
+    },
+    "exploring": {
+      "exploring": {
+        "errands": {
+          "mean": 1828.7333,
+          "sd": 39.3516,
+          "ci": 14.6925,
+          "n": 30
+        },
+        "expired_rate": {
+          "mean": 0.0024,
+          "sd": 0.0011,
+          "ci": 0.0004,
+          "n": 30
+        },
+        "within_2_hops": {
+          "mean": 0.128,
+          "sd": 0.0085,
+          "ci": 0.0032,
+          "n": 30
+        },
+        "direct_friend": {
+          "mean": 0.0359,
+          "sd": 0.0044,
+          "ci": 0.0016,
+          "n": 30
+        },
+        "benign_in_group": {
+          "mean": 0.0273,
+          "sd": 0.0142,
+          "ci": 0.0053,
+          "n": 30
+        },
+        "wait_median_s": {
+          "mean": 12.4047,
+          "sd": 0.2713,
+          "ci": 0.1013,
+          "n": 30
+        },
+        "wait_p90_s": {
+          "mean": 36.787,
+          "sd": 2.0762,
+          "ci": 0.7752,
+          "n": 30
+        }
+      },
+      "regular": {
+        "errands": {
+          "mean": 24147.6667,
+          "sd": 131.2301,
+          "ci": 48.9966,
+          "n": 30
+        },
+        "expired_rate": {
+          "mean": 0.0021,
+          "sd": 0.0003,
+          "ci": 0.0001,
+          "n": 30
+        },
+        "within_2_hops": {
+          "mean": 0.3753,
+          "sd": 0.0061,
+          "ci": 0.0023,
+          "n": 30
+        },
+        "direct_friend": {
+          "mean": 0.1076,
+          "sd": 0.0023,
+          "ci": 0.0009,
+          "n": 30
+        },
+        "benign_in_group": {
+          "mean": 0.0725,
+          "sd": 0.0046,
+          "ci": 0.0017,
+          "n": 30
+        },
+        "wait_median_s": {
+          "mean": 19.9939,
+          "sd": 0.183,
+          "ci": 0.0683,
+          "n": 30
+        },
+        "wait_p90_s": {
+          "mean": 79.7152,
+          "sd": 0.3746,
+          "ci": 0.1398,
+          "n": 30
+        }
+      }
+    }
+  }
+}

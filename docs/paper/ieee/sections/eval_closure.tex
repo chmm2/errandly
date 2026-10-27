@@ -1,0 +1,38 @@
+% Experiment 1: backend/evals/paper/exp1_closure.py
+Table~\ref{tab:closure} scores canonical neighbourhoods with the production
+\code{REFRESH\_METRICS} query on Neo4j and, as a cross-check, with an exact Python
+transcription of it; the two agreed on all 425 nodes.
+
+The two measures agree more often than one might expect. On a sealed clique both are
+1.0 at every size, and when each clique member has one private friend they give
+identical values: 0.50 for four members and 0.80 for ten. Closure is therefore not
+size-invariant in general, and we do not claim that it is. Where the measures part
+ways is a neighbourhood whose members have lives outside it. When ego's three friends
+all know each other but each has twenty friendships elsewhere, the clustering
+coefficient is 1.0 and, used in place of closure, would apply the full 0.70 structural
+discount. Closure is 0.048 and applies none. In the second-to-last row, counting
+ego's own spokes as internal edges would lift the closure of an open hub from 0 to
+0.50, which is why the query excludes ego.
+
+\begin{table}[!t]
+\caption{Closure Versus the Clustering Coefficient on Canonical Neighbourhoods}
+\label{tab:closure}
+\centering
+\footnotesize
+\begin{tabular}{@{}>{\raggedright}p{0.40\columnwidth}cccc@{}}
+\toprule
+Ego's neighbourhood & $C$ & $c$ & $\pi(C)$ & $\pi(c)$ \\
+\midrule
+Sealed clique, 3 or 10 members & 1.00 & 1.00 & 0.70 & 0.70 \\
+Clique of 4, one private friend each & 0.50 & 0.50 & 0 & 0 \\
+Clique of 10, one private friend each & 0.80 & 0.80 & 0.39 & 0.39 \\
+Clique of 10, two sociable friends each & 0.66 & 0.56 & 0.16 & 0.02 \\
+Friends form a triangle, each with 20 outside ties & 1.00 & 0.05 & 0.70 & 0 \\
+Hub, 8 unacquainted friends with one other tie each$^\dagger$ & 0 & 0 & 0 & 0 \\
+Sealed sparse group, 10 people with 4 ties each & 0.50 & 0.33 & 0 & 0 \\
+\bottomrule
+\multicolumn{5}{@{}p{0.95\columnwidth}@{}}{\scriptsize $C$: clustering coefficient;
+$c$: closure~\eqref{eq:closure}; $\pi(\cdot)$: structural penalty when that measure is
+used. $^\dagger$Counting ego inside its own neighbourhood gives $c=0.50$.}
+\end{tabular}
+\end{table}

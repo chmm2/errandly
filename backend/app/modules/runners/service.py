@@ -40,10 +40,28 @@ async def active_load(db: AsyncSession, user_id: uuid.UUID) -> int:
     return count or 0
 
 
+class RunnerBlockedError(Exception):
+    """Raised when a fraud block forbids going online."""
+
+    def __init__(self, until: datetime):
+        super().__init__("Running is paused on this account.")
+        self.until = until
+        self.status_code = 403
+
+
 async def set_availability(
     db: AsyncSession, redis: Redis, user: User, data: AvailabilityUpdate
 ) -> RunnerProfile:
     profile = await get_or_create_profile(db, user)
+
+    # A fraud block stops you going online but never stops you going offline -
+    # a blocked runner mid-shift must still be able to stand down.
+    if data.is_available and profile.fraud_blocked_until is not None:
+        if profile.fraud_blocked_until > datetime.now(UTC):
+            raise RunnerBlockedError(profile.fraud_blocked_until)
+        # Block has lapsed; clear it so it stops being checked.
+        profile.fraud_blocked_until = None
+
     profile.is_available = data.is_available
     key = geo_key(user.campus_id)
 
