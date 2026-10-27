@@ -147,7 +147,9 @@ class AcceptanceModel:
     def probabilities(self, candidates: list[dict]) -> list[float]:
         if not candidates:
             return []
-        utils = [sum(b * x for b, x in zip(self.coef, _features(c))) for c in candidates]
+        utils = [
+            sum(b * x for b, x in zip(self.coef, _features(c), strict=False)) for c in candidates
+        ]
         top = max(utils)
         weights = [math.exp(u - top) for u in utils]
         total = sum(weights)
@@ -200,19 +202,19 @@ def fit_acceptance_model(rows) -> AcceptanceModel | None:
         grad = [-RIDGE * b for b in beta]
         hess = [[-RIDGE if i == j else 0.0 for j in range(k)] for i in range(k)]
         for xs, y in data:
-            utils = [sum(b * x for b, x in zip(beta, f)) for f in xs]
+            utils = [sum(b * x for b, x in zip(beta, f, strict=False)) for f in xs]
             top = max(utils)
             ws = [math.exp(u - top) for u in utils]
             tot = sum(ws)
             ps = [w / tot for w in ws]
-            mean = [sum(p * f[a] for p, f in zip(ps, xs)) for a in range(k)]
+            mean = [sum(p * f[a] for p, f in zip(ps, xs, strict=False)) for a in range(k)]
             for a in range(k):
                 grad[a] += xs[y][a] - mean[a]
                 for c in range(k):
-                    second = sum(p * f[a] * f[c] for p, f in zip(ps, xs))
+                    second = sum(p * f[a] * f[c] for p, f in zip(ps, xs, strict=False))
                     hess[a][c] -= second - mean[a] * mean[c]
         step = _solve(hess, grad)
-        beta = [b - s for b, s in zip(beta, step)]
+        beta = [b - s for b, s in zip(beta, step, strict=False)]
         if max(abs(s) for s in step) < 1e-7:
             break
     return AcceptanceModel(coef=tuple(beta), rounds=len(data))
@@ -300,7 +302,7 @@ async def excess_for_group(
             else _acceptance_probabilities(candidates)
         )
         p_in = sum(
-            p for c, p in zip(candidates, probs)
+            p for c, p in zip(candidates, probs, strict=False)
             if c.get("runner_id") in member_ids
             and c.get("runner_id") != str(row.requester_id)
         )

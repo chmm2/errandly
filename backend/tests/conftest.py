@@ -67,12 +67,14 @@ settings.database_url = TEST_DATABASE_URL
 # through the environment as well as through `settings`.
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
-from app.core.database import SessionLocal
-from app.core.redis import redis_client
-from app.main import app
-from app.modules.auth.models import User
-from app.modules.campus.models import Campus
-from app.modules.ledger import service as ledger
+# These imports read `settings` at import time, so they must come after the
+# test database URL is set above.
+from app.core.database import SessionLocal  # noqa: E402
+from app.core.redis import redis_client  # noqa: E402
+from app.main import app  # noqa: E402
+from app.modules.auth.models import User  # noqa: E402
+from app.modules.campus.models import Campus  # noqa: E402
+from app.modules.ledger import service as ledger  # noqa: E402
 
 
 @pytest.fixture(scope="session", autouse=True)

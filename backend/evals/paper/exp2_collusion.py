@@ -31,7 +31,7 @@ import random
 import sys
 import time
 import uuid as _uuid
-from dataclasses import asdict, replace
+from dataclasses import asdict
 
 from app.modules.fraud import collusion, policy
 from app.modules.social.projection import refresh_graph_metrics
@@ -352,8 +352,10 @@ async def run_trial(cfg: Config) -> dict:
     lpa_flags, lpa_above_knee = label_propagation_money(
         adj, n, sem.payments, cfg.seed, budget=len(truth))
     detectors = {
-        "structure_closure": {uid(i) for i in range(n)
-                              if campus.degree[i] >= 2 and metrics[uid(i)]["closure"] > CLOSURE_KNEE},
+        "structure_closure": {
+            uid(i) for i in range(n)
+            if campus.degree[i] >= 2 and metrics[uid(i)]["closure"] > CLOSURE_KNEE
+        },
         "structure_clustering": {uid(i) for i in range(n) if lcc(adj, i) > CLOSURE_KNEE},
         "money_circulation": {uid(i) for i in range(n)
                               if metrics[uid(i)]["circulation"] > collusion.CIRCULATION_KNEE},
@@ -391,7 +393,9 @@ async def run_trial(cfg: Config) -> dict:
         "friend_edges": len(campus.edges),
         "mean_degree": round(2 * len(campus.edges) / n, 2),
         "benign_in_group_share": round(
-            sum(1 for e in in_group if campus.kind[e["req"]] == "benign") / max(1, len(benign_normal)), 4
+            sum(1 for e in in_group if campus.kind[e["req"]] == "benign")
+            / max(1, len(benign_normal)),
+            4,
         ),
         "rings_found": len(rings),
         "fraudar_block_size": fraudar_block,

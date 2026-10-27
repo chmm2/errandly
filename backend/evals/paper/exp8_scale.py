@@ -22,7 +22,6 @@ import statistics
 import time
 import uuid
 from datetime import UTC, datetime, timedelta
-
 from types import SimpleNamespace
 
 from app.modules.fraud import collusion, policy
@@ -30,7 +29,6 @@ from app.modules.social import service as social_service
 from app.modules.social.projection import refresh_graph_metrics
 from evals.paper import neo
 from evals.paper.common import attach_graph_warning_counter, save, uid
-
 
 REPEATS = 5
 
@@ -160,7 +158,7 @@ async def neo_timing() -> list[dict]:
                "load_s": round(t_load, 1), "refresh_metrics_s": spread(t_metrics, 2),
                "refresh_circulation_s": spread(t_circ, 2), "find_rings_s": spread(t_rings, 2),
                "total_jobs_s_median": round(statistics.median(
-                   [a + b + c for a, b, c in zip(t_metrics, t_circ, t_rings)]), 2),
+                   [a + b + c for a, b, c in zip(t_metrics, t_circ, t_rings, strict=False)]), 2),
                "rings": len(rings),
                "social_scores_ms_p50": round(statistics.median(lat), 1),
                "social_scores_ms_p95": round(sorted(lat)[int(0.95 * len(lat))], 1),

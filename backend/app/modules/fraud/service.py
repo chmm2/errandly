@@ -421,7 +421,9 @@ def judge(
     # The store-adjusted value when the caller computed one, else the campus
     # reference. The allowance still scales off the ADMIN reference, not the
     # adjusted one, so a store cannot widen its own allowance by being dear.
-    ref_unit = _money(ref_override) if ref_override is not None else _money(reference.reference_price)
+    ref_unit = (
+        _money(ref_override) if ref_override is not None else _money(reference.reference_price)
+    )
     if ref_unit <= 0:
         return Judgement("NO_REFERENCE", None, None, None, claimed_total)
 

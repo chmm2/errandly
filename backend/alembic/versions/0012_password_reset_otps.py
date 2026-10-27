@@ -5,8 +5,9 @@ Revises: 0011_push_tokens
 """
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects.postgresql import UUID
+
+from alembic import op
 
 revision: str = "0012_password_reset_otps"
 down_revision: str | None = "0011_push_tokens"

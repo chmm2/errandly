@@ -120,7 +120,7 @@ def make_orders(seed: int, n_orders: int, table) -> list:
         mrp, loose, reward = basket(rng)
         # What the runner actually paid, and what the judge will reimburse.
         eligible = Decimal(sum(mrp))
-        for (name, price), q in loose:
+        for (_name, price), q in loose:
             paid = Decimal(str(round(price * drift(rng, table))))
             ref = SimpleNamespace(reference_price=Decimal(price),
                                   tolerance_pct=Decimal("0.400"), tolerance_abs=Decimal("20.00"))

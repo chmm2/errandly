@@ -107,8 +107,12 @@ async def for_user(db, user_id: uuid.UUID) -> None:
           f"({excess.observed_share:.0%})")
     print(f"  unexplained             : {excess.observed - excess.expected:+.1f}")
     print(f"  z                       : {excess.z:.2f}")
-    print(f"  verdict                 : "
-          f"{'explained by our own routing - no flag' if excess.explained else 'UNEXPLAINED - would continue to the ring check'}")
+    verdict = (
+        "explained by our own routing - no flag"
+        if excess.explained
+        else "UNEXPLAINED - would continue to the ring check"
+    )
+    print(f"  verdict                 : {verdict}")
 
 
 async def main() -> None:

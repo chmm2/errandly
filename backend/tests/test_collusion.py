@@ -10,11 +10,17 @@ Two layers, tested separately:
 """
 
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from app.core.graph import run_write
 from app.modules.fraud import collusion
+from app.modules.fraud.collusion import (
+    MONEY_WINDOW_DAYS,
+    _window_start,
+    strongly_connected_components,
+)
 from app.modules.social.service import (
     MAX_CLOSURE_PENALTY,
     MAX_CORROBORATED_PENALTY,
@@ -268,8 +274,6 @@ async def test_a_ring_of_users_postgres_does_not_know_is_skipped(campus):
 
 # ----------------------------------------------- rings of any size (SCC)
 
-from app.modules.fraud.collusion import strongly_connected_components
-
 
 def _loop(n: int):
     """n people paying each other in a closed circle."""
@@ -321,10 +325,6 @@ def test_a_long_chain_does_not_exhaust_the_stack():
 
 
 # ------------------------------------------------ evidence ages out
-
-from datetime import UTC, datetime, timedelta
-
-from app.modules.fraud.collusion import MONEY_WINDOW_DAYS, _window_start
 
 
 def test_money_evidence_is_time_bounded():

@@ -15,6 +15,7 @@ Revises: 0017_rating_provenance
 """
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "0018_scaled_tolerance"

@@ -59,7 +59,8 @@ def per_rating_score(ratings, friends):
     conc = sum(1 for r in ratings if r.rater_id in friends) / len(ratings) if ratings else 0
     w = [reputation.rating_weight(conc, r.rater_id in friends) for r in ratings]
     wt = sum(w)
-    score = sum(wi * r.stars for wi, r in zip(w, ratings)) / wt if wt else NEUTRAL_REPUTATION
+    weighted = sum(wi * r.stars for wi, r in zip(w, ratings, strict=False))
+    score = weighted / wt if wt else NEUTRAL_REPUTATION
     c = wt / (wt + reputation.CONFIDENCE_PRIOR)
     return c * score + (1 - c) * NEUTRAL_REPUTATION
 

@@ -34,8 +34,8 @@ from app.modules.social.projection import (
     LINK_FRIENDS,
     RECORD_PAYMENT,
     UPSERT_USER,
+    refresh_graph_metrics,
 )
-from app.modules.social.projection import refresh_graph_metrics
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger("rebuild")

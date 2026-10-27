@@ -74,7 +74,7 @@ def campus(seed: int = 1) -> None:
               ["errand_id", "payer", "payee", "amount_rs", "at"],
               ([p["eid"], p["src"], p["dst"], p["amount"], p["at"]] for p in sem.payments))
 
-        def rounds():
+        def rounds(sem=sem):
             for j, row in enumerate(sem.offer_logs):
                 for cand in row.candidates:
                     yield [f"r{j}", str(row.requester_id), int(row.exploring),

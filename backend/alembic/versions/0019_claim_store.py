@@ -14,6 +14,7 @@ Revises: 0018_scaled_tolerance
 """
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "0019_claim_store"

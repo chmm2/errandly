@@ -9,7 +9,6 @@ These tests pin the replacement: a leg qualifies on value OR on repetition, and
 repetition cannot be priced around.
 """
 
-import pytest
 
 from app.modules.fraud import collusion
 from app.modules.fraud.collusion import (
@@ -42,7 +41,9 @@ def test_a_one_rupee_leg_repeated_often_counts():
 def test_the_old_value_floor_would_have_missed_both():
     """Documents the previous behaviour so a future edit cannot quietly
     reintroduce it."""
-    old_rule = lambda v, t: v >= MIN_RING_LEG_VALUE and t >= MIN_RING_LAPS
+    def old_rule(v, t):
+        return v >= MIN_RING_LEG_VALUE and t >= MIN_RING_LAPS
+
     assert not old_rule(0.0, MIN_RING_LEG_TXNS)
     assert qualifies(0.0, MIN_RING_LEG_TXNS)
 

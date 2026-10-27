@@ -35,9 +35,9 @@ over a campus-sized graph.
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime, timedelta
 import uuid
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 
 from app.core.graph import run_read, run_write
 

@@ -5,8 +5,9 @@ Revises: 0012_password_reset_otps
 """
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects.postgresql import UUID
+
+from alembic import op
 
 revision: str = "0013_friendships"
 down_revision: str | None = "0012_password_reset_otps"
