@@ -423,6 +423,15 @@ async def sweep_rating_farming(
 # -------------------------------------------------------------- admin: flags
 
 
+async def _flag_on_campus(db: AsyncSession, flag_id: uuid.UUID, admin: User) -> FraudFlag:
+    """A flag this admin may see: one about a student on their own campus."""
+    flag = await db.get(FraudFlag, flag_id)
+    subject = await db.get(User, flag.user_id) if flag else None
+    if flag is None or subject is None or subject.campus_id != admin.campus_id:
+        raise HTTPException(404, "Flag not found.")
+    return flag
+
+
 @router.get("/flags", response_model=list[FlagOut])
 async def list_flags(
     status: str = "OPEN",
@@ -431,8 +440,10 @@ async def list_flags(
 ):
     rows = await db.execute(
         select(FraudFlag, User.display_name)
-        .join(User, User.id == FraudFlag.user_id, isouter=True)
-        .where(FraudFlag.status == status)
+        .join(User, User.id == FraudFlag.user_id)
+        # An admin reviews their own campus. Without this, flags raised on any
+        # other campus (or by the test suite's campus) land in this queue too.
+        .where(FraudFlag.status == status, User.campus_id == admin.campus_id)
         .order_by(FraudFlag.created_at.desc(), FraudFlag.id)
         .limit(200)
     )
@@ -450,7 +461,7 @@ async def flags_overview(
     db: AsyncSession = Depends(get_db),
 ):
     """The counts and rupee totals across the top of the admin console."""
-    return await case.overview(db)
+    return await case.overview(db, admin.campus_id)
 
 
 @router.get("/flags/{flag_id}/case")
@@ -464,9 +475,7 @@ async def flag_case(
     Read-only, and built from the source tables rather than only the flag's
     stored details, so an older flag with thin details still has evidence.
     """
-    flag = await db.get(FraudFlag, flag_id)
-    if flag is None:
-        raise HTTPException(404, "Flag not found.")
+    flag = await _flag_on_campus(db, flag_id, admin)
     return await case.build_case(db, flag)
 
 
@@ -485,9 +494,7 @@ async def review_flag(
     estimate, because a claim we judged wrongly should not go on distorting
     what we think an item costs.
     """
-    flag = await db.get(FraudFlag, flag_id)
-    if flag is None:
-        raise HTTPException(404, "Flag not found.")
+    flag = await _flag_on_campus(db, flag_id, admin)
     if flag.status != "OPEN":
         raise HTTPException(409, "This flag was already reviewed.")
 

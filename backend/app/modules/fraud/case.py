@@ -907,19 +907,19 @@ async def build_case(db: AsyncSession, flag: FraudFlag) -> dict:
     }
 
 
-async def overview(db: AsyncSession) -> dict:
-    """The numbers across the top of the console."""
+async def overview(db: AsyncSession, campus_id: uuid.UUID) -> dict:
+    """The numbers across the top of the console, for one campus."""
+    here = FraudFlag.user_id.in_(select(User.id).where(User.campus_id == campus_id))
+    open_here = (FraudFlag.status == "OPEN", here)
     by_rule = dict(
         (
             await db.execute(
-                select(FraudFlag.rule, func.count())
-                .where(FraudFlag.status == "OPEN")
-                .group_by(FraudFlag.rule)
+                select(FraudFlag.rule, func.count()).where(*open_here).group_by(FraudFlag.rule)
             )
         ).all()
     )
     people = await db.scalar(
-        select(func.count(func.distinct(FraudFlag.user_id))).where(FraudFlag.status == "OPEN")
+        select(func.count(func.distinct(FraudFlag.user_id))).where(*open_here)
     )
     withheld = await db.scalar(
         select(
@@ -933,16 +933,14 @@ async def overview(db: AsyncSession) -> dict:
         )
         .select_from(FraudFlag)
         .join(RunnerPriceClaim, RunnerPriceClaim.id == FraudFlag.claim_id)
-        .where(FraudFlag.status == "OPEN", FraudFlag.rule == "CLAIM_ABOVE_REFERENCE")
+        .where(*open_here, FraudFlag.rule == "CLAIM_ABOVE_REFERENCE")
     )
     frozen = await db.scalar(
-        select(func.coalesce(func.sum(EscrowHold.amount - EscrowHold.released_amount), 0)).where(
-            EscrowHold.status == "PENDING_REVIEW"
-        )
+        select(func.coalesce(func.sum(EscrowHold.amount - EscrowHold.released_amount), 0))
+        .join(Errand, Errand.id == EscrowHold.errand_id)
+        .where(EscrowHold.status == "PENDING_REVIEW", Errand.campus_id == campus_id)
     )
-    latest = await db.scalar(
-        select(func.max(FraudFlag.created_at)).where(FraudFlag.status == "OPEN")
-    )
+    latest = await db.scalar(select(func.max(FraudFlag.created_at)).where(*open_here))
     # A ring is written as one flag per member but reviewed as one case.
     if by_rule.get("COLLUSION_RING"):
         by_rule["COLLUSION_RING"] = await db.scalar(
@@ -954,7 +952,7 @@ async def overview(db: AsyncSession) -> dict:
                         )
                     )
                 )
-            ).where(FraudFlag.status == "OPEN", FraudFlag.rule == "COLLUSION_RING")
+            ).where(*open_here, FraudFlag.rule == "COLLUSION_RING")
         )
     by_kind: Counter = Counter()
     for rule, n in by_rule.items():
