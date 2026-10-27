@@ -137,6 +137,10 @@ class FlagOut(BaseModel):
     status: str
     created_at: datetime
     reviewed_at: datetime | None
+    # Filled by the admin list so the queue names a person and says what
+    # happened without opening every flag.
+    subject_name: str | None = None
+    headline: str | None = None
 
 
 class FlagReview(BaseModel):

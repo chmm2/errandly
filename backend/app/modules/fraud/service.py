@@ -1236,6 +1236,25 @@ async def review_flag(
     flag.reviewed_at = datetime.now(UTC)
     flag.reviewed_by = admin.id
 
+    if flag.rule == "COLLUSION_RING":
+        # One ring is one finding about a group, written as a flag per member.
+        # A verdict on it is a verdict on the group: dismissing "genuine
+        # friends" must free all of them, not leave the other members still
+        # kept apart in matching.
+        signature = (flag.details or {}).get("signature")
+        if signature:
+            for other in await db.scalars(
+                select(FraudFlag).where(
+                    FraudFlag.rule == "COLLUSION_RING",
+                    FraudFlag.status == "OPEN",
+                    FraudFlag.id != flag.id,
+                    FraudFlag.details["signature"].astext == signature,
+                )
+            ):
+                other.status = flag.status
+                other.reviewed_at = flag.reviewed_at
+                other.reviewed_by = admin.id
+
     if flag.errand_id:
         errand = await db.get(Errand, flag.errand_id)
         if errand and errand.runner_id:

@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap");
 @import "tailwindcss";
 
 @theme {
@@ -9,6 +9,104 @@
   --color-ink: #282c3f;
   --color-muted: #686b78;
   --color-line: #e9e9eb;
+
+  /* Admin console. Lifted from the mobile revamp (mobile/src/theme.ts) so the
+     console reads as the same product. Prefixed so the student web pages,
+     which still use the tokens above, are untouched. */
+  --font-jakarta: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-plex: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --color-ad-brand: #274a4c;
+  --color-ad-brand-hi: #2f5a5b;
+  --color-ad-deep: #16302f;
+  --color-ad-tint: #edf2f1;
+  --color-ad-wash: #f2f7f6;
+  --color-ad-soft: #f7faf9;
+  --color-ad-ink: #17201f;
+  --color-ad-ink-soft: #3e4e4c;
+  --color-ad-muted: #6b7a78;
+  --color-ad-line: #e4eae8;
+  --color-ad-hair: #eef2f1;
+  --color-ad-outline: #cbd8d6;
+  --color-ad-chip: #f2f5f4;
+  --color-ad-money: #c0803c;
+  --color-ad-money-light: #e3b277;
+  --color-ad-money-text: #8a4f1b;
+  --color-ad-credit: #2f7d5b;
+  --color-ad-credit-bg: #edf6f0;
+  --color-ad-credit-light: #8fd3b0;
+  --color-ad-caution: #a5473c;
+  --color-ad-caution-bg: #faf0ee;
+  --color-ad-caution-border: #e1d3cf;
+  --color-ad-warn-bg: #fbf6ee;
+  --color-ad-warn-border: #eadfcb;
+  --color-ad-warn-text: #8a6528;
+}
+
+@keyframes ad-drift {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(18px, -14px);
+  }
+}
+
+@keyframes ad-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(143, 211, 176, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(143, 211, 176, 0);
+  }
+}
+
+@keyframes ad-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ad-toast {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ad-drift {
+  animation: ad-drift 14s ease-in-out infinite;
+}
+.ad-drift-slow {
+  animation: ad-drift 22s ease-in-out infinite reverse;
+}
+.ad-live {
+  animation: ad-pulse 1.6s ease-out infinite;
+}
+.ad-arrive {
+  animation: ad-arrive 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.ad-toast {
+  animation: ad-toast 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ad-drift,
+  .ad-drift-slow,
+  .ad-live,
+  .ad-arrive,
+  .ad-toast {
+    animation: none;
+  }
 }
 
 body {

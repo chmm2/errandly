@@ -1,743 +1,484 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import {
-  approveProposal,
-  createReference,
-  fetchFlags,
-  fetchProposals,
-  decideAlias,
+  FLAG_KIND,
   fetchAliases,
+  fetchCase,
+  fetchFlags,
+  fetchOverview,
+  fetchProposals,
   fetchReferences,
-  type ItemAlias,
-  sweepAliases,
+  reviewFlag,
   sweepCollusion,
   sweepRatingFarming,
   type Flag,
-  type Proposal,
-  type ReferencePrice,
-  refreshReferences,
-  rejectProposal,
-  reviewFlag,
+  type FlagKind,
 } from "../api/fraud";
-import Navbar from "../components/Navbar";
 import { apiErrorMessage } from "../lib/api";
+import { useAuth } from "../stores/auth";
+import CaseView from "./admin/CaseView";
+import { AliasesTab, PricesTab, ProposalsTab } from "./admin/ManageTabs";
+import { Icon, KIND, KindBadge, SeverityDots, rupees, timeAgo } from "./admin/ui";
+
+/* The admin console. Everything the system flags lands in one queue, and
+   opening a flag shows what happened, why, and the history behind it. The
+   queue polls every few seconds so a flag raised from the app shows up
+   without anyone refreshing. */
+
+// How often the queue and the totals are re-read. Price flags are written in
+// the same request as the runner's report, so this is the whole delay
+// between a flag being raised in the app and it appearing here.
+const LIVE_MS = 3000;
+// How long a newly arrived flag keeps its "New" badge.
+const FRESH_MS = 90_000;
 
 type Tab = "flags" | "proposals" | "prices" | "aliases";
+type Filter = "all" | FlagKind;
 
-const BLANK = {
-  display_name: "",
-  reference_price: 0,
-  band_min: 0,
-  band_max: 0,
-  tolerance_abs: 20,
-};
-
-function FlagCard({
-  flag,
-  onReview,
-  busy,
-}: {
-  flag: Flag;
-  onReview: (uphold: boolean) => void;
-  busy: boolean;
-}) {
-  const d = flag.details ?? {};
-  const nearLine = flag.rule === "PERSISTENT_NEAR_THRESHOLD";
-  const ring = flag.rule === "COLLUSION_RING";
-  const farming = flag.rule === "RATING_FARMING";
-  return (
-    <div className="rounded-2xl border border-line p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="font-extrabold text-ink">
-            {ring
-              ? `Money circulating in a group of ${d.size ?? "?"}`
-              : farming
-                ? "Reputation built inside their own circle"
-                : nearLine
-                  ? "Consistently just under the line"
-                  : (d.item ?? flag.rule)}
-          </div>
-          {farming ? (
-            /* The finding is about where the praise came from, not about any
-               one rating. Show the provenance, and the reasons the detector
-               already wrote in plain words. */
-            <div className="mt-1 text-sm text-muted">
-              <span className="font-bold text-ink">{d.in_cluster}</span> of{" "}
-              <span className="font-bold text-ink">
-                {(d.in_cluster ?? 0) + (d.out_cluster ?? 0)}
-              </span>{" "}
-              ratings came from their own friends (
-              {Math.round(Number(d.concentration ?? 0) * 100)}%).
-              {d.mean_in != null && d.mean_out != null && (
-                <>
-                  {" "}
-                  Friends average{" "}
-                  <span className="font-bold text-amber-700">
-                    {Number(d.mean_in).toFixed(1)}
-                  </span>
-                  , strangers{" "}
-                  <span className="font-bold text-ink">
-                    {Number(d.mean_out).toFixed(1)}
-                  </span>
-                  .
-                </>
-              )}
-              {(d.reasons ?? []).length > 0 && (
-                <ul className="mt-1.5 list-disc space-y-0.5 pl-4">
-                  {(d.reasons ?? []).map((r, i) => (
-                    <li key={i}>{r}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ) : ring ? (
-            /* The finding is about a group, so name the group. Every member
-               carries an identical flag — the graph shows no ringleader, and
-               picking one would be inventing a fact. */
-            <div className="mt-1 text-sm text-muted">
-              <span className="font-bold text-ink">{(d.names ?? []).join(" → ")}</span>
-              {" → "}
-              <span className="font-bold text-ink">{(d.names ?? [])[0]}</span>
-              <div className="mt-1">
-                ₹{Number(d.total_value ?? 0).toFixed(0)} went round this circle{" "}
-                <span className="font-bold text-ink">{d.laps}×</span>, smallest leg ₹
-                {Number(d.min_leg_value ?? 0).toFixed(0)}. They are mutual friends and{" "}
-                {Math.round(Number(d.closure ?? 0) * 100)}% of their friendships stay
-                inside the group.
-              </div>
-            </div>
-          ) : nearLine ? (
-            /* No single claim broke a rule here — the evidence is the shape of
-               the distribution, so show that rather than one price. */
-            <div className="mt-1 text-sm text-muted">
-              <span className="font-bold text-ink">{d.near_line_claims}</span> of{" "}
-              <span className="font-bold text-ink">{d.judged_claims}</span> priced claims
-              landed near the flag threshold over {d.window_days} days — averaging{" "}
-              <span className="font-bold text-amber-700">
-                ₹{Number(d.avg_rupees_over ?? 0).toFixed(0)}
-              </span>{" "}
-              over the reference each time. Nothing was withheld.
-            </div>
-          ) : (
-            <div className="mt-1 text-sm text-muted">
-              Claimed{" "}
-              <span className="font-bold text-amber-700">
-                ₹{Number(d.claimed ?? 0).toFixed(0)}
-              </span>{" "}
-              against a reference of{" "}
-              <span className="font-bold text-ink">₹{Number(d.reference ?? 0).toFixed(0)}</span>
-              {d.delta_pct != null && (
-                <>
-                  {" "}
-                  · <span className="font-bold">+{Number(d.delta_pct).toFixed(0)}%</span>
-                </>
-              )}
-              {/* Which counter this came from. The reference above is already
-                  adjusted toward what this shop is observed to charge, so
-                  naming it is what lets an admin tell an inflated claim from an
-                  honest one at a dearer stall. */}
-              {d.store && (
-                <div className="mt-1">
-                  bought at <span className="font-bold text-ink">{d.store}</span>
-                  {d.store_reports != null && (
-                    <>
-                      {" · "}
-                      {d.store_reports < 3 ? (
-                        /* The usual reason an honest claim looks high: this
-                           shop has too little history for its own price to
-                           have formed yet, so the claim was judged against the
-                           campus median instead. */
-                        <span className="font-semibold text-amber-700">
-                          only {d.store_reports} runner
-                          {d.store_reports === 1 ? "" : "s"} have priced this here —
-                          judged against the campus reference
-                        </span>
-                      ) : (
-                        <span>{d.store_reports} runners have priced this here</span>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        <span
-          className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-            flag.severity >= 3
-              ? "bg-red-100 text-red-700"
-              : flag.severity === 2
-                ? "bg-amber-100 text-amber-800"
-                : "bg-brand-soft text-brand-dark"
-          }`}
-        >
-          severity {flag.severity}
-        </span>
-      </div>
-
-      {farming && d.reviews && (
-        /* Advisory, exactly like the errand reading on a ring flag: it can
-           support clearing a runner, never condemn one. */
-        <div
-          className={`mt-3 rounded-xl border p-3 ${
-            d.reviews.exculpatory
-              ? "border-emerald-200 bg-emerald-50"
-              : "border-line bg-brand-soft/40"
-          }`}
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs font-bold uppercase tracking-wide text-muted">
-              What their reviews say &middot; advisory
-            </span>
-            <span className="text-xs font-semibold text-ink">
-              authenticity {d.reviews.authenticity.toFixed(2)} &middot; across{" "}
-              {d.reviews.reviews_considered} reviews
-            </span>
-          </div>
-          <p className="mt-1.5 text-sm font-semibold text-ink">
-            {d.reviews.exculpatory
-              ? "These read as written about errands that actually happened."
-              : d.reviews.template_like
-                ? "These reviews repeat each other in wording or structure."
-                : "Not specific enough to count in their favour."}
-          </p>
-          {d.reviews.observations.length > 0 && (
-            <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-xs text-muted">
-              {d.reviews.observations.map((o, i) => (
-                <li key={i}>{o}</li>
-              ))}
-            </ul>
-          )}
-          <p className="mt-2 text-xs text-muted">
-            A blank or short review is never evidence of fraud &mdash; most
-            people rate without writing anything.
-          </p>
-        </div>
-      )}
-      {farming && d.reviews === null && (
-        <p className="mt-3 text-xs text-muted">
-          No reading of their reviews &mdash; either no model is configured, or
-          too few reviews to judge.
-        </p>
-      )}
-
-      {ring && d.semantic && (
-        /* Advisory. Rendered so an admin can weigh it, and labelled so nobody
-           mistakes it for a verdict - it can support clearing a group, never
-           condemn one. */
-        <div
-          className={`mt-3 rounded-xl border p-3 ${
-            d.semantic.exculpatory
-              ? "border-emerald-200 bg-emerald-50"
-              : "border-line bg-brand-soft/40"
-          }`}
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs font-bold uppercase tracking-wide text-muted">
-              What their errands say &middot; advisory
-            </span>
-            <span className="text-xs font-semibold text-ink">
-              coherence {d.semantic.coherence.toFixed(2)} &middot; across{" "}
-              {d.semantic.errands_considered} errands
-            </span>
-          </div>
-          <p className="mt-1.5 text-sm font-semibold text-ink">
-            {d.semantic.exculpatory
-              ? "Reads like genuine, varied campus life."
-              : d.semantic.reads_as_genuine
-                ? "Reads as genuine, but not strongly enough to count in their favour."
-                : "Does not read as varied campus life."}
-          </p>
-          {d.semantic.observations.length > 0 && (
-            <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-xs text-muted">
-              {d.semantic.observations.map((o, i) => (
-                <li key={i}>{o}</li>
-              ))}
-            </ul>
-          )}
-          <p className="mt-2 text-xs text-muted">
-            A low reading is never evidence of fraud on its own &mdash; people
-            write tersely for many reasons. Weigh it only alongside the money.
-          </p>
-        </div>
-      )}
-      {ring && d.semantic === null && (
-        <p className="mt-3 text-xs text-muted">
-          No language reading for this group &mdash; either no model is
-          configured, or they share too little history to judge.
-        </p>
-      )}
-
-      <p className="mt-3 text-xs text-muted">
-        {farming
-          ? "No money is held, and no extra penalty applies \u2014 a concentrated reputation is already discounted toward neutral by the weighting, and punishing twice for one fact would be double-counting. Upholding records the judgement; dismissing clears the flag."
-          : ring
-          ? "No money is held. A cycle is strong evidence about a group but names no single dishonest errand, and these payouts settled long ago. Upholding keeps the group discounted in matching; dismissing clears every member."
-          : nearLine
-            ? "No money is held on this one. Dismissing restores the runner's claims as evidence for reference prices; upholding keeps them excluded."
-            : "Dismissing pays the runner the withheld amount and lets this claim count as evidence again. Upholding returns it to the requester."}
-      </p>
-
-      <div className="mt-3 flex gap-2">
-        <button
-          onClick={() => onReview(false)}
-          disabled={busy}
-          className="rounded-xl border-2 border-emerald-300 px-4 py-2 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
-        >
-          {farming
-            ? "Dismiss \u2014 genuinely well liked"
-            : ring
-              ? "Dismiss \u2014 genuine friends"
-              : nearLine
-                ? "Dismiss \u2014 normal variation"
-                : "Dismiss \u2014 runner was honest"}
-        </button>
-        <button
-          onClick={() => onReview(true)}
-          disabled={busy}
-          className="rounded-xl border-2 border-red-300 px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
-        >
-          {farming
-            ? "Uphold \u2014 inflated ratings"
-            : ring
-              ? "Uphold \u2014 collusion ring"
-              : nearLine
-                ? "Uphold \u2014 gaming the threshold"
-                : "Uphold \u2014 overcharge"}
-        </button>
-      </div>
-    </div>
-  );
+interface Toast {
+  id: number;
+  tone: "new" | "done" | "error";
+  title: string;
+  body?: string;
+  flagId?: string;
 }
 
-function ProposalCard({
-  proposal,
-  reference,
-  onApprove,
-  onReject,
-  busy,
-}: {
-  proposal: Proposal;
-  reference?: ReferencePrice;
-  onApprove: () => void;
-  onReject: () => void;
-  busy: boolean;
-}) {
-  return (
-    <div className="rounded-2xl border border-line p-5">
-      <div className="font-extrabold text-ink">
-        {reference?.display_name ?? "Item"}
-      </div>
-      <div className="mt-1 text-sm text-muted">
-        Runners are consistently paying{" "}
-        <span className="font-bold text-ink">
-          ₹{Number(proposal.observed_median).toFixed(0)}
-        </span>{" "}
-        — across {proposal.sample_count} claims.
-        {reference && (
-          <>
-            {" "}
-            Current band is ₹{Number(reference.band_min).toFixed(0)}–₹
-            {Number(reference.band_max).toFixed(0)}.
-          </>
-        )}
-      </div>
-      <p className="mt-2 rounded-lg bg-brand-soft px-3 py-2 text-xs text-brand-dark">
-        {proposal.reason}
-      </p>
-      <div className="mt-3 text-sm">
-        Proposed: reference{" "}
-        <span className="font-bold">₹{Number(proposal.proposed_price).toFixed(0)}</span>, band
-        ₹{Number(proposal.proposed_band_min).toFixed(0)}–₹
-        {Number(proposal.proposed_band_max).toFixed(0)}
-      </div>
-      <div className="mt-3 flex gap-2">
-        <button
-          onClick={onApprove}
-          disabled={busy}
-          className="rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
-        >
-          Approve
-        </button>
-        <button
-          onClick={onReject}
-          disabled={busy}
-          className="rounded-xl border border-line px-4 py-2 text-sm font-semibold text-muted transition hover:border-brand hover:text-brand disabled:opacity-50"
-        >
-          Reject
-        </button>
-      </div>
-    </div>
-  );
-}
+const kindOf = (f: Flag): FlagKind => FLAG_KIND[f.rule] ?? "other";
 
 export default function FraudAdmin() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const user = useAuth((s) => s.user);
+  const logout = useAuth((s) => s.logout);
+
   const [tab, setTab] = useState<Tab>("flags");
-  const [draft, setDraft] = useState({ ...BLANK });
-  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [selected, setSelected] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [fresh, setFresh] = useState<Record<string, number>>({});
+  const [, setTick] = useState(0);
+  const seen = useRef<Set<string> | null>(null);
+  const toastId = useRef(0);
+  const detailRef = useRef<HTMLDivElement>(null);
 
-  const { data: flags } = useQuery({ queryKey: ["flags"], queryFn: () => fetchFlags("OPEN") });
-  const { data: proposals } = useQuery({
-    queryKey: ["proposals"],
-    queryFn: () => fetchProposals("PENDING"),
-  });
-  const { data: aliases } = useQuery({
-    queryKey: ["aliases"],
-    queryFn: () => fetchAliases("PENDING"),
-  });
-  const { data: references } = useQuery({
-    queryKey: ["references"],
-    queryFn: fetchReferences,
+  const live = { refetchInterval: LIVE_MS, refetchIntervalInBackground: true } as const;
+  const flagsQ = useQuery({ queryKey: ["flags"], queryFn: () => fetchFlags("OPEN"), ...live });
+  const overviewQ = useQuery({ queryKey: ["overview"], queryFn: fetchOverview, ...live });
+  const proposalsQ = useQuery({ queryKey: ["proposals"], queryFn: () => fetchProposals("PENDING"), refetchInterval: 15_000 });
+  const referencesQ = useQuery({ queryKey: ["references"], queryFn: fetchReferences });
+  const aliasesQ = useQuery({ queryKey: ["aliases"], queryFn: () => fetchAliases("PENDING"), refetchInterval: 15_000 });
+
+  // A ring is stored as one flag per member but is one case to review, so the
+  // queue shows it once. Deciding it closes every member's flag.
+  // The member flags share a timestamp, so the one that stands for the ring is
+  // picked by id: picking by position would swap it between polls and make
+  // the same ring look new every few seconds.
+  const flags = useMemo(() => {
+    const all = flagsQ.data ?? [];
+    const pick = new Map<string, string>();
+    for (const f of all) {
+      const sig = f.rule === "COLLUSION_RING" ? f.details?.signature : undefined;
+      if (sig && (!pick.has(sig) || f.id < pick.get(sig)!)) pick.set(sig, f.id);
+    }
+    return all.filter((f) => {
+      const sig = f.rule === "COLLUSION_RING" ? f.details?.signature : undefined;
+      return !sig || pick.get(sig) === f.id;
+    });
+  }, [flagsQ.data]);
+  const visible = useMemo(
+    () => (filter === "all" ? flags : flags.filter((f) => kindOf(f) === filter)),
+    [flags, filter],
+  );
+  const counts = useMemo(() => {
+    const c: Partial<Record<FlagKind, number>> = {};
+    for (const f of flags) c[kindOf(f)] = (c[kindOf(f)] ?? 0) + 1;
+    return c;
+  }, [flags]);
+
+  const caseQ = useQuery({
+    queryKey: ["case", selected],
+    queryFn: () => fetchCase(selected!),
+    enabled: !!selected,
+    refetchInterval: 10_000,
   });
 
-  function invalidate() {
-    setError(null);
-    qc.invalidateQueries({ queryKey: ["flags"] });
-    qc.invalidateQueries({ queryKey: ["proposals"] });
-    qc.invalidateQueries({ queryKey: ["references"] });
-    qc.invalidateQueries({ queryKey: ["aliases"] });
+  function pushToast(t: Omit<Toast, "id">) {
+    const id = ++toastId.current;
+    setToasts((prev) => [...prev.slice(-3), { ...t, id }]);
+    window.setTimeout(() => setToasts((prev) => prev.filter((x) => x.id !== id)), 7000);
   }
-  const fail = (fallback: string) => (err: unknown) =>
-    setError(apiErrorMessage(err, fallback));
+
+  function open(id: string) {
+    setTab("flags");
+    setSelected(id);
+    if (window.innerWidth < 1024) {
+      window.setTimeout(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    }
+  }
+
+  // "checked Ns ago" and the fading New badges need a clock.
+  useEffect(() => {
+    const t = window.setInterval(() => setTick((n) => n + 1), 1000);
+    return () => window.clearInterval(t);
+  }, []);
+
+  // Anything not in the previous poll has just been raised: badge it and say so.
+  useEffect(() => {
+    if (!flagsQ.data) return;
+    const ids = new Set(flags.map((f) => f.id));
+    if (seen.current === null) {
+      seen.current = ids;
+      return;
+    }
+    const arrived = flags.filter((f) => !seen.current!.has(f.id));
+    seen.current = ids;
+    if (!arrived.length) return;
+    const now = Date.now();
+    setFresh((prev) => ({ ...prev, ...Object.fromEntries(arrived.map((f) => [f.id, now])) }));
+    for (const f of arrived.slice(0, 3)) {
+      pushToast({
+        tone: "new",
+        title: `New ${KIND[kindOf(f)].label.toLowerCase()} flag`,
+        body: `${f.subject_name ?? "A student"} · ${f.headline ?? ""}`,
+        flagId: f.id,
+      });
+    }
+  }, [flags, flagsQ.data]);
+
+  // Always have something open while there is something to open.
+  useEffect(() => {
+    if (!visible.length) {
+      if (selected && !flags.some((f) => f.id === selected)) setSelected(null);
+      return;
+    }
+    if (!selected || !visible.some((f) => f.id === selected)) setSelected(visible[0].id);
+  }, [visible, flags, selected]);
 
   const review = useMutation({
     mutationFn: ({ id, uphold }: { id: string; uphold: boolean }) => reviewFlag(id, uphold),
-    onSuccess: invalidate,
-    onError: fail("Could not review that flag."),
-  });
-  const approve = useMutation({
-    mutationFn: approveProposal,
-    onSuccess: invalidate,
-    onError: fail("Could not approve."),
-  });
-  const reject = useMutation({
-    mutationFn: rejectProposal,
-    onSuccess: invalidate,
-    onError: fail("Could not reject."),
-  });
-  const create = useMutation({
-    mutationFn: createReference,
-    onSuccess: () => {
-      setDraft({ ...BLANK });
-      invalidate();
+    onSuccess: (_flag, { id, uphold }) => {
+      const i = visible.findIndex((f) => f.id === id);
+      const next = visible[i + 1] ?? visible[i - 1];
+      const who = visible[i]?.subject_name ?? "the student";
+      setSelected(next ? next.id : null);
+      pushToast({
+        tone: "done",
+        title: uphold ? "Flag upheld" : "Flag dismissed",
+        body: `Saved for ${who}.${next ? " Showing the next one." : ""}`,
+      });
+      for (const key of ["flags", "overview", "case"]) qc.invalidateQueries({ queryKey: [key] });
     },
-    onError: fail("Could not add that price."),
-  });
-  const sweep = useMutation({
-    mutationFn: sweepCollusion,
-    onSuccess: invalidate,
-    onError: fail("Collusion sweep failed."),
-  });
-  const aliasSweep = useMutation({
-    mutationFn: sweepAliases,
-    onSuccess: invalidate,
-    onError: fail("Alias sweep failed."),
-  });
-  const alias = useMutation({
-    mutationFn: ({ id, approve }: { id: string; approve: boolean }) =>
-      decideAlias(id, approve),
-    onSuccess: invalidate,
-    onError: fail("Could not decide that alias."),
-  });
-  const farmingSweep = useMutation({
-    mutationFn: sweepRatingFarming,
-    onSuccess: invalidate,
-    onError: fail("Rating-farming sweep failed."),
-  });
-  const refresh = useMutation({
-    mutationFn: refreshReferences,
-    onSuccess: invalidate,
-    onError: fail("Refresh failed."),
+    onError: (e) => pushToast({ tone: "error", title: "Couldn't save that decision", body: apiErrorMessage(e, "Try again.") }),
   });
 
-  const refById = new Map((references ?? []).map((r) => [r.id, r]));
+  const ringSweep = useMutation({
+    mutationFn: sweepCollusion,
+    onSuccess: (raised) => {
+      pushToast({
+        tone: raised.length ? "new" : "done",
+        title: raised.length ? `${raised.length} new ring flag${raised.length === 1 ? "" : "s"}` : "No new rings found",
+        body: "Checked every group of friends for money going round in a loop.",
+      });
+      qc.invalidateQueries({ queryKey: ["flags"] });
+      qc.invalidateQueries({ queryKey: ["overview"] });
+    },
+    onError: (e) => pushToast({ tone: "error", title: "Ring check failed", body: apiErrorMessage(e, "Try again.") }),
+  });
+  const ratingSweep = useMutation({
+    mutationFn: sweepRatingFarming,
+    onSuccess: (raised) => {
+      pushToast({
+        tone: raised.length ? "new" : "done",
+        title: raised.length ? `${raised.length} new ratings flag${raised.length === 1 ? "" : "s"}` : "No new rating problems",
+        body: "Checked whose rating comes mostly from their own friends.",
+      });
+      qc.invalidateQueries({ queryKey: ["flags"] });
+      qc.invalidateQueries({ queryKey: ["overview"] });
+    },
+    onError: (e) => pushToast({ tone: "error", title: "Ratings check failed", body: apiErrorMessage(e, "Try again.") }),
+  });
+
+  const ov = overviewQ.data;
+  const checkedAgo = flagsQ.dataUpdatedAt ? Math.max(0, Math.round((Date.now() - flagsQ.dataUpdatedAt) / 1000)) : null;
+  const offline = flagsQ.isError;
+
   const tabs: [Tab, string, number][] = [
-    ["flags", "Flags", flags?.length ?? 0],
-    ["proposals", "Price proposals", proposals?.length ?? 0],
-    ["prices", "Reference prices", references?.length ?? 0],
-    ["aliases", "Item names", aliases?.length ?? 0],
+    ["flags", "Flags", flags.length],
+    ["proposals", "Price changes", proposalsQ.data?.length ?? 0],
+    ["prices", "Usual prices", referencesQ.data?.length ?? 0],
+    ["aliases", "Item names", aliasesQ.data?.length ?? 0],
+  ];
+  const filters: [Filter, string][] = [
+    ["all", "All"],
+    ...(["price", "pattern", "payout", "ring", "ratings"] as FlagKind[])
+      .filter((k) => counts[k])
+      .map((k) => [k, KIND[k].plural] as [Filter, string]),
   ];
 
   return (
-    <div className="min-h-screen bg-white">
-      <Navbar />
+    <div className="min-h-screen bg-ad-soft font-jakarta text-ad-ink">
+      {/* ---------------------------------------------------------- top bar */}
+      <header className="sticky top-0 z-30 bg-ad-deep text-white">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4">
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/15 text-lg font-extrabold">e</span>
+            <span className="text-lg font-extrabold tracking-tight">errandly</span>
+            <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-bold text-white/85">Admin</span>
+          </div>
+          <div className="flex items-center gap-3 text-sm">
+            <span
+              className="hidden items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold sm:inline-flex"
+              title="The queue checks for new flags every 3 seconds"
+            >
+              <span className={`h-2 w-2 rounded-full ${offline ? "bg-ad-money-light" : "ad-live bg-ad-credit-light"}`} />
+              {offline ? "Can't reach the server" : `Live · checked ${checkedAgo ?? 0}s ago`}
+            </span>
+            <span className="hidden text-white/70 md:inline">{user?.display_name}</span>
+            <button
+              onClick={() => {
+                logout();
+                navigate("/login");
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-1.5 text-xs font-bold transition hover:bg-white/20"
+            >
+              <Icon name="logout" className="h-4 w-4" />
+              Log out
+            </button>
+          </div>
+        </div>
+      </header>
 
-      <section className="bg-gradient-to-br from-ink to-[#3d4152] text-white">
-        <div className="mx-auto max-w-5xl px-4 py-10">
-          <h1 className="text-3xl font-extrabold sm:text-4xl">Price integrity</h1>
-          <p className="mt-2 max-w-2xl text-white/85">
-            Runners are reimbursed for what they spend. For items with no printed price,
-            these references are the only thing separating an honest claim from an invented
-            one — so the platform never moves a band without you.
+      {/* ------------------------------------------------------------- hero */}
+      <section className="relative overflow-hidden bg-[linear-gradient(135deg,#2F5A5B_0%,#274A4C_45%,#16302F_100%)] text-white">
+        <div className="ad-drift pointer-events-none absolute -top-40 -right-24 h-[460px] w-[460px] rounded-full bg-white/5" />
+        <div className="ad-drift-slow pointer-events-none absolute -bottom-36 left-[8%] h-72 w-72 rounded-full bg-[rgba(192,128,60,0.13)]" />
+        <div className="relative mx-auto max-w-7xl px-4 pt-9 pb-24">
+          <div className="text-xs font-bold uppercase tracking-[0.18em] text-white/60">Admin · VIT Vellore</div>
+          <h1 className="mt-1.5 text-4xl font-extrabold tracking-tight sm:text-5xl">Fraud review</h1>
+          <p className="mt-2 max-w-2xl text-[15px] text-white/80">
+            Every flag waits here for a person. Open one to see what happened, why the system flagged it, and the
+            history behind it. Nothing is decided without you.
           </p>
         </div>
       </section>
 
-      <div className="mx-auto max-w-5xl px-4 py-8">
-        <div className="flex flex-wrap gap-2 border-b border-line pb-3">
+      {/* ------------------------------------------------------- totals */}
+      <div className="relative z-10 mx-auto -mt-16 max-w-7xl px-4">
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[22px] bg-ad-line shadow-[0_14px_26px_rgba(23,32,31,0.14)] lg:grid-cols-4">
+          <Tile
+            label="Waiting for you"
+            value={ov ? String(ov.open) : "—"}
+            sub={
+              ov
+                ? (["price", "pattern", "payout", "ring", "ratings"] as FlagKind[])
+                    .filter((k) => ov.by_kind[k])
+                    .map((k) => `${ov.by_kind[k]} ${KIND[k].label.toLowerCase()}`)
+                    .join(" · ") || "Nothing open"
+                : ""
+            }
+          />
+          <Tile label="Held from price reports" value={ov ? rupees(ov.withheld) : "—"} money sub="Paid out or returned when you decide" />
+          <Tile label="Payouts frozen" value={ov ? rupees(ov.frozen) : "—"} money sub="Went over the money locked" />
+          <Tile label="People flagged" value={ov ? String(ov.people) : "—"} sub={ov?.latest_at ? `Latest ${timeAgo(ov.latest_at)}` : ""} />
+        </div>
+
+        {/* -------------------------------------------------------- tabs */}
+        <nav className="mt-5 flex gap-1 overflow-x-auto rounded-2xl border border-ad-line bg-white p-1" aria-label="Admin sections">
           {tabs.map(([key, label, count]) => (
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={`rounded-xl px-4 py-2 text-sm font-bold transition ${
-                tab === key
-                  ? "bg-brand text-white"
-                  : "text-muted hover:bg-brand-soft hover:text-brand-dark"
+              className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition ${
+                tab === key ? "bg-ad-brand text-white shadow-[0_8px_14px_rgba(39,74,76,0.3)]" : "text-ad-muted hover:bg-ad-wash hover:text-ad-brand"
               }`}
             >
               {label}
-              {count > 0 && <span className="ml-1.5 opacity-70">{count}</span>}
+              {count > 0 && (
+                <span className={`rounded-full px-1.5 text-xs ${tab === key ? "bg-white/20" : "bg-ad-chip"}`}>{count}</span>
+              )}
             </button>
           ))}
-        </div>
+        </nav>
+      </div>
 
-        {error && (
-          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
-        {tab === "flags" && (
-          <section className="mt-6 space-y-3">
-            <div className="flex flex-wrap justify-end gap-2">
-              <button
-                onClick={() => farmingSweep.mutate()}
-                disabled={farmingSweep.isPending}
-                className="rounded-xl border border-line px-4 py-2 text-sm font-semibold text-muted transition hover:border-brand hover:text-brand disabled:opacity-50"
-              >
-                {farmingSweep.isPending ? "..." : "\u2B50 Check rating provenance"}
-              </button>
-              <button
-                onClick={() => sweep.mutate()}
-                disabled={sweep.isPending}
-                className="rounded-xl border border-line px-4 py-2 text-sm font-semibold text-muted transition hover:border-brand hover:text-brand disabled:opacity-50"
-              >
-                {sweep.isPending ? "..." : "\u{1F517} Scan for collusion rings"}
-              </button>
-            </div>
-            {(flags ?? []).length === 0 ? (
-              <div className="rounded-2xl border-2 border-dashed border-line p-10 text-center">
-                <div className="text-4xl">✅</div>
-                <p className="mt-3 font-semibold">No open flags</p>
-                <p className="text-sm text-muted">
-                  Every reported price is sitting within its campus reference.
-                </p>
-              </div>
-            ) : (
-              flags!.map((f) => (
-                <FlagCard
-                  key={f.id}
-                  flag={f}
-                  busy={review.isPending}
-                  onReview={(uphold) => review.mutate({ id: f.id, uphold })}
-                />
-              ))
-            )}
-          </section>
-        )}
-
-        {tab === "proposals" && (
-          <section className="mt-6 space-y-3">
-            {(proposals ?? []).length === 0 ? (
-              <div className="rounded-2xl border-2 border-dashed border-line p-10 text-center">
-                <div className="text-4xl">📊</div>
-                <p className="mt-3 font-semibold">Nothing to approve</p>
-                <p className="text-sm text-muted">
-                  Proposals appear here when the going rate drifts against an approved band.
-                </p>
-              </div>
-            ) : (
-              proposals!.map((p) => (
-                <ProposalCard
-                  key={p.id}
-                  proposal={p}
-                  reference={refById.get(p.reference_price_id)}
-                  busy={approve.isPending || reject.isPending}
-                  onApprove={() => approve.mutate(p.id)}
-                  onReject={() => reject.mutate(p.id)}
-                />
-              ))
-            )}
-          </section>
-        )}
-
-        {tab === "aliases" && (
-          <section className="mt-6">
-            <div className="rounded-2xl border border-line p-5">
-              <h2 className="font-extrabold">Names that might mean a priced item</h2>
-              <p className="mt-1 text-sm text-muted">
-                Spelling checks already catch typos. These are the ones spelling
-                cannot reach &mdash; a different word for the same thing.
-                Nothing here affects a price check until you approve it.
+      <main className="mx-auto max-w-7xl px-4 pt-5 pb-16">
+        {tab === "flags" &&
+          (flags.length === 0 ? (
+            <div className="rounded-[22px] border border-ad-line bg-white px-6 py-14 text-center">
+              <span className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-ad-credit-bg text-ad-credit">
+                <Icon name="check" className="h-7 w-7" />
+              </span>
+              <p className="mt-3 text-lg font-extrabold">All clear</p>
+              <p className="mx-auto mt-1 max-w-md text-sm text-ad-muted">
+                Nothing is waiting. A new flag from the app shows up here within a few seconds, no refresh needed.
               </p>
-              <button
-                onClick={() => aliasSweep.mutate()}
-                disabled={aliasSweep.isPending}
-                className="mt-3 rounded-xl border border-line px-4 py-2 text-sm font-semibold text-muted transition hover:border-brand hover:text-brand disabled:opacity-50"
-              >
-                {aliasSweep.isPending ? "..." : "\u{1F524} Look for new name matches"}
-              </button>
+              <SweepButtons ring={ringSweep} rating={ratingSweep} />
             </div>
-
-            {(aliases ?? []).length === 0 ? (
-              <div className="mt-4 rounded-2xl border-2 border-dashed border-line p-10 text-center">
-                <p className="font-semibold">Nothing waiting</p>
-                <p className="text-sm text-muted">
-                  Suggestions appear when a reported item name matches nothing
-                  you have priced.
-                </p>
-              </div>
-            ) : (
-              <div className="mt-3 space-y-3">
-                {aliases!.map((a: ItemAlias) => (
-                  <div key={a.id} className="rounded-2xl border border-line p-5">
-                    <div className="flex flex-wrap items-center gap-2 text-sm">
-                      <span className="rounded-lg bg-brand-soft px-2.5 py-1 font-bold text-brand-dark">
-                        {a.sample_raw_name}
-                      </span>
-                      <span className="text-muted">is the same item as</span>
-                      <span className="rounded-lg bg-brand-soft px-2.5 py-1 font-bold text-brand-dark">
-                        {a.item_key}
-                      </span>
+          ) : (
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
+              {/* ------------------------------------------------ queue */}
+              <aside className="lg:sticky lg:top-[4.5rem] lg:self-start">
+                <div className="rounded-[22px] border border-ad-line bg-white">
+                  <div className="border-b border-ad-hair p-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-[15px] font-extrabold">Queue</h2>
+                      <span className="text-xs text-ad-muted">newest first</span>
                     </div>
-                    {a.reason && <p className="mt-2 text-sm text-muted">{a.reason}</p>}
-                    <p className="mt-2 text-xs text-muted">
-                      Approving means future claims for that name are checked
-                      against {a.item_key}. Reject anything that is a different
-                      size or variant &mdash; those are priced separately.
-                    </p>
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        onClick={() => alias.mutate({ id: a.id, approve: true })}
-                        disabled={alias.isPending}
-                        className="rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
-                      >
-                        Same item
-                      </button>
-                      <button
-                        onClick={() => alias.mutate({ id: a.id, approve: false })}
-                        disabled={alias.isPending}
-                        className="rounded-xl border border-line px-4 py-2 text-sm font-semibold text-muted transition hover:border-brand hover:text-brand disabled:opacity-50"
-                      >
-                        Different item
-                      </button>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {filters.map(([key, label]) => (
+                        <button
+                          key={key}
+                          onClick={() => setFilter(key)}
+                          className={`rounded-full px-3 py-1 text-xs font-bold transition ${
+                            filter === key ? "bg-ad-brand text-white" : "bg-ad-chip text-ad-ink-soft hover:bg-ad-tint"
+                          }`}
+                        >
+                          {label} {key === "all" ? flags.length : counts[key as FlagKind]}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
-
-        {tab === "prices" && (
-          <section className="mt-6">
-            <div className="rounded-2xl border border-line p-5">
-              <h2 className="font-extrabold">Price a new item</h2>
-              <p className="mt-1 text-sm text-muted">
-                Until an item is priced here, nobody can be flagged for it. The band is a
-                hard limit — automatic updates can move the reference inside it, never
-                outside.
-              </p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-6">
-                <input
-                  value={draft.display_name}
-                  onChange={(e) => setDraft({ ...draft, display_name: e.target.value })}
-                  placeholder="Chicken Puff"
-                  className="rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-brand sm:col-span-2"
-                />
-                {(
-                  [
-                    ["reference_price", "₹ typical"],
-                    ["band_min", "₹ min"],
-                    ["band_max", "₹ max"],
-                    ["tolerance_abs", "₹ flag over"],
-                  ] as const
-                ).map(([field, placeholder]) => (
-                  <input
-                    key={field}
-                    type="number"
-                    min={0}
-                    value={draft[field] || ""}
-                    onChange={(e) => setDraft({ ...draft, [field]: Number(e.target.value) })}
-                    placeholder={placeholder}
-                    className="rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-brand"
-                  />
-                ))}
-              </div>
-              <button
-                onClick={() => create.mutate(draft)}
-                disabled={create.isPending || !draft.display_name.trim()}
-                className="mt-3 rounded-xl bg-brand px-5 py-2 text-sm font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
-              >
-                Add price
-              </button>
-            </div>
-
-            <div className="mt-6 flex items-center justify-between">
-              <h2 className="text-xl font-extrabold">Current references</h2>
-              <button
-                onClick={() => refresh.mutate()}
-                disabled={refresh.isPending}
-                className="rounded-xl border border-line px-4 py-2 text-sm font-semibold text-muted transition hover:border-brand hover:text-brand disabled:opacity-50"
-              >
-                {refresh.isPending ? "…" : "Re-estimate from claims"}
-              </button>
-            </div>
-
-            {(references ?? []).length === 0 ? (
-              <div className="mt-4 rounded-2xl border-2 border-dashed border-line p-10 text-center text-muted">
-                No items priced yet.
-              </div>
-            ) : (
-              <div className="mt-3 overflow-x-auto rounded-2xl border border-line">
-                <table className="w-full text-sm">
-                  <thead className="bg-brand-soft/60 text-left text-xs uppercase tracking-wide text-muted">
-                    <tr>
-                      <th className="px-4 py-2.5 font-bold">Item</th>
-                      <th className="px-4 py-2.5 font-bold">Reference</th>
-                      <th className="px-4 py-2.5 font-bold">Band</th>
-                      <th className="px-4 py-2.5 font-bold">Flag over</th>
-                      <th className="px-4 py-2.5 font-bold">Source</th>
-                      <th className="px-4 py-2.5 font-bold">Samples</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line">
-                    {references!.map((r) => (
-                      <tr key={r.id}>
-                        <td className="px-4 py-3 font-semibold text-ink">{r.display_name}</td>
-                        <td className="px-4 py-3 font-bold">
-                          ₹{Number(r.reference_price).toFixed(0)}
-                        </td>
-                        <td className="px-4 py-3 text-muted">
-                          ₹{Number(r.band_min).toFixed(0)}–₹{Number(r.band_max).toFixed(0)}
-                        </td>
-                        <td className="px-4 py-3 text-muted">
-                          +₹{Number(r.tolerance_abs).toFixed(0)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                              r.source === "ADMIN"
-                                ? "bg-brand-soft text-brand-dark"
-                                : "bg-slate-100 text-slate-600"
+                  <ul className="max-h-[calc(100vh-17rem)] space-y-1 overflow-y-auto p-2">
+                    {visible.map((f) => {
+                      const k = kindOf(f);
+                      const isFresh = fresh[f.id] && Date.now() - fresh[f.id] < FRESH_MS;
+                      const active = f.id === selected;
+                      return (
+                        <li key={f.id} className={isFresh ? "ad-arrive" : ""}>
+                          <button
+                            onClick={() => open(f.id)}
+                            aria-current={active ? "true" : undefined}
+                            className={`flex w-full gap-3 rounded-2xl border p-3 text-left transition focus-visible:outline-2 focus-visible:outline-ad-brand ${
+                              active
+                                ? "border-ad-brand/40 bg-ad-wash shadow-[0_6px_14px_rgba(23,32,31,0.06)]"
+                                : "border-transparent hover:bg-ad-soft"
                             }`}
                           >
-                            {r.source === "ADMIN" ? "you" : "auto"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-muted">{r.sample_count}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                            <KindBadge kind={k} />
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-center justify-between gap-2">
+                                <span className="truncate text-sm font-extrabold text-ad-ink">{f.subject_name ?? "Unknown student"}</span>
+                                <span className="shrink-0 text-[11px] text-ad-muted">{timeAgo(f.created_at)}</span>
+                              </span>
+                              <span className="mt-0.5 block truncate text-[13px] text-ad-ink-soft">{f.headline}</span>
+                              <span className="mt-1 flex items-center gap-2">
+                                <span className={`text-[11px] font-bold ${KIND[k].tone}`}>{KIND[k].label}</span>
+                                <SeverityDots level={f.severity} />
+                                {isFresh && (
+                                  <span className="rounded-full bg-ad-money px-1.5 py-px text-[10px] font-extrabold uppercase text-white">New</span>
+                                )}
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <div className="border-t border-ad-hair p-3">
+                    <SweepButtons ring={ringSweep} rating={ratingSweep} compact />
+                  </div>
+                </div>
+              </aside>
+
+              {/* ------------------------------------------------ case */}
+              <div ref={detailRef} className="min-w-0 scroll-mt-20">
+                {caseQ.data && caseQ.data.flag_id === selected ? (
+                  <CaseView
+                    data={caseQ.data}
+                    busy={review.isPending}
+                    onDecide={(uphold) => review.mutate({ id: caseQ.data!.flag_id, uphold })}
+                  />
+                ) : caseQ.isError ? (
+                  <div className="rounded-[22px] border border-ad-caution-border bg-ad-caution-bg p-6 text-sm text-ad-caution">
+                    {apiErrorMessage(caseQ.error, "Couldn't load this flag.")}
+                  </div>
+                ) : (
+                  <CaseSkeleton />
+                )}
               </div>
-            )}
-          </section>
-        )}
+            </div>
+          ))}
+
+        {tab === "proposals" && <ProposalsTab />}
+        {tab === "prices" && <PricesTab />}
+        {tab === "aliases" && <AliasesTab />}
+      </main>
+
+      {/* ------------------------------------------------------------ toasts */}
+      <div className="pointer-events-none fixed right-4 bottom-4 z-50 flex w-[min(360px,calc(100vw-2rem))] flex-col gap-2" aria-live="polite">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className={`ad-toast pointer-events-auto rounded-2xl border p-3.5 shadow-[0_14px_26px_rgba(23,32,31,0.18)] ${
+              t.tone === "new"
+                ? "border-ad-money/40 bg-ad-deep text-white"
+                : t.tone === "error"
+                  ? "border-ad-caution-border bg-ad-caution-bg text-ad-caution"
+                  : "border-ad-line bg-white text-ad-ink"
+            }`}
+          >
+            <div className="flex items-start gap-2.5">
+              <Icon name={t.tone === "new" ? "bolt" : t.tone === "error" ? "x" : "check"} className="mt-0.5 h-5 w-5 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-extrabold">{t.title}</div>
+                {t.body && <div className={`text-xs ${t.tone === "new" ? "text-white/75" : "opacity-80"}`}>{t.body}</div>}
+                {t.flagId && (
+                  <button onClick={() => open(t.flagId!)} className="mt-1.5 text-xs font-extrabold text-ad-money-light hover:underline">
+                    Open it
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
+    </div>
+  );
+}
+
+function Tile({ label, value, sub, money = false }: { label: string; value: string; sub?: string; money?: boolean }) {
+  return (
+    <div className="bg-white px-5 py-4">
+      <div className="text-[11px] font-bold uppercase tracking-wider text-ad-muted">{label}</div>
+      <div className={`mt-1 text-3xl font-extrabold tracking-tight ${money ? "text-ad-money-text" : "text-ad-ink"}`}>{value}</div>
+      {sub && <div className="mt-0.5 truncate text-xs text-ad-muted">{sub}</div>}
+    </div>
+  );
+}
+
+function SweepButtons({
+  ring,
+  rating,
+  compact = false,
+}: {
+  ring: { mutate: () => void; isPending: boolean };
+  rating: { mutate: () => void; isPending: boolean };
+  compact?: boolean;
+}) {
+  const cls =
+    "inline-flex items-center justify-center gap-1.5 rounded-xl border border-ad-outline bg-white px-3 py-2 text-xs font-bold text-ad-ink-soft transition hover:border-ad-brand hover:text-ad-brand disabled:opacity-50";
+  return (
+    <div className={compact ? "grid grid-cols-2 gap-2" : "mt-5 flex flex-wrap justify-center gap-2"}>
+      <button onClick={() => ring.mutate()} disabled={ring.isPending} className={cls}>
+        <Icon name="ring" className="h-4 w-4" />
+        {ring.isPending ? "Checking…" : "Check for rings now"}
+      </button>
+      <button onClick={() => rating.mutate()} disabled={rating.isPending} className={cls}>
+        <Icon name="ratings" className="h-4 w-4" />
+        {rating.isPending ? "Checking…" : "Check ratings now"}
+      </button>
+    </div>
+  );
+}
+
+function CaseSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true">
+      {[120, 180, 260].map((h) => (
+        <div key={h} className="animate-pulse rounded-[22px] border border-ad-line bg-white" style={{ height: h }} />
+      ))}
     </div>
   );
 }

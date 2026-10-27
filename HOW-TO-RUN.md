@@ -9,11 +9,16 @@ Redis) and the **frontend** (Vite dev server). Use two separate terminal windows
 docker compose up -d --build
 docker compose exec backend alembic upgrade head
 docker compose exec backend python -m app.seed        # creates a campus + test user
+docker compose exec backend python -m app.demo_cases  # optional: realistic fraud cases for the admin console
 cd frontend
 npm install
 ```
 
 Test login after seeding: `test.student@vitstudent.ac.in` / `password123`
+
+Admin console: log in as `admin@vitstudent.ac.in` and open http://localhost:5173/admin/fraud.
+The demo cases add a collusion ring, a rating-farming case and a runner who always prices
+just under the limit, all found by the real detectors.
 
 ## Every time — Terminal 1 (backend)
 

@@ -12,7 +12,7 @@ from app.core.redis import get_redis
 from app.modules.auth.dependencies import require_active_user, require_admin
 from app.modules.auth.models import User
 from app.modules.errands.models import Errand
-from app.modules.fraud import search
+from app.modules.fraud import case, search
 from app.modules.fraud import service as fraud
 from app.modules.fraud.models import (
     FraudFlag,
@@ -430,12 +430,44 @@ async def list_flags(
     db: AsyncSession = Depends(get_db),
 ):
     rows = await db.execute(
-        select(FraudFlag)
+        select(FraudFlag, User.display_name)
+        .join(User, User.id == FraudFlag.user_id, isouter=True)
         .where(FraudFlag.status == status)
-        .order_by(FraudFlag.created_at.desc())
+        .order_by(FraudFlag.created_at.desc(), FraudFlag.id)
         .limit(200)
     )
-    return [FlagOut.model_validate(f) for f in rows.scalars()]
+    return [
+        FlagOut.model_validate(f).model_copy(
+            update={"subject_name": case.subject_label(f, name), "headline": case.headline(f)}
+        )
+        for f, name in rows.all()
+    ]
+
+
+@router.get("/overview")
+async def flags_overview(
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """The counts and rupee totals across the top of the admin console."""
+    return await case.overview(db)
+
+
+@router.get("/flags/{flag_id}/case")
+async def flag_case(
+    flag_id: uuid.UUID,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """What happened, why it was flagged, and the history a reviewer needs.
+
+    Read-only, and built from the source tables rather than only the flag's
+    stored details, so an older flag with thin details still has evidence.
+    """
+    flag = await db.get(FraudFlag, flag_id)
+    if flag is None:
+        raise HTTPException(404, "Flag not found.")
+    return await case.build_case(db, flag)
 
 
 @router.post("/flags/{flag_id}/review", response_model=FlagOut)

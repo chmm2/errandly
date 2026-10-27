@@ -151,7 +151,111 @@ export interface Flag {
   status: "OPEN" | "UPHELD" | "DISMISSED";
   created_at: string;
   reviewed_at: string | null;
+  /** Who the flag is about, filled by the admin list. */
+  subject_name?: string | null;
+  /** One line saying what happened, for the queue. */
+  headline?: string | null;
 }
+
+export type FlagKind = "price" | "pattern" | "payout" | "ring" | "ratings" | "other";
+
+export interface Overview {
+  open: number;
+  by_kind: Partial<Record<FlagKind, number>>;
+  people: number;
+  /** Held back from price claims that are still waiting for a decision. */
+  withheld: number;
+  /** Escrow frozen because a payout went over the locked amount. */
+  frozen: number;
+  latest_at: string | null;
+}
+
+export interface CaseRecord {
+  flags: {
+    id: string;
+    kind: FlagKind;
+    title: string;
+    status: Flag["status"];
+    created_at: string;
+    reviewed_at: string | null;
+    is_this: boolean;
+  }[];
+  strikes: {
+    action: Strike["action"];
+    level: number;
+    reason: string;
+    created_at: string;
+    expires_at: string | null;
+    lifted_at: string | null;
+  }[];
+  upheld_before: number;
+  dismissed_before: number;
+  price_flags_in_window: number;
+  window_days: number;
+  next_action_at: number | null;
+}
+
+export interface FlagCase {
+  flag_id: string;
+  kind: FlagKind;
+  rule: string;
+  title: string;
+  status: Flag["status"];
+  severity: number;
+  created_at: string;
+  subject: {
+    id: string;
+    name: string;
+    email: string | null;
+    joined: string | null;
+    rating: number | null;
+    rating_count: number;
+    account_status: string | null;
+    runs_completed: number;
+    errands_posted: number;
+  };
+  errand: {
+    id: string;
+    title: string;
+    category: string;
+    pickup: string;
+    requester: string;
+    runner: string | null;
+    status: string;
+    reward: number | null;
+    created_at: string;
+    completed_at: string | null;
+    hold: { amount: number | null; released: number | null; remaining: number; status: string } | null;
+  } | null;
+  /** The gist in plain sentences, already written for a reviewer. */
+  story: string[];
+  // Shapes differ per kind; each panel in the admin console reads its own.
+  evidence: any;
+  history: any;
+  record: CaseRecord;
+  decision: {
+    dismiss: string;
+    dismiss_effect: string;
+    uphold: string;
+    uphold_effect: string;
+  } | null;
+}
+
+export async function fetchOverview(): Promise<Overview> {
+  return (await api.get<Overview>("/fraud/overview")).data;
+}
+
+export async function fetchCase(flagId: string): Promise<FlagCase> {
+  return (await api.get<FlagCase>(`/fraud/flags/${flagId}/case`)).data;
+}
+
+export const FLAG_KIND: Record<string, FlagKind> = {
+  CLAIM_ABOVE_REFERENCE: "price",
+  PERSISTENT_NEAR_THRESHOLD: "pattern",
+  PAYOUT_EXCEEDS_HOLD: "payout",
+  COLLUSION_RING: "ring",
+  RATING_FARMING: "ratings",
+};
 
 // ---------------------------------------------------------------- runner
 

@@ -934,3 +934,79 @@ async def test_an_alias_cannot_be_decided_twice(client, campus, make_user):
         f"/fraud/aliases/{alias_id}/decide", params={"approve": True}, headers=a_headers
     )
     assert again.status_code == 409
+
+
+# ------------------------------------------------------------ admin case file
+
+
+async def test_the_queue_names_the_person_and_the_case_explains_the_claim(
+    client, campus, make_user
+):
+    """A reviewer must see who and what without decoding a rule name, and the
+    case must carry the evidence behind the flag, not just its verdict."""
+    runner_id, run_headers = await make_user("Case Runner")
+    _, r_headers = await make_user("Case Requester")
+    _, a_headers = await make_admin(client, make_user)
+    await price_item(client, a_headers, price=20, lo=15, hi=30, tolerance=20)
+
+    errand = (await place_order(client, r_headers, reward=30, collect=100)).json()
+    await accept(client, errand["id"], run_headers)
+    await client.post(
+        f"/fraud/errands/{errand['id']}/claims",
+        json={"lines": [{"name": "Chicken Puff", "unit_price": 45, "quantity": 2}]},
+        headers=run_headers,
+    )
+
+    flags = (await client.get("/fraud/flags", headers=a_headers)).json()
+    flag = next(f for f in flags if f["user_id"] == str(runner_id))
+    assert flag["subject_name"] == "Case Runner"
+    assert "₹45" in flag["headline"] and "₹20" in flag["headline"]
+
+    case = await client.get(f"/fraud/flags/{flag['id']}/case", headers=a_headers)
+    assert case.status_code == 200, case.text
+    body = case.json()
+    assert body["kind"] == "price"
+    assert body["subject"]["name"] == "Case Runner"
+    assert body["evidence"]["withheld"] == 50.0
+    assert any("₹45" in line for line in body["story"])
+    this = [c for c in body["history"]["item_claims"] if c["is_this"]]
+    assert len(this) == 1 and this[0]["verdict"] == "FLAGGED"
+    assert body["decision"]["dismiss"] and body["decision"]["uphold"]
+
+    overview = (await client.get("/fraud/overview", headers=a_headers)).json()
+    assert overview["open"] >= 1 and overview["withheld"] >= 50.0
+
+
+async def test_a_ring_verdict_closes_every_members_flag(client, campus, make_user):
+    """A ring is one finding written as a flag per member. Dismissing it as
+    genuine friends must free the whole group, and touch no other ring."""
+    _, a_headers = await make_admin(client, make_user)
+    members = [(await make_user(f"Ring {i}"))[0] for i in range(3)]
+    signature = uuid.uuid4().hex
+    other_signature = uuid.uuid4().hex
+    async with SessionLocal() as db:
+        everyone = [str(x) for x in members]
+        for m in members:
+            db.add(FraudFlag(user_id=m, rule="COLLUSION_RING", severity=3, status="OPEN",
+                             details={"signature": signature, "members": everyone}))
+        db.add(FraudFlag(user_id=members[0], rule="COLLUSION_RING", severity=3, status="OPEN",
+                         details={"signature": other_signature, "members": everyone[:1]}))
+        await db.commit()
+        first = await db.scalar(
+            select(FraudFlag).where(FraudFlag.details["signature"].astext == signature)
+        )
+
+    resp = await client.post(
+        f"/fraud/flags/{first.id}/review", json={"uphold": False}, headers=a_headers
+    )
+    assert resp.status_code == 200, resp.text
+
+    async with SessionLocal() as db:
+        statuses = {
+            sig: [f.status for f in await db.scalars(
+                select(FraudFlag).where(FraudFlag.details["signature"].astext == sig)
+            )]
+            for sig in (signature, other_signature)
+        }
+    assert statuses[signature] == ["DISMISSED"] * 3
+    assert statuses[other_signature] == ["OPEN"]
